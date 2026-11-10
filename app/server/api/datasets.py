@@ -129,7 +129,7 @@ class DatasetEndpoint:
             )
         except ValueError as exc:
             raise self.bad_request(exc) from exc
-        await self.sync.queue_uploaded_species_resolution()
+        await self.sync.queue_uploaded_species_resolution(result.dataset.id)
         return result
 
     # -------------------------------------------------------------------------

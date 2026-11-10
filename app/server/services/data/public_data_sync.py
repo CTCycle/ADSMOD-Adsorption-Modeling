@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from functools import partial
@@ -12,8 +13,13 @@ from typing import Any, Awaitable, Callable
 from server.common.utils.logger import logger
 from server.configurations.settings import PublicDataConfig
 from server.repositories.public_data import PublicDataRepository
+from server.repositories.schemas.types import normalize_identity
 from server.services.data.nist_service import NISTDataService
-from server.services.data.public_data import IdentityReviewRequired, PublicDataService
+from server.services.data.public_data import (
+    IdentityReviewRequired,
+    PublicDataService,
+    _cod_search_name,
+)
 from server.services.providers.public_data import (
     ProviderHealth,
     ProviderError,
@@ -25,10 +31,37 @@ NIST_CATEGORIES = ("experiments", "guest", "host")
 # A negative result (not found, ambiguous, sent to review) is reconsidered after
 # this long, so later provider data or local fixes can still resolve the record.
 NEGATIVE_RESULT_TTL = timedelta(days=30)
+# Progress and cancellation are persisted at most this often (records or seconds).
+PROGRESS_WRITE_RECORDS = 25
+PROGRESS_WRITE_SECONDS = 2.0
 
 
 ProgressCallback = Callable[[dict[str, Any]], Awaitable[None]]
 CancelCheck = Callable[[], Awaitable[bool]]
+
+###############################################################################
+class _Throttle:
+    """Allow an action on the first call, then every N units or T seconds."""
+
+    # -------------------------------------------------------------------------
+    def __init__(self) -> None:
+        self._last: float | None = None
+        self._units = 0
+
+    # -------------------------------------------------------------------------
+    def due(self, units: int = 1) -> bool:
+        self._units += units
+        now = time.monotonic()
+        if (
+            self._last is None
+            or self._units >= PROGRESS_WRITE_RECORDS
+            or now - self._last >= PROGRESS_WRITE_SECONDS
+        ):
+            self._last = now
+            self._units = 0
+            return True
+        return False
+
 
 ###############################################################################
 class PublicDataSyncCoordinator:
@@ -199,19 +232,24 @@ class PublicDataSyncCoordinator:
             return run
 
     # -------------------------------------------------------------------------
-    async def queue_uploaded_species_resolution(self) -> None:
-        """After an upload, resolve new species in the background when enabled."""
+    async def queue_uploaded_species_resolution(self, dataset_id: int) -> None:
+        """After an upload, resolve that dataset's new species when enabled."""
         config, _, _ = self._active_settings()
         if not config.auto_resolve_uploaded_species:
             return
+        adsorbate_ids = await asyncio.to_thread(
+            self.repository.dataset_adsorbate_ids, dataset_id
+        )
         pending = await asyncio.to_thread(
-            self.repository.pubchem_enrichment_candidates, 1, 1.0
+            self.repository.pubchem_enrichment_candidates, 1, 1.0, adsorbate_ids
         )
         if not pending:
             return
         try:
             await self.enqueue(
-                source_key="pubchem", operation="pubchem_enrich", parameters={}
+                source_key="pubchem",
+                operation="pubchem_enrich",
+                parameters={"adsorbate_ids": adsorbate_ids},
             )
         except RuntimeError as exc:
             logger.warning("Species resolution was not queued: %s", exc)
@@ -378,6 +416,12 @@ class PublicDataSyncCoordinator:
             },
             "checkpoint": dict(run.get("checkpoint", {})),
             "progress": float(run.get("progress", 0.0)),
+            "write_gate": _Throttle(),
+            "cancel_gate": _Throttle(),
+            "cancelled": False,
+            "unwritten": None,
+            "seen_processed": 0,
+            "written_failed": 0,
         }
         _, public_data, _ = self._active_settings()
         provider = public_data.providers.get(source_key)
@@ -394,10 +438,11 @@ class PublicDataSyncCoordinator:
                 run=run,
                 state=state,
                 on_progress=partial(self._record_progress, run_id, state),
-                should_cancel=partial(self._should_cancel, run_id),
+                should_cancel=partial(self._should_cancel, run_id, state),
                 update=update,
             )
         except asyncio.CancelledError:
+            await asyncio.shield(self._flush_progress(run_id, state))
             await asyncio.shield(
                 update(
                     status="interrupted",
@@ -408,6 +453,7 @@ class PublicDataSyncCoordinator:
             )
             raise
         except Exception as exc:  # noqa: BLE001
+            await self._flush_progress(run_id, state)
             await self._record_operation_failure(
                 run_id=run_id,
                 source_key=source_key,
@@ -427,30 +473,50 @@ class PublicDataSyncCoordinator:
         await asyncio.to_thread(self.repository.update_sync_run, run_id, **values)
 
     # -------------------------------------------------------------------------
-    async def _should_cancel(self, run_id: str) -> bool:
-        return await asyncio.to_thread(
-            self.repository.sync_cancel_requested, run_id
-        ) or self._closing
+    async def _should_cancel(self, run_id: str, state: dict[str, Any]) -> bool:
+        """Poll the database at most every few records or seconds; cancel sticks."""
+        if self._closing or state["cancelled"]:
+            return True
+        if state["cancel_gate"].due():
+            state["cancelled"] = await asyncio.to_thread(
+                self.repository.sync_cancel_requested, run_id
+            )
+        return state["cancelled"]
 
     # -------------------------------------------------------------------------
     async def _record_progress(
         self, run_id: str, state: dict[str, Any], payload: dict[str, Any]
     ) -> None:
+        """Merge a progress payload; persist the first, failing and periodic ones."""
         state["progress"] = max(state["progress"], float(payload.get("progress", 0.0)))
         state["checkpoint"] = {
             **state["checkpoint"],
             **self._checkpoint_values(payload),
         }
         counts = state["counts"]
-        await self._update_run(
-            run_id,
-            progress=state["progress"],
-            processed_count=counts["processed"] + int(payload.get("processed_count", 0)),
-            imported_count=counts["imported"] + int(payload.get("imported_count", 0)),
-            skipped_count=counts["skipped"] + int(payload.get("skipped_count", 0)),
-            failed_count=counts["failed"] + int(payload.get("failed_count", 0)),
-            checkpoint=state["checkpoint"],
-        )
+        values = {
+            "progress": state["progress"],
+            "processed_count": counts["processed"] + int(payload.get("processed_count", 0)),
+            "imported_count": counts["imported"] + int(payload.get("imported_count", 0)),
+            "skipped_count": counts["skipped"] + int(payload.get("skipped_count", 0)),
+            "failed_count": counts["failed"] + int(payload.get("failed_count", 0)),
+            "checkpoint": state["checkpoint"],
+        }
+        state["unwritten"] = values
+        processed = int(payload.get("processed_count", 0))
+        units = max(1, processed - state["seen_processed"])
+        state["seen_processed"] = processed
+        failed = int(payload.get("failed_count", 0))
+        if state["write_gate"].due(units) or failed > state["written_failed"]:
+            state["written_failed"] = failed
+            await self._flush_progress(run_id, state)
+
+    # -------------------------------------------------------------------------
+    async def _flush_progress(self, run_id: str, state: dict[str, Any]) -> None:
+        values = state["unwritten"]
+        if values is not None:
+            state["unwritten"] = None
+            await self._update_run(run_id, **values)
 
     # -------------------------------------------------------------------------
     async def _execute_claimed_run(
@@ -577,10 +643,14 @@ class PublicDataSyncCoordinator:
     # -------------------------------------------------------------------------
     @staticmethod
     def _run_cap(config: Any, parameters: dict[str, Any]) -> int | None:
-        """Only scheduled refreshes are capped; a requested share runs in full."""
-        if parameters.get("trigger") == "scheduled":
-            return int(config.sync_max_records_per_run)
-        return None
+        """Cap every run at `sync_max_records_per_run`, except targeted NIST lists.
+
+        Explicit identifier lists are user selections and run in full. Capped
+        runs report `pending_count`, so another run continues the share.
+        """
+        if parameters.get("identifiers"):
+            return None
+        return int(config.sync_max_records_per_run)
 
     # -------------------------------------------------------------------------
     async def _run_nist_category(
@@ -642,6 +712,11 @@ class PublicDataSyncCoordinator:
                 "local_count": int(result.get("local_count", 0)),
                 "request_stats": dict(result.get("request_stats") or {}),
                 **(
+                    {"pending_count": int(result["pending_count"])}
+                    if "pending_count" in result
+                    else {}
+                ),
+                **(
                     {"dependency_failures": dependency_failures}
                     if dependency_failures
                     else {}
@@ -676,15 +751,19 @@ class PublicDataSyncCoordinator:
         run_id = str(run["id"])
         config, public_data, _ = self._active_settings()
         conformers = bool(run["parameters"].get("conformers"))
-        candidates = await asyncio.to_thread(
-            (
-                self.repository.conformer_candidates
-                if conformers
-                else self.repository.pubchem_enrichment_candidates
-            ),
-            self._run_cap(config, run["parameters"]),
-            float(run["parameters"].get("fraction", 1.0)),
-        )
+        fraction = float(run["parameters"].get("fraction", 1.0))
+        if conformers:
+            eligible = await asyncio.to_thread(
+                self.repository.conformer_candidates, None, fraction
+            )
+        else:
+            eligible = await asyncio.to_thread(
+                self.repository.pubchem_enrichment_candidates,
+                None,
+                fraction,
+                run["parameters"].get("adsorbate_ids"),
+            )
+        candidates = self._capped(eligible, self._run_cap(config, run["parameters"]))
         counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}
         entity_ids: list[int] = []
         for candidate in candidates:
@@ -715,7 +794,7 @@ class PublicDataSyncCoordinator:
                 {
                     "progress": 100.0 * counts["processed"] / len(candidates),
                     **{f"{key}_count": value for key, value in counts.items()},
-                    "pending_count": len(candidates) - counts["processed"],
+                    "pending_count": len(eligible) - counts["processed"],
                     "entity_ids": entity_ids,
                 }
             )
@@ -724,9 +803,14 @@ class PublicDataSyncCoordinator:
             "checkpoint": {
                 "entity_ids": entity_ids,
                 "candidate_count": len(candidates),
-                "pending_count": len(candidates) - counts["processed"],
+                "pending_count": len(eligible) - counts["processed"],
             },
         }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _capped(eligible: list[dict[str, Any]], cap: int | None) -> list[dict[str, Any]]:
+        return eligible if cap is None else eligible[: max(1, cap)]
 
     # -------------------------------------------------------------------------
     def _retry_time(self, error: Exception) -> datetime | None:
@@ -777,10 +861,10 @@ class PublicDataSyncCoordinator:
             raise ValueError(
                 "The saved COD checkpoint does not match the selected identifiers."
             )
+        checkpoint_frozen = False
         for cod_id in selected_ids[start_index:]:
             if await should_cancel():
                 break
-            last_external_id = cod_id
             try:
                 entity_id, imported = await public_data.import_cod(
                     cod_id, parameters.get("adsorbent_id")
@@ -789,6 +873,7 @@ class PublicDataSyncCoordinator:
                 counts["imported" if imported else "skipped"] += 1
             except (ProviderError, ValueError, LookupError) as exc:
                 counts["failed"] += 1
+                checkpoint_frozen = True
                 await self._store_failure(
                     run_id,
                     "cod",
@@ -796,11 +881,16 @@ class PublicDataSyncCoordinator:
                     str(exc) or exc.__class__.__name__,
                     self._retry_time(exc),
                 )
+            # The checkpoint stops before a failed record, so a resume replays it.
+            if not checkpoint_frozen:
+                last_external_id = cod_id
             counts["processed"] += 1
             processed_count = processed_before + counts["processed"]
             await on_progress(
                 {
-                    "progress": 100.0 * processed_count / max(1, len(selected_ids)),
+                    "progress": min(
+                        100.0, 100.0 * processed_count / max(1, len(selected_ids))
+                    ),
                     **{f"{key}_count": value for key, value in counts.items()},
                     "pending_count": max(0, len(requested_ids) - processed_count),
                     "last_external_id": last_external_id,
@@ -832,54 +922,73 @@ class PublicDataSyncCoordinator:
 
         Only unique exact name matches are imported and linked; unavailable
         and ambiguous materials are recorded as skips and reconsidered only
-        after NEGATIVE_RESULT_TTL.
+        after NEGATIVE_RESULT_TTL. Materials sharing a search name are looked
+        up once; a structure links to a single material, so the first one gets
+        it and the others are recorded as skips.
         """
         run_id = str(run["id"])
         config, public_data, _ = self._active_settings()
-        candidates = await asyncio.to_thread(
+        eligible = await asyncio.to_thread(
             self.repository.cod_bulk_candidates,
-            self._run_cap(config, run["parameters"]),
+            None,
             float(run["parameters"]["fraction"]),
         )
+        candidates = self._capped(eligible, self._run_cap(config, run["parameters"]))
+        groups: dict[str, list[dict[str, Any]]] = {}
+        for candidate in candidates:
+            key = normalize_identity(_cod_search_name(str(candidate["name"])))
+            groups.setdefault(key, []).append(candidate)
         counts = {"processed": 0, "imported": 0, "skipped": 0, "failed": 0}
         entity_ids: list[int] = []
-        for candidate in candidates:
+        for group in groups.values():
             if await should_cancel():
                 break
-            external_id = f"adsorbent:{candidate['id']}"
+            first = group[0]
             try:
                 structure_id, imported, reason = await public_data.import_cod_for_material(
-                    int(candidate["id"]), str(candidate["name"])
+                    int(first["id"]), str(first["name"])
                 )
             except (ProviderError, ValueError, LookupError) as exc:
-                counts["failed"] += 1
-                await self._store_failure(
-                    run_id,
-                    "cod",
-                    external_id,
-                    f"{candidate['name']}: {exc or exc.__class__.__name__}",
-                    self._retry_time(exc),
-                )
+                counts["failed"] += len(group)
+                for member in group:
+                    await self._store_failure(
+                        run_id,
+                        "cod",
+                        f"adsorbent:{member['id']}",
+                        f"{member['name']}: {exc or exc.__class__.__name__}",
+                        self._retry_time(exc),
+                    )
             else:
                 if structure_id is None:
+                    outcomes = [(member, reason) for member in group]
+                else:
+                    entity_ids.append(structure_id)
+                    counts["imported" if imported else "skipped"] += 1
+                    outcomes = [
+                        (
+                            member,
+                            f"COD structure {structure_id} is already linked to "
+                            f"material {first['id']} ({first['name']}); a structure "
+                            "links to one material.",
+                        )
+                        for member in group[1:]
+                    ]
+                for member, member_reason in outcomes:
                     counts["skipped"] += 1
                     await self._store_failure(
                         run_id,
                         "cod",
-                        external_id,
-                        f"{candidate['name']}: {reason}",
+                        f"adsorbent:{member['id']}",
+                        f"{member['name']}: {member_reason}",
                         self._negative_retry_time(),
                     )
-                else:
-                    entity_ids.append(structure_id)
-                    counts["imported" if imported else "skipped"] += 1
-            counts["processed"] += 1
+            counts["processed"] += len(group)
             await on_progress(
                 {
                     "progress": 100.0 * counts["processed"] / len(candidates),
                     **{f"{key}_count": value for key, value in counts.items()},
-                    "pending_count": len(candidates) - counts["processed"],
-                    "last_external_id": external_id,
+                    "pending_count": len(eligible) - counts["processed"],
+                    "last_external_id": f"adsorbent:{group[-1]['id']}",
                     "entity_ids": entity_ids,
                 }
             )
@@ -888,7 +997,7 @@ class PublicDataSyncCoordinator:
             "checkpoint": {
                 "entity_ids": entity_ids,
                 "candidate_count": len(candidates),
-                "pending_count": len(candidates) - counts["processed"],
+                "pending_count": len(eligible) - counts["processed"],
             },
         }
 

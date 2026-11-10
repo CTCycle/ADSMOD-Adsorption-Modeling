@@ -18,7 +18,7 @@ from server.repositories.database.manager import DatabaseManager
 from server.repositories.public_data import PublicDataRepository
 from server.repositories.schemas import Base
 from server.services.data.public_data import PublicDataService
-from server.services.data.public_data_sync import PublicDataSyncCoordinator
+from server.services.data.public_data_sync import PublicDataSyncCoordinator, _Throttle
 from server.services.data.nist_service import NISTDataService
 from server.services.data.nistads import NISTApiClient
 from server.services.providers.nist import NISTPublicDataProvider
@@ -666,7 +666,7 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
             assert observed == {
                 "processed_before": 100,
                 "resume_after_external_id": "record-100",
-                "max_records": None,
+                "max_records": 200,
             }
             assert resumed["status"] == "partially_completed"
             assert resumed["progress"] == 100.0
@@ -1549,3 +1549,205 @@ def test_conformers_flag_applies_only_to_pubchem_enrichment() -> None:
 def test_fraction_count_applies_cap_only_when_given() -> None:
     assert PublicDataRepository._fraction_count(9328, 0.25, None) == 2332
     assert PublicDataRepository._fraction_count(9328, 0.25, 200) == 200
+
+
+###############################################################################
+def _stub_coordinator(
+    config: PublicDataConfig | None = None, **parts: Any
+) -> PublicDataSyncCoordinator:
+    from types import SimpleNamespace
+
+    parts.setdefault("repository", SimpleNamespace(add_sync_failure=lambda **_: None))
+    parts.setdefault("public_data", SimpleNamespace(providers={}))
+    return PublicDataSyncCoordinator(
+        nist=_Nist(),  # type: ignore[arg-type]
+        config=config or PublicDataConfig(),
+        **parts,
+    )
+
+
+async def _collect_run(
+    call: Any, run: dict[str, Any]
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    events: list[dict[str, Any]] = []
+
+    async def progress(payload: dict[str, Any]) -> None:
+        events.append(payload)
+
+    async def never() -> bool:
+        return False
+
+    return await call(run, on_progress=progress, should_cancel=never), events
+
+
+def test_cod_checkpoint_never_advances_past_a_failed_id() -> None:
+    from types import SimpleNamespace
+
+    attempts: list[str] = []
+    failing = {"2"}
+
+    async def import_cod(cod_id: str, adsorbent_id: int | None = None) -> Any:
+        attempts.append(cod_id)
+        if cod_id in failing:
+            raise ValueError("boom")
+        return int(cod_id), True
+
+    coordinator = _stub_coordinator(
+        public_data=SimpleNamespace(providers={}, import_cod=import_cod)
+    )
+    run = {"id": "r", "parameters": {"cod_ids": ["1", "2", "3"]}}
+    result, _ = asyncio.run(_collect_run(coordinator._run_cod_import, run))
+    assert result["failed_count"] == 1
+    assert result["checkpoint"]["last_external_id"] == "1"
+
+    # A resume from that checkpoint replays the failed id and what followed it.
+    failing.clear()
+    attempts.clear()
+    resumed = {**run, "checkpoint": result["checkpoint"], "processed_count": 3}
+    asyncio.run(_collect_run(coordinator._run_cod_import, resumed))
+    assert attempts == ["2", "3"]
+
+
+def test_manual_runs_are_capped_and_report_pending_records() -> None:
+    from types import SimpleNamespace
+
+    config = PublicDataConfig(sync_max_records_per_run=2)
+    assert PublicDataSyncCoordinator._run_cap(config, {"category": "guest"}) == 2
+    assert PublicDataSyncCoordinator._run_cap(config, {"identifiers": ["a"]}) is None
+
+    async def resolve(candidate: dict[str, Any]) -> Any:
+        return candidate["id"], True
+
+    coordinator = _stub_coordinator(
+        config,
+        repository=SimpleNamespace(
+            pubchem_enrichment_candidates=lambda limit, fraction, ids: [
+                {"id": item} for item in range(5)
+            ]
+        ),
+        public_data=SimpleNamespace(providers={}, resolve_stored_species=resolve),
+    )
+    result, _ = asyncio.run(
+        _collect_run(
+            coordinator._run_pubchem_enrich, {"id": "r", "parameters": {"fraction": 1.0}}
+        )
+    )
+    assert result["processed_count"] == 2
+    assert result["checkpoint"]["pending_count"] == 3
+
+
+def test_uploaded_species_resolution_is_scoped_to_the_upload(tmp_path: Path) -> None:
+    from server.repositories.public_data import normalized_sync_parameters
+    from server.repositories.schemas.models import Adsorbate
+
+    manager = _database(tmp_path)
+    try:
+        repository = PublicDataRepository(manager)
+        with manager.transaction() as session:
+            for name in ("methane", "ethane"):
+                session.add(Adsorbate(key=name, name=name, normalized_name=name))
+        repository.dataset_adsorbate_ids = lambda dataset_id: [2]  # type: ignore[method-assign]
+        coordinator = _stub_coordinator(repository=repository)
+        queued: list[dict[str, Any]] = []
+
+        async def enqueue(**kwargs: Any) -> dict[str, Any]:
+            queued.append(kwargs)
+            return {}
+
+        coordinator.enqueue = enqueue  # type: ignore[method-assign]
+        asyncio.run(coordinator.queue_uploaded_species_resolution(1))
+        assert [item["parameters"] for item in queued] == [{"adsorbate_ids": [2]}]
+        assert [
+            row["id"] for row in repository.pubchem_enrichment_candidates(None, 1.0, [2])
+        ] == [2]
+        # The scope is part of the request identity, ignoring order.
+        assert normalized_sync_parameters({"adsorbate_ids": [3, 2]}) == (
+            normalized_sync_parameters({"adsorbate_ids": [2, 3]})
+        )
+    finally:
+        manager.dispose()
+
+
+def test_cod_bulk_searches_once_per_shared_name() -> None:
+    from types import SimpleNamespace
+
+    searched: list[str] = []
+
+    async def import_for_material(adsorbent_id: int, name: str) -> Any:
+        searched.append(name)
+        return 77, True, None
+
+    candidates = [
+        {"id": 1, "name": "Alpha-MOF"},
+        {"id": 2, "name": "alpha-mof"},
+        {"id": 3, "name": "Beta-MOF"},
+    ]
+    failures: list[dict[str, Any]] = []
+    coordinator = _stub_coordinator(
+        repository=SimpleNamespace(
+            cod_bulk_candidates=lambda limit, fraction: candidates,
+            add_sync_failure=lambda **kwargs: failures.append(kwargs),
+        ),
+        public_data=SimpleNamespace(
+            providers={}, import_cod_for_material=import_for_material
+        ),
+    )
+    result, _ = asyncio.run(
+        _collect_run(
+            coordinator._run_cod_bulk, {"id": "r", "parameters": {"fraction": 1.0}}
+        )
+    )
+    assert searched == ["Alpha-MOF", "Beta-MOF"]
+    assert (result["processed_count"], result["imported_count"]) == (3, 2)
+    # A structure links to one material; the other is a skip with a reason.
+    assert result["skipped_count"] == 1
+    assert [item["external_id"] for item in failures] == ["adsorbent:2"]
+    assert "already linked" in failures[0]["reason"]
+
+
+def test_progress_writes_are_throttled_but_counts_stay_exact() -> None:
+    from types import SimpleNamespace
+
+    writes: list[dict[str, Any]] = []
+    lookups: list[str] = []
+    repository = SimpleNamespace(
+        update_sync_run=lambda run_id, **values: writes.append(values),
+        sync_cancel_requested=lambda run_id: lookups.append(run_id) or False,
+    )
+    coordinator = _stub_coordinator(repository=repository)
+    state: dict[str, Any] = {
+        "counts": {"processed": 0, "imported": 0, "skipped": 0, "failed": 0},
+        "checkpoint": {},
+        "progress": 0.0,
+        "write_gate": _Throttle(),
+        "cancel_gate": _Throttle(),
+        "cancelled": False,
+        "unwritten": None,
+        "seen_processed": 0,
+        "written_failed": 0,
+    }
+
+    async def scenario() -> None:
+        for index in range(1, 101):
+            await coordinator._should_cancel("r", state)
+            failed = 1 if index >= 60 else 0
+            await coordinator._record_progress(
+                "r",
+                state,
+                {
+                    "progress": float(index),
+                    "processed_count": index,
+                    "imported_count": index - failed,
+                    "failed_count": failed,
+                },
+            )
+        await coordinator._flush_progress("r", state)
+
+    asyncio.run(scenario())
+    assert len(writes) < 15 and len(lookups) < 15
+    assert writes[0]["processed_count"] == 1
+    # The failure is written when it happens, not at the next interval.
+    assert any(
+        item["failed_count"] == 1 and item["processed_count"] == 60 for item in writes
+    )
+    assert (writes[-1]["processed_count"], writes[-1]["imported_count"]) == (100, 99)

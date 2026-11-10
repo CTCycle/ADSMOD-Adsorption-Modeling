@@ -24,6 +24,7 @@ from server.repositories.schemas.models import (
     Adsorbate,
     Adsorbent,
     Isotherm,
+    IsothermComponent,
 )
 from server.repositories.schemas.public_data import (
     CONFORMER_PROPERTY,
@@ -68,7 +69,7 @@ def normalized_sync_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
     normalized = {
         key: value for key, value in parameters.items() if key != "trigger"
     }
-    for key in ("cod_ids", "identifiers"):
+    for key in ("cod_ids", "identifiers", "adsorbate_ids"):
         values = normalized.get(key)
         if isinstance(values, (list, tuple)):
             normalized[key] = sorted(str(item) for item in values)
@@ -992,15 +993,34 @@ class PublicDataRepository:
             raise_review(session, **fields)
 
     # -------------------------------------------------------------------------
+    def dataset_adsorbate_ids(self, dataset_id: int) -> list[int]:
+        """Species used by the isotherms of one dataset."""
+        with self.database.session_factory() as session:
+            return [
+                int(value)
+                for value in session.scalars(
+                    select(IsothermComponent.adsorbate_id)
+                    .join(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
+                    .where(Isotherm.dataset_id == dataset_id)
+                    .distinct()
+                    .order_by(IsothermComponent.adsorbate_id)
+                )
+            ]
+
+    # -------------------------------------------------------------------------
     def pubchem_enrichment_candidates(
-        self, limit: int | None, fraction: float = 1.0
+        self,
+        limit: int | None,
+        fraction: float = 1.0,
+        adsorbate_ids: list[int] | None = None,
     ) -> list[dict[str, Any]]:
         """Return chemicals without PubChem identity that may still resolve.
 
         Chemicals with a permanent failure, or a failure or negative result
         whose retry time has not passed, are excluded so repeated enrichment
         runs make progress and stale negative results are reconsidered. `fraction` selects
-        the leading share of the eligible chemicals.
+        the leading share of the eligible chemicals; `adsorbate_ids` restricts
+        the search to those chemicals.
         """
         with self.database.session_factory() as session:
             linked = (
@@ -1010,22 +1030,21 @@ class PublicDataRepository:
                 .where(DataSource.key == "pubchem")
             )
             unresolvable = self._ineligible_failures("pubchem", "adsorbate:")
-            rows = session.execute(
-                select(
-                    Adsorbate.id,
-                    Adsorbate.name,
-                    Adsorbate.inchi_key,
-                    Adsorbate.formula,
-                    Adsorbate.smiles,
-                )
-                .where(
-                    Adsorbate.id.not_in(linked),
-                    (literal("adsorbate:") + cast(Adsorbate.id, String)).not_in(
-                        unresolvable
-                    ),
-                )
-                .order_by(Adsorbate.id)
-            ).all()
+            query = select(
+                Adsorbate.id,
+                Adsorbate.name,
+                Adsorbate.inchi_key,
+                Adsorbate.formula,
+                Adsorbate.smiles,
+            ).where(
+                Adsorbate.id.not_in(linked),
+                (literal("adsorbate:") + cast(Adsorbate.id, String)).not_in(
+                    unresolvable
+                ),
+            )
+            if adsorbate_ids is not None:
+                query = query.where(Adsorbate.id.in_(adsorbate_ids))
+            rows = session.execute(query.order_by(Adsorbate.id)).all()
             selected = rows[: self._fraction_count(len(rows), fraction, limit)]
             return [
                 {
