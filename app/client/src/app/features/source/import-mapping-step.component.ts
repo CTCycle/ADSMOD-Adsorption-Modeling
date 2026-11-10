@@ -36,6 +36,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
     { value: 'uptake_stddev', label: 'Uptake uncertainty' },
     { value: 'gas_mole_fraction', label: 'Gas mole fraction (y)' },
     { value: 'saturation_pressure', label: 'Saturation pressure p₀' },
+    { value: 'branch', label: 'Branch (adsorption / desorption)' },
     { value: 'metadata', label: 'Additional metadata' },
 ];
 

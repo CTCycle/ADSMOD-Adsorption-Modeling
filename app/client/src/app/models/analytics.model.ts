@@ -1,6 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
+import type { ObservationBranch } from './dataset.model';
 import type { EntityReference, Pagination } from './public-data.model';
 
 export type DatasetSource = 'uploaded' | 'nist';
@@ -71,6 +72,8 @@ export interface SeriesRequest {
     filter: AnalyticsFilter;
     pressure_unit: string;
     uptake_unit: string;
+    /** Stored branch to read; the server defaults to the adsorption branch. */
+    branch?: ObservationBranch;
 }
 
 /** One species of one experiment; series are keyed by (isotherm_id, adsorbate_id). */
@@ -91,6 +94,7 @@ export interface SeriesMetadata {
 
 export interface SeriesPoint {
     observation_id: number;
+    branch: ObservationBranch;
     pressure: number;
     uptake: number;
     uptake_stddev: number | null;

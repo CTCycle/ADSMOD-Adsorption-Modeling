@@ -9,20 +9,24 @@ import type {
     DatasetUpdateRequest,
     ExperimentSummary,
     ExperimentUpdate,
+    ObservationBranch,
     ObservationRow,
     ObservationUpdate,
 } from '../../models/dataset.model';
 
 export type DatasetField = 'name' | 'description' | 'tags';
 export type ExperimentField = Exclude<keyof ExperimentUpdate, 'id' | 'components'>;
-export type ObservationField = Exclude<keyof ObservationUpdate, 'id'>;
+/** Numeric measurement fields; the branch is a label edited on its own. */
+export type ObservationField = Exclude<keyof ObservationUpdate, 'id' | 'branch'>;
 
 type Value = string | number | null | string[];
+type ObservationDraftFields = Partial<Record<ObservationField, number | null>> & { branch?: ObservationBranch };
 
 /** Where an edited measurement sits in the worksheet view it was edited in. */
 export interface WorksheetLocation {
     order: 'source' | 'pressure';
     adsorbateId: number | null;
+    branch: ObservationBranch | null;
     index: number;
 }
 
@@ -36,7 +40,7 @@ interface ExperimentDraft {
 interface ObservationDraft {
     experimentId: number;
     location: WorksheetLocation;
-    fields: Partial<Record<ObservationField, number | null>>;
+    fields: ObservationDraftFields;
 }
 
 const NONNEGATIVE_FIELDS: readonly ObservationField[] = ['pressure_original', 'uptake_original'];
@@ -173,7 +177,7 @@ export class DatasetEditSession {
         return pending !== undefined ? pending : row[field];
     }
 
-    isObservationChanged(rowId: number, field: ObservationField): boolean {
+    isObservationChanged(rowId: number, field: ObservationField | 'branch'): boolean {
         return this.observations().get(rowId)?.fields[field] !== undefined;
     }
 
@@ -184,11 +188,35 @@ export class DatasetEditSession {
         value: number | null,
         location: WorksheetLocation,
     ): void {
+        this.updateObservation(experimentId, row, location, (fields) => {
+            if (sameValue(value, row[field])) delete fields[field];
+            else fields[field] = value;
+        });
+        this.clearIssue('observation', row.id, field);
+    }
+
+    observationBranch(row: ObservationRow): ObservationBranch {
+        return this.observations().get(row.id)?.fields.branch ?? row.branch;
+    }
+
+    setObservationBranch(experimentId: number, row: ObservationRow, branch: ObservationBranch, location: WorksheetLocation): void {
+        this.updateObservation(experimentId, row, location, (fields) => {
+            if (branch === row.branch) delete fields.branch;
+            else fields.branch = branch;
+        });
+        this.clearIssue('observation', row.id, 'branch');
+    }
+
+    private updateObservation(
+        experimentId: number,
+        row: ObservationRow,
+        location: WorksheetLocation,
+        change: (fields: ObservationDraftFields) => void,
+    ): void {
         this.observations.update((current) => {
             const next = new Map(current);
             const fields = { ...(next.get(row.id)?.fields ?? {}) };
-            if (sameValue(value, row[field])) delete fields[field];
-            else fields[field] = value;
+            change(fields);
             if (Object.keys(fields).length) {
                 next.set(row.id, { experimentId, location, fields });
             } else {
@@ -196,7 +224,6 @@ export class DatasetEditSession {
             }
             return next;
         });
-        this.clearIssue('observation', row.id, field);
     }
 
     /** Worksheet position of an edited measurement, used to bring it back into view. */
@@ -243,7 +270,8 @@ export class DatasetEditSession {
             }
         }
         for (const [observationId, draft] of this.observations()) {
-            for (const [field, value] of Object.entries(draft.fields) as [ObservationField, number | null][]) {
+            const numeric = Object.entries(draft.fields).filter(([field]) => field !== 'branch') as [ObservationField, number | null][];
+            for (const [field, value] of numeric) {
                 const message = observationProblem(field, value);
                 if (message) {
                     issues.push({ scope: 'observation', field, message, experiment_id: draft.experimentId, observation_id: observationId });

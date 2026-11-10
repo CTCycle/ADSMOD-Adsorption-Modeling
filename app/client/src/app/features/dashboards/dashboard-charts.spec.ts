@@ -26,7 +26,7 @@ function series(isothermId: number, temperature: number, points: [number, number
         ...meta,
         isotherm_id: isothermId,
         temperature_k: temperature,
-        points: points.map(([pressure, uptake], index) => ({ observation_id: index + 1, pressure, uptake, uptake_stddev: null, gas_mole_fraction: null })),
+        points: points.map(([pressure, uptake], index) => ({ observation_id: index + 1, branch: 'adsorption', pressure, uptake, uptake_stddev: null, gas_mole_fraction: null })),
     };
 }
 

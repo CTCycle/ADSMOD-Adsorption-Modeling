@@ -5,6 +5,8 @@ export type DatasetSource = 'uploaded' | 'nist';
 export type DatasetStructure = 'atomic' | 'aggregated' | 'mixed' | 'ambiguous';
 export type ImportableStructure = Exclude<DatasetStructure, 'ambiguous'>;
 export type PressureBasis = 'absolute' | 'partial' | 'relative';
+/** Hysteresis branch of a measurement; one pressure may hold one uptake per branch. */
+export type ObservationBranch = 'adsorption' | 'desorption';
 export type ColumnRole =
     | 'experiment_id'
     | 'experiment_name'
@@ -20,6 +22,7 @@ export type ColumnRole =
     | 'uptake_stddev'
     | 'gas_mole_fraction'
     | 'saturation_pressure'
+    | 'branch'
     | 'metadata'
     | 'ignore';
 
@@ -139,7 +142,7 @@ export interface SpeciesColumn {
     mole_fraction_column?: string | null;
 }
 
-/** Repeated (species, pressure) measurements are rejected or averaged into one row. */
+/** Repeated (species, branch, pressure) measurements are rejected or averaged into one row. */
 export type DuplicatePolicy = 'reject' | 'average';
 
 export interface ImportMapping {
@@ -172,6 +175,7 @@ export interface NormalizedObservationPreview {
     pressure_original_unit: string;
     pressure_canonical: number;
     pressure_canonical_unit: string;
+    branch: ObservationBranch;
     uptake_original: number;
     uptake_original_unit: string;
     uptake_mol_kg: number;
@@ -188,6 +192,9 @@ export interface NormalizedExperimentPreview {
     temperature_original_unit: string;
     pressure_basis: PressureBasis;
     observation_count: number;
+    desorption_count: number;
+    /** `inferred` when no branch column was mapped and branches follow file order. */
+    branch_assignment: 'explicit' | 'inferred';
     observations: NormalizedObservationPreview[];
 }
 
@@ -251,6 +258,7 @@ export interface ExperimentSummary {
     pressure_basis: PressureBasis;
     saturation_pressure_pa: number | null;
     observation_count: number;
+    desorption_count: number;
     pressure_min: number | null;
     pressure_max: number | null;
     pressure_canonical_unit: string | null;
@@ -313,6 +321,7 @@ export interface ExperimentUpdate {
 
 export interface ObservationUpdate {
     id: number;
+    branch?: ObservationBranch;
     pressure_original?: number | null;
     uptake_original?: number | null;
     uptake_stddev_mol_kg?: number | null;
@@ -335,11 +344,12 @@ export interface DatasetEditIssue {
     observation_id: number | null;
 }
 
-/** One uptake of one species at one canonical pressure. */
+/** One uptake of one species on one branch at one canonical pressure. */
 export interface ObservationRow {
     id: number;
     adsorbate_id: number;
     source_row: number | null;
+    branch: ObservationBranch;
     pressure_original: number;
     pressure_original_unit: string;
     pressure_canonical: number;

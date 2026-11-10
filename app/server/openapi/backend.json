@@ -1051,6 +1051,26 @@
               ],
               "title": "Adsorbate Id"
             }
+          },
+          {
+            "name": "branch",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "adsorption",
+                    "desorption"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Branch"
+            }
           }
         ],
         "responses": {
@@ -5043,6 +5063,7 @@
               "uptake_stddev",
               "gas_mole_fraction",
               "saturation_pressure",
+              "branch",
               "metadata",
               "ignore"
             ],
@@ -7269,6 +7290,11 @@
             "type": "integer",
             "title": "Observation Count"
           },
+          "desorption_count": {
+            "type": "integer",
+            "title": "Desorption Count",
+            "default": 0
+          },
           "pressure_min": {
             "anyOf": [
               {
@@ -8897,6 +8923,7 @@
                 "uptake_stddev",
                 "gas_mole_fraction",
                 "saturation_pressure",
+                "branch",
                 "metadata",
                 "ignore"
               ]
@@ -10126,6 +10153,19 @@
             "type": "integer",
             "title": "Observation Count"
           },
+          "desorption_count": {
+            "type": "integer",
+            "title": "Desorption Count",
+            "default": 0
+          },
+          "branch_assignment": {
+            "type": "string",
+            "enum": [
+              "explicit",
+              "inferred"
+            ],
+            "title": "Branch Assignment"
+          },
           "observations": {
             "items": {
               "$ref": "#/components/schemas/NormalizedObservationPreview"
@@ -10145,6 +10185,7 @@
           "temperature_original_unit",
           "pressure_basis",
           "observation_count",
+          "branch_assignment",
           "observations"
         ],
         "title": "NormalizedExperimentPreview"
@@ -10182,6 +10223,14 @@
             "type": "string",
             "title": "Pressure Canonical Unit"
           },
+          "branch": {
+            "type": "string",
+            "enum": [
+              "adsorption",
+              "desorption"
+            ],
+            "title": "Branch"
+          },
           "uptake_original": {
             "type": "number",
             "title": "Uptake Original"
@@ -10214,6 +10263,7 @@
           "pressure_original_unit",
           "pressure_canonical",
           "pressure_canonical_unit",
+          "branch",
           "uptake_original",
           "uptake_original_unit",
           "uptake_mol_kg"
@@ -10321,6 +10371,14 @@
             ],
             "title": "Source Row"
           },
+          "branch": {
+            "type": "string",
+            "enum": [
+              "adsorption",
+              "desorption"
+            ],
+            "title": "Branch"
+          },
           "pressure_original": {
             "type": "number",
             "title": "Pressure Original"
@@ -10376,6 +10434,7 @@
         "required": [
           "id",
           "adsorbate_id",
+          "branch",
           "pressure_original",
           "pressure_original_unit",
           "pressure_canonical",
@@ -10392,6 +10451,21 @@
             "type": "integer",
             "minimum": 1.0,
             "title": "Id"
+          },
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "adsorption",
+                  "desorption"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Branch"
           },
           "pressure_original": {
             "anyOf": [
@@ -11502,6 +11576,14 @@
             "type": "integer",
             "title": "Observation Id"
           },
+          "branch": {
+            "type": "string",
+            "enum": [
+              "adsorption",
+              "desorption"
+            ],
+            "title": "Branch"
+          },
           "pressure": {
             "type": "number",
             "title": "Pressure"
@@ -11536,6 +11618,7 @@
         "type": "object",
         "required": [
           "observation_id",
+          "branch",
           "pressure",
           "uptake"
         ],
@@ -11557,11 +11640,21 @@
             "maxLength": 24,
             "title": "Uptake Unit",
             "default": "mol/kg"
+          },
+          "branch": {
+            "type": "string",
+            "enum": [
+              "adsorption",
+              "desorption"
+            ],
+            "title": "Branch",
+            "default": "adsorption"
           }
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "SeriesRequest"
+        "title": "SeriesRequest",
+        "description": "Series and fixed-pressure comparisons read one stored branch, the\nadsorption branch unless another is requested."
       },
       "SeriesResponse": {
         "properties": {
@@ -13467,6 +13560,15 @@
             "maxLength": 24,
             "title": "Uptake Unit",
             "default": "mol/kg"
+          },
+          "branch": {
+            "type": "string",
+            "enum": [
+              "adsorption",
+              "desorption"
+            ],
+            "title": "Branch",
+            "default": "adsorption"
           },
           "pressure": {
             "type": "number",

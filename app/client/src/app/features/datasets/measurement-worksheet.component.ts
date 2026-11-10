@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { Component, ElementRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import type { ExperimentSummary, ObservationRow } from '../../models/dataset.model';
+import type { ExperimentSummary, ObservationBranch, ObservationRow } from '../../models/dataset.model';
 import { fetchObservations } from '../../services/dataset.service';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 import type { DatasetEditSession, ObservationField, WorksheetLocation } from './dataset-edit-session';
@@ -44,6 +44,15 @@ export function exact(value: number | null): string {
                         </select>
                     </label>
                 }
+                @if (hasDesorption()) {
+                    <label>Branch
+                        <select class="select-input" [value]="branchFilter() ?? ''" (change)="setBranch($any($event.target).value)">
+                            <option value="">Both branches</option>
+                            <option value="adsorption">Adsorption</option>
+                            <option value="desorption">Desorption</option>
+                        </select>
+                    </label>
+                }
                 <label>Order
                     <select class="select-input" [value]="order()" (change)="setOrder($any($event.target).value)">
                         <option value="source">As imported</option>
@@ -56,11 +65,12 @@ export function exact(value: number | null): string {
             <p class="dataset-status error" role="alert">{{ error() }}</p>
         }
         <div class="data-table-frame worksheet-frame" [class.editing]="editing()" [attr.aria-busy]="loading()">
-            <table class="data-table worksheet" [style.--data-table-min-width]="multiSpecies() ? '860px' : '640px'">
+            <table class="data-table worksheet" [style.--data-table-min-width]="minWidth()">
                 <caption class="sr-only">Measurements of {{ experiment().name }}{{ editing() ? ' (editing)' : '' }}</caption>
                 <colgroup>
                     <col class="col-index" />
                     <col class="col-row" />
+                    @if (showBranch()) { <col class="col-branch" /> }
                     @if (multiSpecies()) { <col class="col-component" /> }
                     <col /><col />
                     @if (multiSpecies()) { <col class="col-fraction" /> }
@@ -70,6 +80,7 @@ export function exact(value: number | null): string {
                     <tr>
                         <th scope="col" class="num">#</th>
                         <th scope="col" class="num" title="Row in the imported file">Src row</th>
+                        @if (showBranch()) { <th scope="col" title="Adsorption or desorption branch of the isotherm">Branch</th> }
                         @if (multiSpecies()) { <th scope="col">Species</th> }
                         <th scope="col" class="num">Pressure <span class="unit">[{{ pressureUnit() }}]</span></th>
                         <th scope="col" class="num">Uptake <span class="unit">[{{ uptakeUnit() }}]</span></th>
@@ -83,6 +94,23 @@ export function exact(value: number | null): string {
                         <tr>
                             <th scope="row" class="num index">{{ rowNumber(rowIndex) }}</th>
                             <td class="num muted">{{ row.source_row ?? '—' }}</td>
+                            @if (showBranch()) {
+                                <td [class.changed]="session().isObservationChanged(row.id, 'branch')" [class.invalid]="!!session().issueFor('observation', row.id, 'branch')">
+                                    @if (editing()) {
+                                        <select
+                                            class="cell-input cell-select"
+                                            [attr.aria-label]="'Branch for measurement ' + rowNumber(rowIndex)"
+                                            [value]="session().observationBranch(row)"
+                                            (change)="setRowBranch(row, $any($event.target).value, rowIndex)"
+                                        >
+                                            <option value="adsorption">Adsorption</option>
+                                            <option value="desorption">Desorption</option>
+                                        </select>
+                                    } @else {
+                                        <span class="branch" [class.desorption]="row.branch === 'desorption'">{{ branchLabel(row.branch) }}</span>
+                                    }
+                                </td>
+                            }
                             @if (multiSpecies()) { <td class="truncate-cell">{{ speciesName(row) }}</td> }
                             @for (field of editable(); track field; let column = $index) {
                                 <td class="num" [class.changed]="session().isObservationChanged(row.id, field)" [class.invalid]="!!session().issueFor('observation', row.id, field)">
@@ -112,7 +140,7 @@ export function exact(value: number | null): string {
                         </tr>
                     } @empty {
                         @if (!loading()) {
-                            <tr><td [attr.colspan]="multiSpecies() ? 8 : 6" class="data-table-empty">No measurements in this experiment.</td></tr>
+                            <tr><td [attr.colspan]="columnCount()" class="data-table-empty">No measurements in this experiment.</td></tr>
                         }
                     }
                 </tbody>
@@ -145,7 +173,11 @@ export function exact(value: number | null): string {
             .worksheet-frame.editing { outline: 2px solid color-mix(in srgb, var(--primary-600) 35%, transparent); outline-offset: -1px; }
             .worksheet .col-index { width: 3.5rem; }
             .worksheet .col-row { width: 4.5rem; }
+            .worksheet .col-branch { width: 8rem; }
             .worksheet .col-component { width: 8rem; }
+            .worksheet .branch { color: var(--text-secondary); }
+            .worksheet .branch.desorption { color: var(--primary-600); font-weight: 600; }
+            .cell-select { text-align: left; cursor: pointer; }
             .worksheet .col-fraction { width: 6rem; }
             .worksheet .col-derived { width: 9rem; }
             .worksheet .num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -194,9 +226,16 @@ export class MeasurementWorksheetComponent {
     protected readonly order = signal<'source' | 'pressure'>('source');
     /** Show one species of a multi-species experiment, or all of them (null). */
     protected readonly speciesFilter = signal<number | null>(null);
+    /** Show one branch of a hysteresis experiment, or both (null). */
+    protected readonly branchFilter = signal<ObservationBranch | null>(null);
     protected readonly loading = signal(false);
     protected readonly error = signal<string | null>(null);
     protected readonly multiSpecies = computed(() => this.experiment().components.length > 1);
+    protected readonly hasDesorption = computed(() => this.experiment().desorption_count > 0);
+    /** The branch column appears for hysteresis data, and while editing so any point can be relabelled. */
+    protected readonly showBranch = computed(() => this.hasDesorption() || this.editing());
+    protected readonly columnCount = computed(() => 6 + (this.multiSpecies() ? 2 : 0) + (this.showBranch() ? 1 : 0));
+    protected readonly minWidth = computed(() => `${(this.multiSpecies() ? 860 : 640) + (this.showBranch() ? 128 : 0)}px`);
     protected readonly editable = computed(() => (this.multiSpecies() ? MULTI_SPECIES_EDITABLE : EDITABLE));
     protected readonly pressureUnit = computed(() => {
         const experiment = this.experiment();
@@ -221,6 +260,7 @@ export class MeasurementWorksheetComponent {
                     this.loadedExperiment = experimentId;
                     this.page.set(1);
                     this.speciesFilter.set(null);
+                    this.branchFilter.set(null);
                 }
             });
         });
@@ -230,6 +270,7 @@ export class MeasurementWorksheetComponent {
             this.page();
             this.order();
             this.speciesFilter();
+            this.branchFilter();
             untracked(() => void this.load());
         });
         effect(() => {
@@ -238,6 +279,7 @@ export class MeasurementWorksheetComponent {
             untracked(() => {
                 this.order.set(location.order);
                 this.speciesFilter.set(location.adsorbateId);
+                this.branchFilter.set(location.branch);
                 this.page.set(Math.floor(location.index / this.pageSize) + 1);
             });
         });
@@ -258,6 +300,19 @@ export class MeasurementWorksheetComponent {
     protected setSpecies(value: string): void {
         this.speciesFilter.set(value === '' ? null : Number(value));
         this.page.set(1);
+    }
+
+    protected setBranch(value: string): void {
+        this.branchFilter.set(value === '' ? null : (value as ObservationBranch));
+        this.page.set(1);
+    }
+
+    protected branchLabel(branch: ObservationBranch): string {
+        return branch === 'desorption' ? 'Desorption' : 'Adsorption';
+    }
+
+    protected setRowBranch(row: ObservationRow, value: string, rowIndex: number): void {
+        this.session().setObservationBranch(this.experiment().id, row, value as ObservationBranch, this.location(rowIndex));
     }
 
     protected rowChanged(row: ObservationRow): boolean {
@@ -287,7 +342,7 @@ export class MeasurementWorksheetComponent {
     }
 
     private location(rowIndex: number): WorksheetLocation {
-        return { order: this.order(), adsorbateId: this.speciesFilter(), index: this.rowNumber(rowIndex) - 1 };
+        return { order: this.order(), adsorbateId: this.speciesFilter(), branch: this.branchFilter(), index: this.rowNumber(rowIndex) - 1 };
     }
 
     protected navigate(event: KeyboardEvent, row: ObservationRow, field: ObservationField, rowIndex: number, column: number): void {
@@ -317,6 +372,7 @@ export class MeasurementWorksheetComponent {
             this.pageSize,
             this.order(),
             this.speciesFilter(),
+            this.branchFilter(),
         );
         if (requestId !== this.requestId) return;
         this.loading.set(false);

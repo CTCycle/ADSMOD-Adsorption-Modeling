@@ -17,6 +17,7 @@ import type {
     ImportMapping,
     ImportPreview,
     ImportValidation,
+    ObservationBranch,
     ObservationPage,
     UnitCatalog,
     UnitOption,
@@ -163,10 +164,12 @@ export function fetchObservations(
     limit = 100,
     order: 'pressure' | 'source' = 'pressure',
     adsorbateId: number | null = null,
+    branch: ObservationBranch | null = null,
 ): Promise<ApiResult<ObservationPage>> {
     const species = adsorbateId === null ? '' : `&adsorbate_id=${adsorbateId}`;
+    const branchFilter = branch === null ? '' : `&branch=${branch}`;
     return request(
-        `/${datasetId}/experiments/${isothermId}/observations?offset=${offset}&limit=${limit}&order=${order}${species}`,
+        `/${datasetId}/experiments/${isothermId}/observations?offset=${offset}&limit=${limit}&order=${order}${species}${branchFilter}`,
         { method: 'GET' },
     );
 }

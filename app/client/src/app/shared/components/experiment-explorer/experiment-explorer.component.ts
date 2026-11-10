@@ -18,6 +18,8 @@ export interface ExplorerRow {
     point: number;
     /** Set only for multi-species experiments. */
     species?: string;
+    /** Set only for experiments with a desorption branch. */
+    branch?: string;
     pressure: string;
     pressureSource: string | null;
     uptake: string;
@@ -191,6 +193,9 @@ export interface ExplorerPageChange {
                                                 @if (experiment.rows[0].species) {
                                                     <th scope="col">Species</th>
                                                 }
+                                                @if (experiment.rows[0].branch) {
+                                                    <th scope="col">Branch</th>
+                                                }
                                                 <th scope="col">Pressure</th>
                                                 <th scope="col">Uptake</th>
                                                 <th scope="col">Status</th>
@@ -205,6 +210,9 @@ export interface ExplorerPageChange {
                                                     <td>{{ row.point }}</td>
                                                     @if (row.species) {
                                                         <td>{{ row.species }}</td>
+                                                    }
+                                                    @if (row.branch) {
+                                                        <td>{{ row.branch }}</td>
                                                     }
                                                     <td>
                                                         {{ row.pressure }}

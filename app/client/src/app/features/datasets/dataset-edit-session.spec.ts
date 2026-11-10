@@ -14,13 +14,14 @@ const experiment = {
     adsorbent_id: 3,
     components: [{ position: 1, adsorbate_id: 5, name: 'CO2' }],
 } as unknown as ExperimentSummary;
-const at = { order: 'source', adsorbateId: null, index: 0 } as const;
+const at = { order: 'source', adsorbateId: null, branch: null, index: 0 } as const;
 
 function row(id: number, pressure: number): ObservationRow {
     return {
         id,
         adsorbate_id: 5,
         source_row: id,
+        branch: 'adsorption',
         pressure_original: pressure,
         pressure_original_unit: 'bar',
         pressure_canonical: pressure * 1e5,
@@ -61,6 +62,23 @@ describe('DatasetEditSession', () => {
         session.setDatasetValue('name', 'Screening', dataset);
         expect(session.toRequest().observations).toEqual([{ id: 250, uptake_stddev_mol_kg: 0.05 }]);
         expect(session.toRequest().name).toBeUndefined();
+    });
+
+    it('relabels a measurement branch alongside its numeric edits', () => {
+        const session = new DatasetEditSession();
+        session.start();
+        const point = row(101, 0.1);
+
+        session.setObservationBranch(experiment.id, point, 'desorption', at);
+        session.setObservationValue(experiment.id, point, 'uptake_original', 1.8, at);
+
+        expect(session.observationBranch(point)).toBe('desorption');
+        expect(session.toRequest().observations).toEqual([{ id: 101, branch: 'desorption', uptake_original: 1.8 }]);
+        expect(session.validateLocally()).toEqual([]);
+
+        // Restoring the stored branch keeps only the numeric change.
+        session.setObservationBranch(experiment.id, point, 'adsorption', at);
+        expect(session.toRequest().observations).toEqual([{ id: 101, uptake_original: 1.8 }]);
     });
 
     it('cancel discards every pending change and leaves edit mode', () => {

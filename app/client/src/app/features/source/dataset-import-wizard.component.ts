@@ -816,6 +816,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
             return {
                 point: index + 1,
                 species: experiment.adsorbates.length > 1 ? item.adsorbate : undefined,
+                branch: experiment.desorption_count > 0 ? (item.branch === 'desorption' ? 'Desorption' : 'Adsorption') : undefined,
                 pressure,
                 pressureSource: pressureSource === pressure ? null : pressureSource,
                 uptake,
@@ -831,7 +832,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
         return {
             key: experiment.external_key,
             name: experiment.name,
-            subtitle: `${experiment.adsorbates.join(' + ')} on ${experiment.adsorbent}`,
+            subtitle: `${experiment.adsorbates.join(' + ')} on ${experiment.adsorbent}${this.branchSummary(experiment)}`,
             temperature,
             pointCount: experiment.observation_count,
             pressureRange:
@@ -850,6 +851,13 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
             loading: false,
             error: null,
         };
+    }
+
+    /** How many points form a desorption branch, and whether the file labelled them. */
+    private branchSummary(experiment: NormalizedExperimentPreview): string {
+        if (!experiment.desorption_count) return '';
+        const source = experiment.branch_assignment === 'inferred' ? 'inferred from point order' : 'from the branch column';
+        return ` · ${experiment.desorption_count} desorption ${experiment.desorption_count === 1 ? 'point' : 'points'} (${source})`;
     }
 
     private issueOnlyExperiment(

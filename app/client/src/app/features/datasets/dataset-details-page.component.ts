@@ -348,9 +348,9 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
             series: series.map((item) => ({
                 type: 'line',
                 name: item.name,
-                symbol: 'circle',
+                symbol: item.branch === 'desorption' ? 'emptyCircle' : 'circle',
                 symbolSize: 7,
-                lineStyle: { width: 1.5, opacity: 0.7 },
+                lineStyle: { width: 1.5, opacity: 0.7, type: item.branch === 'desorption' ? 'dashed' : 'solid' },
                 data: item.points,
             })),
         };

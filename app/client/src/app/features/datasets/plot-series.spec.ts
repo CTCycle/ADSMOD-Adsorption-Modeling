@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 import { describe, expect, it } from 'vitest';
-import type { ExperimentComponent, ObservationRow } from '../../models/dataset.model';
+import type { ExperimentComponent, ObservationBranch, ObservationRow } from '../../models/dataset.model';
 import { buildPlotSeries } from './plot-series';
 
 const components: ExperimentComponent[] = [
@@ -10,11 +10,12 @@ const components: ExperimentComponent[] = [
     { position: 2, adsorbate_id: 11, name: 'N2' },
 ];
 
-function row(adsorbate_id: number, pressure: number, uptake: number): ObservationRow {
+function row(adsorbate_id: number, pressure: number, uptake: number, branch: ObservationBranch = 'adsorption'): ObservationRow {
     return {
         id: pressure,
         adsorbate_id,
         source_row: null,
+        branch,
         pressure_original: pressure,
         pressure_original_unit: 'Pa',
         pressure_canonical: pressure,
@@ -30,7 +31,7 @@ function row(adsorbate_id: number, pressure: number, uptake: number): Observatio
 describe('buildPlotSeries', () => {
     it('keeps a single-species experiment as one series', () => {
         expect(buildPlotSeries([row(10, 1, 0.5), row(10, 2, 0.9)], components.slice(0, 1))).toEqual([
-            { name: 'CO2', points: [[1, 0.5], [2, 0.9]] },
+            { name: 'CO2', branch: 'adsorption', points: [[1, 0.5], [2, 0.9]] },
         ]);
     });
 
@@ -38,5 +39,16 @@ describe('buildPlotSeries', () => {
         const series = buildPlotSeries([row(10, 1, 0.5), row(11, 1, 0.1), row(10, 2, 0.9), row(11, 2, 0.2)], components);
         expect(series.map((item) => item.name)).toEqual(['CO2', 'N2']);
         expect(series[1].points).toEqual([[1, 0.1], [2, 0.2]]);
+    });
+
+    it('draws each desorption branch as its own series next to its species', () => {
+        // Rows arrive adsorption first; both branches share the 1 Pa pressure.
+        const rows = [row(10, 1, 0.5), row(10, 2, 0.9), row(11, 1, 0.1), row(10, 1, 0.7, 'desorption'), row(11, 1, 0.15, 'desorption')];
+        expect(buildPlotSeries(rows, components)).toEqual([
+            { name: 'CO2', branch: 'adsorption', points: [[1, 0.5], [2, 0.9]] },
+            { name: 'CO2 · desorption', branch: 'desorption', points: [[1, 0.7]] },
+            { name: 'N2', branch: 'adsorption', points: [[1, 0.1]] },
+            { name: 'N2 · desorption', branch: 'desorption', points: [[1, 0.15]] },
+        ]);
     });
 });
