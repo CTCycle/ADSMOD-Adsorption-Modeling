@@ -62,6 +62,15 @@ class WidePair(BaseModel):
     uptake_column: str
 
 ###############################################################################
+class SpeciesColumn(BaseModel):
+    """A per-species uptake column of a wide multi-species file."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    uptake_column: str = Field(min_length=1)
+    adsorbate: str = Field(min_length=1, max_length=255)
+
+###############################################################################
 class CustomUnitDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -86,6 +95,7 @@ class ImportMapping(BaseModel):
     field_delimiter: str | None = None
     series_delimiter: str | None = Field(default=None, min_length=1, max_length=4)
     wide_pairs: list[WidePair] = Field(default_factory=list)
+    species_columns: list[SpeciesColumn] = Field(default_factory=list)
     worksheet: str | int | None = None
     header_row: int = Field(default=0, ge=0)
     thousands_separator: str | None = None
@@ -115,7 +125,28 @@ class ImportMapping(BaseModel):
                 )
             if role in single_roles:
                 used[role] = column
+        if self.species_columns:
+            self._validate_species_columns()
         return self
+
+    # -------------------------------------------------------------------------
+    def _validate_species_columns(self) -> None:
+        if len(self.species_columns) < 2:
+            raise ValueError("Wide species columns require at least two uptake columns.")
+        if self.wide_pairs:
+            raise ValueError("Species columns cannot be combined with wide pressure pairs.")
+        clashing = {"uptake", "adsorbate"} & (
+            set(self.column_roles.values()) | set(self.constants)
+        )
+        if clashing:
+            raise ValueError(
+                "Species columns replace the uptake and adsorbate mappings; "
+                f"remove {sorted(clashing)}."
+            )
+        columns = [item.uptake_column for item in self.species_columns]
+        species = [item.adsorbate.strip().casefold() for item in self.species_columns]
+        if len(set(columns)) != len(columns) or len(set(species)) != len(species):
+            raise ValueError("Species columns must use distinct columns and species.")
 
 ###############################################################################
 class ImportPreviewResponse(BaseModel):
@@ -130,11 +161,13 @@ class ImportPreviewResponse(BaseModel):
     preview_rows: list[dict[str, Any]]
     proposed_grouping_columns: list[str] = Field(default_factory=list)
     proposed_pressure_basis: PressureBasis | None = None
+    proposed_species_columns: list[SpeciesColumn] = Field(default_factory=list)
     issues: list[ImportIssue] = Field(default_factory=list)
     guidance: list[str] = Field(default_factory=list)
 
 ###############################################################################
 class NormalizedObservationPreview(BaseModel):
+    adsorbate: str
     source_row: int | None
     sequence_index: int
     pressure_original: float
@@ -150,8 +183,7 @@ class NormalizedExperimentPreview(BaseModel):
     external_key: str
     name: str
     adsorbent: str
-    adsorbate: str
-    adsorbate_smiles: str | None = None
+    adsorbates: list[str]
     temperature_k: float
     temperature_original: float
     temperature_original_unit: str

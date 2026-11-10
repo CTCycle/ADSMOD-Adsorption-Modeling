@@ -122,6 +122,7 @@ export interface ImportPreview {
     preview_rows: Record<string, unknown>[];
     proposed_grouping_columns: string[];
     proposed_pressure_basis: PressureBasis | null;
+    proposed_species_columns: SpeciesColumn[];
     issues: ImportIssue[];
     guidance: string[];
 }
@@ -129,6 +130,11 @@ export interface ImportPreview {
 export interface WidePair {
     pressure_column: string;
     uptake_column: string;
+}
+
+export interface SpeciesColumn {
+    uptake_column: string;
+    adsorbate: string;
 }
 
 export interface ImportMapping {
@@ -145,6 +151,7 @@ export interface ImportMapping {
     field_delimiter?: string | null;
     series_delimiter: string | null;
     wide_pairs: WidePair[];
+    species_columns: SpeciesColumn[];
     worksheet?: string | number | null;
     header_row?: number;
     thousands_separator?: string | null;
@@ -154,6 +161,7 @@ export interface ImportMapping {
 }
 
 export interface NormalizedObservationPreview {
+    adsorbate: string;
     source_row: number | null;
     sequence_index: number;
     pressure_original: number;
@@ -169,8 +177,7 @@ export interface NormalizedExperimentPreview {
     external_key: string;
     name: string;
     adsorbent: string;
-    adsorbate: string;
-    adsorbate_smiles: string | null;
+    adsorbates: string[];
     temperature_k: number;
     temperature_original: number;
     temperature_original_unit: string;

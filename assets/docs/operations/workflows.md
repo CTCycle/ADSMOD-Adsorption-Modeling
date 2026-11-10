@@ -27,10 +27,17 @@ acquires external data. The former `public-data` routes are not supported.
    dataset information, data interpretation, scientific units, validation settings, and column mapping.
    Units are searchable; a unit not in the catalog can be saved for future imports or used for the
    current import only. A unit without a conversion definition blocks the import.
+   Files with one uptake column per species (for example `uptake_CO2` and `uptake_N2`) are detected
+   and listed under Species columns; each species name can be edited. They are converted to one
+   measurement row per species, stored under a single experiment. Files that already have one
+   adsorbate column are grouped the same way when an experiment contains several species. Species
+   columns must share one uptake unit.
 3. Validate series: experiments appear as collapsible sections with their observations, warnings, and
    errors. Datasets with blocking errors cannot be saved.
 4. After saving, the new dataset is highlighted in the list; Explore dataset opens it directly. Explore
-   shows the experiments in a navigator and their measurements in a worksheet table (or a plot).
+   shows the experiments in a compact navigator (Up/Down/Home/End change the selection; multi-species
+   experiments carry a "mix" tag) and their measurements in a worksheet table (or a plot with one
+   series per species).
 5. To correct data, choose Edit dataset: change dataset metadata, experiment name, material, species,
    temperature and units, or individual measurement values. Save changes validates everything,
    reports field-specific problems, and overwrites the stored values in one transaction; Cancel

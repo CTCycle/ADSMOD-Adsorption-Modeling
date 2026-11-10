@@ -8,7 +8,7 @@ import { DataPaginationComponent } from '../../shared/components/data-pagination
 import type { DatasetEditSession, ObservationField } from './dataset-edit-session';
 
 export const WORKSHEET_PAGE_SIZE = 100;
-const EDITABLE: readonly ObservationField[] = ['pressure_original', 'uptake_original', 'uptake_stddev_mol_kg'];
+const EDITABLE: readonly ObservationField[] = ['pressure_original', 'uptake_original'];
 
 export function pressureUnitLabel(unit: string | null): string {
     return unit === '1' ? 'p/p₀' : (unit ?? '');
@@ -43,7 +43,7 @@ export function exact(value: number | null): string {
                     <col class="col-index" />
                     <col class="col-row" />
                     @if (mixture()) { <col class="col-component" /> }
-                    <col /><col /><col class="col-sigma" /><col class="col-derived" /><col class="col-derived" />
+                    <col /><col /><col class="col-derived" /><col class="col-derived" />
                 </colgroup>
                 <thead>
                     <tr>
@@ -52,7 +52,6 @@ export function exact(value: number | null): string {
                         @if (mixture()) { <th scope="col">Species</th> }
                         <th scope="col" class="num">Pressure <span class="unit">[{{ pressureUnit() }}]</span></th>
                         <th scope="col" class="num">Uptake <span class="unit">[{{ uptakeUnit() }}]</span></th>
-                        <th scope="col" class="num">σ uptake <span class="unit">[mol/kg]</span></th>
                         <th scope="col" class="num derived">Pressure <span class="unit">[{{ canonicalPressureUnit() }}]</span></th>
                         <th scope="col" class="num derived">Uptake <span class="unit">[mol/kg]</span></th>
                     </tr>
@@ -91,7 +90,7 @@ export function exact(value: number | null): string {
                         </tr>
                     } @empty {
                         @if (!loading()) {
-                            <tr><td [attr.colspan]="mixture() ? 8 : 7" class="data-table-empty">No measurements in this experiment.</td></tr>
+                            <tr><td [attr.colspan]="mixture() ? 7 : 6" class="data-table-empty">No measurements in this experiment.</td></tr>
                         }
                     }
                 </tbody>
@@ -124,7 +123,6 @@ export function exact(value: number | null): string {
             .worksheet .col-index { width: 3.5rem; }
             .worksheet .col-row { width: 4.5rem; }
             .worksheet .col-component { width: 8rem; }
-            .worksheet .col-sigma { width: 7.5rem; }
             .worksheet .col-derived { width: 9rem; }
             .worksheet .num { text-align: right; font-variant-numeric: tabular-nums; }
             .worksheet th.index { position: sticky; left: 0; z-index: 1; background: var(--surface-subtle); color: var(--text-secondary); font-weight: 600; }
@@ -222,7 +220,7 @@ export class MeasurementWorksheetComponent {
     }
 
     protected columnLabel(field: ObservationField): string {
-        return field === 'pressure_original' ? 'Pressure' : field === 'uptake_original' ? 'Uptake' : 'Uptake uncertainty';
+        return field === 'pressure_original' ? 'Pressure' : 'Uptake';
     }
 
     protected rowChanged(row: ObservationRow): boolean {

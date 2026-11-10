@@ -29,6 +29,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/c
 import { ChartComponent } from '../dashboards/components/chart.component';
 import { DatasetDeleteDialogComponent } from './dataset-delete-dialog.component';
 import { DatasetEditSession } from './dataset-edit-session';
+import { buildPlotSeries } from './plot-series';
 import { DATASET_SOURCES } from '../../shared/utils/dataset-source';
 import { ExperimentMetaComponent } from './experiment-meta.component';
 import { ExperimentNavigatorComponent } from './experiment-navigator.component';
@@ -330,26 +331,28 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
         const page = this.plotRows();
         if (!page) return null;
         const unit = pressureUnitLabel(page.rows[0]?.pressure_canonical_unit ?? null);
+        const series = buildPlotSeries(page.rows, this.selected()?.components ?? []);
+        const multi = series.length > 1;
         return {
             animation: false,
             textStyle: { fontFamily: 'inherit' },
-            grid: { left: 70, right: 24, top: 24, bottom: 52 },
+            grid: { left: 70, right: 24, top: multi ? 40 : 24, bottom: 52 },
+            ...(multi ? { legend: { top: 0, type: 'scroll' } } : {}),
             tooltip: {
                 trigger: 'item',
-                formatter: (params: { value: [number, number] }) =>
-                    `p = ${NUMBER_FORMAT.format(params.value[0])} ${unit}<br>q = ${NUMBER_FORMAT.format(params.value[1])} mol/kg`,
+                formatter: (params: { seriesName: string; value: [number, number] }) =>
+                    `${multi ? `${params.seriesName}<br>` : ''}p = ${NUMBER_FORMAT.format(params.value[0])} ${unit}<br>q = ${NUMBER_FORMAT.format(params.value[1])} mol/kg`,
             },
             xAxis: { type: 'value', name: `Pressure (${unit})`, nameLocation: 'middle', nameGap: 32, scale: true },
             yAxis: { type: 'value', name: 'Uptake (mol/kg)', nameLocation: 'middle', nameGap: 50, scale: true },
-            series: [
-                {
-                    type: 'line',
-                    symbol: 'circle',
-                    symbolSize: 7,
-                    lineStyle: { width: 1.5, opacity: 0.7 },
-                    data: page.rows.map((row) => [row.pressure_canonical, row.uptake_mol_kg]),
-                },
-            ],
+            series: series.map((item) => ({
+                type: 'line',
+                name: item.name,
+                symbol: 'circle',
+                symbolSize: 7,
+                lineStyle: { width: 1.5, opacity: 0.7 },
+                data: item.points,
+            })),
         };
     });
 

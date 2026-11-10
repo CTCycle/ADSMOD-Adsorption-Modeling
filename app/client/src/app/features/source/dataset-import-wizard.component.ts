@@ -702,6 +702,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
         decimal_separator: 'auto',
         series_delimiter: null,
         wide_pairs: [],
+        species_columns: [],
         duplicate_policy: 'reject',
         confirmed_issue_codes: [],
     });
@@ -814,6 +815,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
             const uptake = `${formatNumber(item.uptake_mol_kg)} mol/kg`;
             return {
                 point: item.sequence_index + 1,
+                species: experiment.adsorbates.length > 1 ? item.adsorbate : undefined,
                 pressure,
                 pressureSource: pressureSource === pressure ? null : pressureSource,
                 uptake,
@@ -829,7 +831,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
         return {
             key: experiment.external_key,
             name: experiment.name,
-            subtitle: `${experiment.adsorbate} on ${experiment.adsorbent}`,
+            subtitle: `${experiment.adsorbates.join(' + ')} on ${experiment.adsorbent}`,
             temperature,
             pointCount: experiment.observation_count,
             pressureRange:
@@ -935,6 +937,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
         }
         const detected = result.data;
         this.preview.set(detected);
+        const speciesColumns = detected.proposed_species_columns;
         const structure: ImportableStructure =
             detected.detected_structure === 'ambiguous'
                 ? 'atomic'
@@ -954,10 +957,13 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
             structure,
             pressure_basis: detected.proposed_pressure_basis || 'absolute',
             grouping_columns: grouping,
+            species_columns: speciesColumns,
             column_roles: Object.fromEntries(
                 detected.columns.map((column) => [
                     column.name,
-                    column.proposed_role,
+                    speciesColumns.some((item) => item.uptake_column === column.name)
+                        ? 'ignore'
+                        : column.proposed_role,
                 ]),
             ),
         });

@@ -1,6 +1,6 @@
 # Persistence and packages
 
-Last updated: 2026-11-05
+Last updated: 2026-11-09
 
 ## Backend package
 
@@ -82,7 +82,9 @@ Adsorption data is stored as dataset → experiment → measurement:
   re-download restores edited experiments only when explicitly confirmed.
 - `isotherm_components` links an experiment to one or more adsorbates
   (RESTRICT); single-species isotherms have one component, NIST binary
-  mixtures two.
+  mixtures and uploaded multi-species experiments one per species. Upload
+  files with one uptake column per species are melted to this long form
+  during import, so no per-species column is ever stored.
 - `observations` holds measurements with source values and units next to the
   canonical pressure (Pa or p/p₀) and uptake (mol/kg).
 

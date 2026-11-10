@@ -25,6 +25,7 @@ from server.services.data.import_parser import (
     infer_column,
     infer_pressure_basis,
     parse_series_cell,
+    propose_species_columns,
     read_tabular,
     safe_cell,
     source_hash,
@@ -34,6 +35,7 @@ from server.common.units import (
     CustomUnit,
     UnitCatalog,
     UnitConversionError,
+    detect_header_unit,
     parse_number,
 )
 
@@ -42,6 +44,8 @@ DEFAULT_COLUMN_DETECTION_CUTOFF = 0.6
 DEFAULT_PREVIEW_ROW_LIMIT = 20
 EXPERIMENT_PREVIEW_POINTS = 25
 UNIT_QUANTITIES = ("pressure", "uptake", "temperature")
+SPECIES_UPTAKE_COLUMN = "__species_uptake__"
+SPECIES_ADSORBATE_COLUMN = "__species_adsorbate__"
 
 ###############################################################################
 @dataclass
@@ -81,6 +85,9 @@ class AdsorptionImportEngine:
         )
         columns = [infer_column(name, frame[name]) for name in frame.columns]
         structure, confidence = detect_structure(columns)
+        species_columns = propose_species_columns(columns)
+        if species_columns:
+            structure, confidence = "atomic", 0.9
         grouping = [
             column.name
             for column in columns
@@ -98,6 +105,8 @@ class AdsorptionImportEngine:
                 )
             )
         for role in ("pressure", "uptake", "temperature", "adsorbate", "adsorbent"):
+            if species_columns and role in {"uptake", "adsorbate"}:
+                continue
             matches = [
                 column
                 for column in columns
@@ -127,9 +136,11 @@ class AdsorptionImportEngine:
             ],
             proposed_grouping_columns=grouping,
             proposed_pressure_basis=infer_pressure_basis(columns),  # type: ignore[arg-type]
+            proposed_species_columns=species_columns,
             issues=issues,
             guidance=[
                 "Atomic one-observation-per-row data is the recommended format.",
+                "Files with one uptake column per species are converted to one row per species and measurement.",
                 "Aggregated formats are accepted only when pressure and uptake series can be paired unambiguously.",
                 "Convert the source to atomic format if validation cannot establish a safe interpretation.",
             ],
@@ -166,7 +177,38 @@ class AdsorptionImportEngine:
             for column, role in mapping.column_roles.items()
             if role not in {"ignore", "metadata"}
         }
-        issues = self._mapping_issues(mapping, frame, roles)
+        species_unit: str | None = None
+        issues: list[ImportIssue] = []
+        if mapping.species_columns:
+            missing = [
+                item.uptake_column
+                for item in mapping.species_columns
+                if item.uptake_column not in frame.columns
+            ]
+            if missing:
+                return self._bundle(
+                    mapping,
+                    payload,
+                    [],
+                    [
+                        ImportIssue(
+                            code="unknown_mapping_column",
+                            severity="error",
+                            column=column,
+                            message=f"Species column '{column}' does not exist in the uploaded file.",
+                        )
+                        for column in missing
+                    ],
+                )
+            frame, species_unit, issues = self._melt_species_columns(
+                frame, mapping, roles
+            )
+            roles = {
+                **roles,
+                "uptake": SPECIES_UPTAKE_COLUMN,
+                "adsorbate": SPECIES_ADSORBATE_COLUMN,
+            }
+        issues.extend(self._mapping_issues(mapping, frame, roles))
         issues.extend(self._unit_selection_issues(mapping, roles, catalog))
         if issues:
             return self._bundle(mapping, payload, [], issues)
@@ -175,6 +217,10 @@ class AdsorptionImportEngine:
             item.name: item
             for item in [infer_column(name, frame[name]) for name in frame]
         }
+        if species_unit:
+            detected[SPECIES_UPTAKE_COLUMN] = detected[
+                SPECIES_UPTAKE_COLUMN
+            ].model_copy(update={"detected_unit": species_unit})
         issues.extend(self._unit_override_warnings(mapping, roles, detected, catalog))
         grouped_records, metadata_by_group = self._group_rows(
             frame, roles, mapping, detected, catalog, issues
@@ -183,6 +229,53 @@ class AdsorptionImportEngine:
             grouped_records, metadata_by_group, mapping, issues
         )
         return self._bundle(mapping, payload, experiments, issues)
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _melt_species_columns(
+        frame: pd.DataFrame, mapping: ImportMapping, roles: dict[str, str]
+    ) -> tuple[pd.DataFrame, str | None, list[ImportIssue]]:
+        """Convert one-uptake-column-per-species data to the canonical long form.
+
+        Each source row yields one row per species with a value; the original
+        row index is kept so reported source rows still match the file.
+        """
+        issues: list[ImportIssue] = []
+        unit: str | None = None
+        unit_selected = (
+            mapping.unit_overrides.get("uptake")
+            or "uptake_unit" in roles
+            or mapping.constants.get("uptake_unit")
+        )
+        if not unit_selected:
+            units = {
+                detect_header_unit(item.uptake_column, "uptake")
+                for item in mapping.species_columns
+            }
+            if len(units) > 1:
+                issues.append(
+                    ImportIssue(
+                        code="species_unit_mismatch",
+                        severity="error",
+                        message="The species uptake columns declare different units.",
+                        remediation="Select one uptake unit for all species or convert the source columns.",
+                    )
+                )
+            else:
+                unit = units.pop()
+        parts = []
+        for item in mapping.species_columns:
+            cells = frame[item.uptake_column]
+            present = cells.notna() & cells.astype(str).str.strip().ne("")
+            parts.append(
+                frame[present].assign(
+                    **{
+                        SPECIES_UPTAKE_COLUMN: cells[present],
+                        SPECIES_ADSORBATE_COLUMN: item.adsorbate.strip(),
+                    }
+                )
+            )
+        return pd.concat(parts).sort_index(kind="stable"), unit, issues
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -285,14 +378,10 @@ class AdsorptionImportEngine:
                 )
                 continue
             existing = metadata_by_group.get(group_key)
-            if existing is not None:
-                for key in (
-                    "adsorbent",
-                    "adsorbate",
-                    "adsorbate_smiles",
-                    "temperature_k",
-                    "pressure_basis",
-                ):
+            if existing is None:
+                existing = metadata_by_group[group_key] = {**row_metadata, "species": {}}
+            else:
+                for key in ("adsorbent", "temperature_k", "pressure_basis"):
                     if existing[key] != row_metadata[key]:
                         issues.append(
                             ImportIssue(
@@ -306,8 +395,15 @@ class AdsorptionImportEngine:
                                 remediation="Correct the source data or include the differing field in the grouping selection.",
                             )
                         )
-            else:
-                metadata_by_group[group_key] = row_metadata
+            # One experiment may hold several species; the first spelling wins.
+            existing["species"].setdefault(
+                row_metadata["adsorbate"].casefold(),
+                {
+                    "name": row_metadata["adsorbate"],
+                    "molar_mass_g_mol": row_metadata.get("adsorbate_molar_mass_g_mol"),
+                    "smiles": row_metadata.get("adsorbate_smiles"),
+                },
+            )
             grouped_records.setdefault(group_key, []).extend(row_records)
         return grouped_records, metadata_by_group
 
@@ -354,46 +450,46 @@ class AdsorptionImportEngine:
             if group_key not in metadata_by_group:
                 continue
             metadata = metadata_by_group[group_key]
-            observations.sort(
-                key=lambda item: (
-                    item["pressure_canonical"],
-                    item["source_row"] or 0,
-                    item["sequence_index"],
+            species = metadata["species"]
+            by_species: dict[str, list[dict[str, Any]]] = {key: [] for key in species}
+            for observation in observations:
+                by_species[observation["adsorbate"].casefold()].append(observation)
+            duplicated = False
+            for key, items in by_species.items():
+                items.sort(
+                    key=lambda item: (
+                        item["pressure_canonical"],
+                        item["source_row"] or 0,
+                        item["sequence_index"],
+                    )
                 )
-            )
-            pressure_counts = Counter(
-                observation["pressure_canonical"] for observation in observations
-            )
-            if any(count > 1 for count in pressure_counts.values()):
+                pressure_counts = Counter(item["pressure_canonical"] for item in items)
+                duplicated = duplicated or any(
+                    count > 1 for count in pressure_counts.values()
+                )
+                if len(items) < 2:
+                    label = f" of {species[key]['name']}" if len(species) > 1 else ""
+                    issues.append(
+                        ImportIssue(
+                            code="insufficient_observations",
+                            severity="error",
+                            experiment=group_key,
+                            message=f"Each experiment requires at least two valid observations{label}.",
+                        )
+                    )
+                for sequence_index, observation in enumerate(items):
+                    observation["sequence_index"] = sequence_index
+            if duplicated:
                 issues.append(
                     self._duplicate_pressure_issue(group_key, mapping.duplicate_policy)
                 )
-
-            if len(observations) < 2:
-                issues.append(
-                    ImportIssue(
-                        code="insufficient_observations",
-                        severity="error",
-                        experiment=group_key,
-                        message="Each experiment requires at least two valid observations.",
-                    )
-                )
-            for sequence_index, observation in enumerate(observations):
-                observation["sequence_index"] = sequence_index
+            observations = [item for items in by_species.values() for item in items]
             experiments.append(
                 {
                     "external_key": group_key,
                     "name": metadata["name"],
                     "adsorbent": {"name": metadata["adsorbent"]},
-                    "adsorbates": [
-                        {
-                            "name": metadata["adsorbate"],
-                            "molar_mass_g_mol": metadata.get(
-                                "adsorbate_molar_mass_g_mol"
-                            ),
-                            "smiles": metadata.get("adsorbate_smiles"),
-                        }
-                    ],
+                    "adsorbates": list(species.values()),
                     "temperature_original": metadata["temperature_original"],
                     "temperature_original_unit": metadata["temperature_original_unit"],
                     "temperature_k": metadata["temperature_k"],
@@ -763,8 +859,7 @@ class AdsorptionImportEngine:
                 external_key=experiment["external_key"],
                 name=experiment["name"],
                 adsorbent=experiment["adsorbent"]["name"],
-                adsorbate=experiment["adsorbates"][0]["name"],
-                adsorbate_smiles=experiment["adsorbates"][0].get("smiles"),
+                adsorbates=[item["name"] for item in experiment["adsorbates"]],
                 temperature_k=experiment["temperature_k"],
                 temperature_original=experiment["temperature_original"],
                 temperature_original_unit=experiment["temperature_original_unit"],
@@ -775,6 +870,7 @@ class AdsorptionImportEngine:
                         **{
                             key: observation[key]
                             for key in (
+                                "adsorbate",
                                 "source_row",
                                 "sequence_index",
                                 "pressure_original",

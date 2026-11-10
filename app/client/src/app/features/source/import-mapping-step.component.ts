@@ -227,6 +227,53 @@ const DUPLICATE_HINTS: Record<ImportMapping['duplicate_policy'], string> = {
             </section>
         </div>
 
+        @if (mapping().species_columns.length) {
+        <section class="mapping-card" aria-labelledby="card-species">
+            <h3 id="card-species">Species columns</h3>
+            <small class="hint"
+                >Use when each adsorbate has its own uptake column. Each row is
+                converted to one measurement per species within a single
+                experiment.</small
+            >
+            @for (item of mapping().species_columns; track item.uptake_column) {
+                <div class="wide-pair-row">
+                    <span>{{ item.uptake_column }}</span>
+                    <input
+                        class="select-input"
+                        [attr.aria-label]="'Species for ' + item.uptake_column"
+                        [value]="item.adsorbate"
+                        (change)="renameSpeciesColumn($index, $event)"
+                    />
+                    <button
+                        class="button quiet"
+                        type="button"
+                        (click)="removeSpeciesColumn($index)"
+                    >
+                        Remove
+                    </button>
+                </div>
+            }
+            <div class="wide-pair-row">
+                <select
+                    #speciesColumn
+                    class="select-input"
+                    aria-label="Uptake column of another species"
+                >
+                    @for (column of preview().columns; track column.name) {
+                        <option [value]="column.name">{{ column.name }}</option>
+                    }
+                </select>
+                <button
+                    class="button secondary"
+                    type="button"
+                    (click)="addSpeciesColumn(speciesColumn.value)"
+                >
+                    Add species column
+                </button>
+            </div>
+        </section>
+        }
+
         <details class="advanced">
             <summary>
                 Advanced: decimal separator, dataset-wide constants
@@ -820,6 +867,46 @@ export class ImportMappingStepComponent {
                 ...current.wide_pairs,
                 { pressure_column: pressure, uptake_column: uptake },
             ],
+        }));
+    }
+
+    protected addSpeciesColumn(column: string): void {
+        if (!column) {
+            return;
+        }
+        this.mapping.update((current) =>
+            current.species_columns.some((item) => item.uptake_column === column)
+                ? current
+                : {
+                      ...current,
+                      column_roles: { ...current.column_roles, [column]: 'ignore' },
+                      species_columns: [
+                          ...current.species_columns,
+                          { uptake_column: column, adsorbate: column },
+                      ],
+                  },
+        );
+    }
+
+    protected renameSpeciesColumn(index: number, event: Event): void {
+        const adsorbate = (event.target as HTMLInputElement).value.trim();
+        if (!adsorbate) {
+            return;
+        }
+        this.mapping.update((current) => ({
+            ...current,
+            species_columns: current.species_columns.map((item, itemIndex) =>
+                itemIndex === index ? { ...item, adsorbate } : item,
+            ),
+        }));
+    }
+
+    protected removeSpeciesColumn(index: number): void {
+        this.mapping.update((current) => ({
+            ...current,
+            species_columns: current.species_columns.filter(
+                (_, itemIndex) => itemIndex !== index,
+            ),
         }));
     }
 

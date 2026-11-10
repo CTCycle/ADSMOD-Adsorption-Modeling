@@ -8397,6 +8397,13 @@
             "type": "array",
             "title": "Wide Pairs"
           },
+          "species_columns": {
+            "items": {
+              "$ref": "#/components/schemas/SpeciesColumn"
+            },
+            "type": "array",
+            "title": "Species Columns"
+          },
           "worksheet": {
             "anyOf": [
               {
@@ -8538,6 +8545,13 @@
               }
             ],
             "title": "Proposed Pressure Basis"
+          },
+          "proposed_species_columns": {
+            "items": {
+              "$ref": "#/components/schemas/SpeciesColumn"
+            },
+            "type": "array",
+            "title": "Proposed Species Columns"
           },
           "issues": {
             "items": {
@@ -9494,20 +9508,12 @@
             "type": "string",
             "title": "Adsorbent"
           },
-          "adsorbate": {
-            "type": "string",
-            "title": "Adsorbate"
-          },
-          "adsorbate_smiles": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Adsorbate Smiles"
+          "adsorbates": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adsorbates"
           },
           "temperature_k": {
             "type": "number",
@@ -9547,7 +9553,7 @@
           "external_key",
           "name",
           "adsorbent",
-          "adsorbate",
+          "adsorbates",
           "temperature_k",
           "temperature_original",
           "temperature_original_unit",
@@ -9559,6 +9565,10 @@
       },
       "NormalizedObservationPreview": {
         "properties": {
+          "adsorbate": {
+            "type": "string",
+            "title": "Adsorbate"
+          },
           "source_row": {
             "anyOf": [
               {
@@ -9605,6 +9615,7 @@
         },
         "type": "object",
         "required": [
+          "adsorbate",
           "source_row",
           "sequence_index",
           "pressure_original",
@@ -11125,6 +11136,29 @@
         "type": "object",
         "title": "SettingsUpdateRequest",
         "description": "Full settings replacement; partial updates are intentionally rejected."
+      },
+      "SpeciesColumn": {
+        "properties": {
+          "uptake_column": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Uptake Column"
+          },
+          "adsorbate": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Adsorbate"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "uptake_column",
+          "adsorbate"
+        ],
+        "title": "SpeciesColumn",
+        "description": "A per-species uptake column of a wide multi-species file."
       },
       "SpeciesDetailResponse": {
         "properties": {

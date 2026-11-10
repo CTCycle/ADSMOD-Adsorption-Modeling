@@ -16,6 +16,8 @@ export type ExplorerStatus = 'valid' | 'warning' | 'error';
 
 export interface ExplorerRow {
     point: number;
+    /** Set only for multi-species experiments. */
+    species?: string;
     pressure: string;
     pressureSource: string | null;
     uptake: string;
@@ -186,6 +188,9 @@ export interface ExplorerPageChange {
                                         <thead>
                                             <tr>
                                                 <th scope="col">Point</th>
+                                                @if (experiment.rows[0].species) {
+                                                    <th scope="col">Species</th>
+                                                }
                                                 <th scope="col">Pressure</th>
                                                 <th scope="col">Uptake</th>
                                                 <th scope="col">Status</th>
@@ -194,10 +199,13 @@ export interface ExplorerPageChange {
                                         <tbody>
                                             @for (
                                                 row of experiment.rows;
-                                                track row.point
+                                                track $index
                                             ) {
                                                 <tr [class]="row.status">
                                                     <td>{{ row.point }}</td>
+                                                    @if (row.species) {
+                                                        <td>{{ row.species }}</td>
+                                                    }
                                                     <td>
                                                         {{ row.pressure }}
                                                         @if (row.pressureSource) {

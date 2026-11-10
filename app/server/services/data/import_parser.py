@@ -17,7 +17,7 @@ from typing import Any
 import pandas as pd
 
 from server.configurations.settings import DEFAULT_DATASET_ALLOWED_EXTENSIONS
-from server.domain.datasets import ColumnDetection
+from server.domain.datasets import ColumnDetection, SpeciesColumn
 from server.common.units import detect_header_unit, parse_number
 
 
@@ -176,6 +176,23 @@ ROLE_ALIASES: dict[str, set[str]] = {
         "pression saturation",
         "sattigungsdruck",
     },
+}
+
+SPECIES_UPTAKE_HEADER = re.compile(r"\b(?:uptake|adsorption|adsorbed|loading)\b")
+SPECIES_EXCLUDED_HEADER = re.compile(
+    r"\b(?:unit|units|std|stddev|uncertainty|error|sigma|deviation)\b"
+)
+# Numbered point columns (uptake1, 2) belong to wide pairs, not to species.
+SPECIES_NUMBERED_TOKEN = re.compile(r"(?:uptake|adsorption|loading|q)?\d+")
+SPECIES_HEADER_NOISE = {
+    "uptake",
+    "adsorption",
+    "adsorbed",
+    "loading",
+    "amount",
+    "quantity",
+    "of",
+    "for",
 }
 
 ###############################################################################
@@ -471,6 +488,37 @@ def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
             return "mixed", 0.75
         return "atomic", 0.95
     return "ambiguous", 0.25
+
+###############################################################################
+def propose_species_columns(columns: list[ColumnDetection]) -> list[SpeciesColumn]:
+    """Propose per-species uptake columns (e.g. ``uptake_CO2``, ``uptake_N2``).
+
+    Only proposed for numeric columns whose header names the uptake quantity
+    followed or preceded by a species token, when the file has no adsorbate column.
+    """
+    if any(column.proposed_role == "adsorbate" and column.confidence >= 0.6 for column in columns):
+        return []
+    proposals: list[SpeciesColumn] = []
+    for column in columns:
+        header = normalize_header(column.name)
+        if column.inferred_type != "number" or not SPECIES_UPTAKE_HEADER.search(header):
+            continue
+        if SPECIES_EXCLUDED_HEADER.search(header):
+            continue
+        without_units = re.sub(r"[\[(][^\])]*[\])]", " ", column.name)
+        tokens = [
+            token
+            for token in re.split(r"[\s_\-:]+", without_units)
+            if token
+            and token.casefold() not in SPECIES_HEADER_NOISE
+            and not SPECIES_NUMBERED_TOKEN.fullmatch(token.casefold())
+        ]
+        if tokens:
+            proposals.append(
+                SpeciesColumn(uptake_column=column.name, adsorbate=" ".join(tokens))
+            )
+    species = {item.adsorbate.casefold() for item in proposals}
+    return proposals if len(proposals) >= 2 and len(species) == len(proposals) else []
 
 ###############################################################################
 def infer_pressure_basis(columns: list[ColumnDetection]) -> str | None:

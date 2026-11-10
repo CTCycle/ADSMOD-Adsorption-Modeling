@@ -136,6 +136,54 @@ def test_multi_experiment_import_is_listed_as_one_dataset(client: TestClient) ->
 
 
 ###############################################################################
+def test_wide_species_columns_are_stored_as_one_experiment_with_two_species(
+    client: TestClient,
+) -> None:
+    csv = (
+        "experiment,adsorbent,temperature [K],pressure [bar],uptake_CO2 [mol/kg],uptake_N2 [mol/kg]\n"
+        "M1,Zeolite 13X,298.15,0.1,1.0,0.2\n"
+        "M1,Zeolite 13X,298.15,0.5,2.0,0.3\n"
+        "M1,Zeolite 13X,298.15,1.0,2.5,0.4\n"
+    )
+    mapping = {
+        "dataset_name": "Mixture",
+        "structure": "atomic",
+        "column_roles": {
+            "experiment": "experiment_name",
+            "adsorbent": "adsorbent",
+            "temperature [K]": "temperature",
+            "pressure [bar]": "pressure",
+        },
+        "grouping_columns": ["experiment"],
+        "unit_overrides": {"pressure": "bar", "uptake": "mol/kg", "temperature": "K"},
+        "pressure_basis": "absolute",
+        "species_columns": [
+            {"uptake_column": "uptake_CO2 [mol/kg]", "adsorbate": "CO2"},
+            {"uptake_column": "uptake_N2 [mol/kg]", "adsorbate": "N2"},
+        ],
+    }
+    files = {"file": ("mixture.csv", csv.encode("utf-8"), "text/csv")}
+    response = client.post(
+        "/api/v1/datasets/import/commit", data={"mapping": json.dumps(mapping)}, files=files
+    )
+    assert response.status_code == 201, response.text
+    dataset = response.json()["dataset"]
+
+    assert dataset["experiment_count"] == 1 and dataset["observation_count"] == 6
+    experiment = _experiment(client, dataset["id"], "M1")
+    assert experiment["observation_count"] == 6
+    assert [component["name"] for component in experiment["components"]] == [
+        "Carbon dioxide",
+        "Nitrogen",
+    ]
+    rows = _observations(client, dataset["id"], experiment["id"])
+    by_component: dict[int, list[float]] = {}
+    for row in rows:
+        by_component.setdefault(row["component_id"], []).append(row["uptake_mol_kg"])
+    assert sorted(by_component.values()) == [[0.2, 0.3, 0.4], [1.0, 2.0, 2.5]]
+
+
+###############################################################################
 def test_edit_overwrites_values_recomputes_canonical_units_and_feeds_fitting(
     client: TestClient,
 ) -> None:

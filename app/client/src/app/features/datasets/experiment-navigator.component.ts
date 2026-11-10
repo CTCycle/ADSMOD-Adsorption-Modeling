@@ -33,7 +33,7 @@ export function speciesLabel(experiment: ExperimentSummary): string {
             } @else if (!items().length) {
                 <p class="nav-message">{{ query() || editedOnly() ? 'No experiments match.' : 'This dataset has no experiments.' }}</p>
             }
-            <ul class="experiment-items" [attr.aria-busy]="loading()">
+            <ul class="experiment-items" [attr.aria-busy]="loading()" (keydown)="navigate($event)">
                 @for (experiment of items(); track experiment.id) {
                     <li>
                         <button
@@ -41,10 +41,14 @@ export function speciesLabel(experiment: ExperimentSummary): string {
                             class="experiment-item"
                             [class.selected]="experiment.id === selectedId()"
                             [attr.aria-current]="experiment.id === selectedId() ? 'true' : null"
+                            [title]="experiment.name + ' — ' + experiment.adsorbent + ' · ' + speciesLabel(experiment)"
                             (click)="selected.emit(experiment)"
                         >
-                            <span class="experiment-name" [title]="experiment.name">{{ experiment.name }}</span>
+                            <span class="experiment-name">{{ experiment.name }}</span>
                             <span class="experiment-flags">
+                                @if (experiment.components.length > 1) {
+                                    <span class="flag mix" title="Multi-species experiment">mix</span>
+                                }
                                 @if (pendingIds().has(experiment.id)) {
                                     <span class="flag pending" title="Unsaved changes">●</span>
                                 }
@@ -52,8 +56,7 @@ export function speciesLabel(experiment: ExperimentSummary): string {
                                     <span class="flag edited" title="Edited locally">Edited</span>
                                 }
                             </span>
-                            <span class="experiment-meta" [title]="experiment.adsorbent + ' · ' + speciesLabel(experiment)">{{ experiment.adsorbent }} · {{ speciesLabel(experiment) }}</span>
-                            <span class="experiment-meta">{{ experiment.temperature_k.toFixed(2) }} K · {{ experiment.observation_count }} points</span>
+                            <span class="experiment-meta">{{ experiment.adsorbent }} · {{ speciesLabel(experiment) }} · {{ experiment.temperature_k.toFixed(1) }} K · {{ experiment.observation_count }} pts</span>
                         </button>
                     </li>
                 }
@@ -79,9 +82,9 @@ export function speciesLabel(experiment: ExperimentSummary): string {
             .experiment-item {
                 display: grid;
                 grid-template-columns: minmax(0, 1fr) auto;
-                gap: 1px 0.4rem;
+                gap: 0 0.4rem;
                 width: 100%;
-                padding: 0.45rem 0.5rem;
+                padding: 0.3rem 0.5rem;
                 border: 0;
                 border-bottom: 1px solid var(--border-color);
                 border-radius: 0;
@@ -98,6 +101,7 @@ export function speciesLabel(experiment: ExperimentSummary): string {
             .experiment-flags { display: inline-flex; gap: 0.25rem; align-items: center; }
             .flag { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; }
             .flag.pending { color: var(--primary-600); font-size: 0.7rem; }
+            .flag.mix { padding: 0 5px; border-radius: 999px; background: var(--slate-100); color: var(--text-secondary); }
             .flag.edited { padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, #d97706 14%, transparent); color: #b45309; }
             .experiment-meta { grid-column: span 2; overflow: hidden; color: var(--text-tertiary); font-size: 0.7rem; text-overflow: ellipsis; white-space: nowrap; }
             .experiment-pager { display: flex; align-items: center; justify-content: space-between; gap: 0.25rem; padding-top: 0.4rem; color: var(--text-secondary); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
@@ -150,6 +154,23 @@ export class ExperimentNavigatorComponent {
 
     protected pageCount(): number {
         return Math.max(1, Math.ceil(this.total() / this.pageSize));
+    }
+
+    /** Up/Down/Home/End move the selection through the loaded page. */
+    protected navigate(event: KeyboardEvent): void {
+        const items = this.items();
+        if (!items.length) return;
+        const current = items.findIndex((item) => item.id === this.selectedId());
+        const target =
+            event.key === 'ArrowDown' ? Math.min(items.length - 1, current + 1)
+            : event.key === 'ArrowUp' ? Math.max(0, current - 1)
+            : event.key === 'Home' ? 0
+            : event.key === 'End' ? items.length - 1
+            : -1;
+        if (target < 0) return;
+        event.preventDefault();
+        this.selected.emit(items[target]);
+        this.host.nativeElement.querySelectorAll<HTMLElement>('.experiment-item')[target]?.focus();
     }
 
     protected search(value: string): void {

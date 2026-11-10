@@ -75,7 +75,94 @@ def test_atomic_import_preserves_adsorbate_smiles_for_training() -> None:
 
     assert bundle.response.status == "valid"
     assert bundle.experiments[0]["adsorbates"][0]["smiles"] == "O=C=O"
-    assert bundle.response.experiments[0].adsorbate_smiles == "O=C=O"
+    assert bundle.response.experiments[0].adsorbates == ["CO2"]
+
+
+###############################################################################
+def _wide_species_mapping(engine: AdsorptionImportEngine, payload: bytes):
+    preview = engine.preview(payload, "mixture.csv")
+    mapping = ImportMapping(
+        dataset_name="mixture",
+        structure="atomic",
+        column_roles={
+            column.name: "ignore"
+            if column.name in {item.uptake_column for item in preview.proposed_species_columns}
+            else column.proposed_role
+            for column in preview.columns
+        },
+        grouping_columns=["experiment_id"],
+        pressure_basis="absolute",
+        species_columns=preview.proposed_species_columns,
+    )
+    return preview, mapping
+
+
+###############################################################################
+def test_wide_species_columns_become_one_multi_species_experiment() -> None:
+    payload = (
+        b"experiment_id,Pressure [kPa],uptake_CO2 [mmol/g],uptake_N2 [mmol/g],Temperature [K],Adsorbent\n"
+        b"EXP-1,10,0.5,0.1,298.15,13X\n"
+        b"EXP-1,20,0.9,0.2,298.15,13X\n"
+        b"EXP-1,30,1.1,,298.15,13X\n"
+    )
+    engine = AdsorptionImportEngine()
+    preview, mapping = _wide_species_mapping(engine, payload)
+    bundle = engine.validate(payload, "mixture.csv", mapping)
+
+    assert [item.adsorbate for item in preview.proposed_species_columns] == ["CO2", "N2"]
+    assert bundle.response.status == "valid"
+    assert bundle.response.experiment_count == 1
+    assert bundle.response.experiments[0].adsorbates == ["CO2", "N2"]
+    experiment = bundle.experiments[0]
+    assert [item["name"] for item in experiment["adsorbates"]] == ["CO2", "N2"]
+    by_species = {
+        name: [item for item in experiment["observations"] if item["adsorbate"] == name]
+        for name in ("CO2", "N2")
+    }
+    assert [item["sequence_index"] for item in by_species["CO2"]] == [0, 1, 2]
+    assert [item["sequence_index"] for item in by_species["N2"]] == [0, 1]
+    assert [item["source_row"] for item in by_species["N2"]] == [2, 3]
+    assert by_species["N2"][0]["uptake_mol_kg"] == 0.1
+    assert by_species["N2"][0]["pressure_canonical"] == 10_000
+
+
+###############################################################################
+def test_long_form_species_column_groups_species_under_one_experiment() -> None:
+    payload = (
+        b"experiment_id,pressure [kPa],uptake [mmol/g],temperature [K],adsorbate,adsorbent\n"
+        b"EXP-1,10,0.5,298.15,CO2,13X\nEXP-1,20,0.9,298.15,CO2,13X\n"
+        b"EXP-1,10,0.1,298.15,N2,13X\nEXP-1,20,0.2,298.15,N2,13X\n"
+    )
+    engine = AdsorptionImportEngine()
+    preview = engine.preview(payload, "long.csv")
+    mapping = ImportMapping(
+        dataset_name="long",
+        structure="atomic",
+        column_roles={column.name: column.proposed_role for column in preview.columns},
+        grouping_columns=["experiment_id"],
+        pressure_basis="absolute",
+    )
+    bundle = engine.validate(payload, "long.csv", mapping)
+
+    assert preview.proposed_species_columns == []
+    assert bundle.response.status == "valid"
+    assert bundle.response.experiment_count == 1
+    assert bundle.response.experiments[0].adsorbates == ["CO2", "N2"]
+    assert bundle.response.observation_count == 4
+
+
+###############################################################################
+def test_wide_species_columns_with_different_units_are_rejected() -> None:
+    payload = (
+        b"experiment_id,Pressure [kPa],uptake_CO2 [mmol/g],uptake_N2 [mol/kg],Temperature [K],Adsorbent\n"
+        b"EXP-1,10,0.5,0.1,298.15,13X\nEXP-1,20,0.9,0.2,298.15,13X\n"
+    )
+    engine = AdsorptionImportEngine()
+    _, mapping = _wide_species_mapping(engine, payload)
+    bundle = engine.validate(payload, "mixture.csv", mapping)
+
+    assert bundle.response.status == "invalid"
+    assert any(issue.code == "species_unit_mismatch" for issue in bundle.response.issues)
 
 
 ###############################################################################
