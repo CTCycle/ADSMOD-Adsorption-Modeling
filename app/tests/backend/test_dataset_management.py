@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -181,6 +182,53 @@ def test_wide_species_columns_are_stored_as_one_experiment_with_two_species(
     for row in rows:
         by_component.setdefault(row["component_id"], []).append(row["uptake_mol_kg"])
     assert sorted(by_component.values()) == [[0.2, 0.3, 0.4], [1.0, 2.0, 2.5]]
+
+
+###############################################################################
+def test_commit_runs_off_the_event_loop(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rows = "".join(
+        f"E{index // 20},Zeolite 13X,CO2,298.15,{0.05 * (index % 20 + 1):.2f},{index % 20 + 1}.0\n"
+        for index in range(2000)
+    )
+    files = {
+        "file": (
+            "large.csv",
+            (CSV.split("\n", 1)[0] + "\n" + rows).encode("utf-8"),
+            "text/csv",
+        )
+    }
+    service = client.app.state.core_container.dataset_service  # type: ignore[attr-defined]
+    real_commit = service.commit
+    entered, release = threading.Event(), threading.Event()
+
+    def blocked_commit(*args: Any, **kwargs: Any) -> Any:
+        entered.set()
+        assert release.wait(timeout=15), "event loop never served the other request"
+        return real_commit(*args, **kwargs)
+
+    monkeypatch.setattr(service, "commit", blocked_commit)
+    outcome: dict[str, Any] = {}
+
+    def run_commit() -> None:
+        outcome["response"] = client.post(
+            "/api/v1/datasets/import/commit",
+            data={"mapping": json.dumps({**MAPPING, "dataset_name": "Large"})},
+            files=files,
+        )
+
+    worker = threading.Thread(target=run_commit)
+    worker.start()
+    try:
+        assert entered.wait(timeout=15)
+        # Served only if the blocked commit is not occupying the event loop.
+        assert client.get("/api/v1/datasets").status_code == 200
+    finally:
+        release.set()
+        worker.join(timeout=30)
+    assert outcome["response"].status_code == 201, outcome["response"].text
+    assert outcome["response"].json()["dataset"]["observation_count"] == 2000
 
 
 ###############################################################################

@@ -395,8 +395,9 @@ class AdsorptionImportEngine:
                                 remediation="Correct the source data or include the differing field in the grouping selection.",
                             )
                         )
-            # One experiment may hold several species; the first spelling wins.
-            existing["species"].setdefault(
+            # One experiment may hold several species; the first spelling of a
+            # name wins, but conflicting SMILES or molar mass values are errors.
+            species = existing["species"].setdefault(
                 row_metadata["adsorbate"].casefold(),
                 {
                     "name": row_metadata["adsorbate"],
@@ -404,6 +405,26 @@ class AdsorptionImportEngine:
                     "smiles": row_metadata.get("adsorbate_smiles"),
                 },
             )
+            for field, label, key in (
+                ("smiles", "SMILES", "adsorbate_smiles"),
+                ("molar_mass_g_mol", "molar mass", "adsorbate_molar_mass_g_mol"),
+            ):
+                kept, incoming = species[field], row_metadata.get(key)
+                if kept in (None, "") or incoming in (None, "") or kept == incoming:
+                    continue
+                issues.append(
+                    ImportIssue(
+                        code="conflicting_species_metadata",
+                        severity="error",
+                        source_row=source_row,
+                        experiment=group_key,
+                        message=(
+                            f"Species '{species['name']}' in experiment '{group_key}' "
+                            f"has conflicting {label} values: '{kept}' and '{incoming}'."
+                        ),
+                        remediation="Use one consistent value per species within an experiment.",
+                    )
+                )
             grouped_records.setdefault(group_key, []).extend(row_records)
         return grouped_records, metadata_by_group
 

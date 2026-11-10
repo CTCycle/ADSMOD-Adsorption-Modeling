@@ -152,6 +152,36 @@ def test_long_form_species_column_groups_species_under_one_experiment() -> None:
 
 
 ###############################################################################
+def test_conflicting_species_smiles_in_one_experiment_blocks_validation() -> None:
+    payload = (
+        b"experiment_id,pressure [kPa],uptake [mmol/g],temperature [K],adsorbate,adsorbate_smiles,adsorbent\n"
+        b"EXP-1,10,0.5,298.15,CO2,O=C=O,13X\n"
+        b"EXP-1,20,0.9,298.15,CO2,C(=O)=O,13X\n"
+    )
+    engine = AdsorptionImportEngine()
+    preview = engine.preview(payload, "conflict.csv")
+    mapping = ImportMapping(
+        dataset_name="conflict",
+        structure="atomic",
+        column_roles={column.name: column.proposed_role for column in preview.columns},
+        grouping_columns=["experiment_id"],
+        pressure_basis="absolute",
+    )
+
+    bundle = engine.validate(payload, "conflict.csv", mapping)
+
+    assert bundle.response.status == "invalid"
+    issue = next(
+        item
+        for item in bundle.response.issues
+        if item.code == "conflicting_species_metadata"
+    )
+    assert issue.source_row == 3
+    assert "CO2" in issue.message
+    assert "O=C=O" in issue.message and "C(=O)=O" in issue.message
+
+
+###############################################################################
 def test_wide_species_columns_with_different_units_are_rejected() -> None:
     payload = (
         b"experiment_id,Pressure [kPa],uptake_CO2 [mmol/g],uptake_N2 [mol/kg],Temperature [K],Adsorbent\n"

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Literal
 
 from fastapi import (
@@ -91,7 +92,7 @@ class DatasetEndpoint:
     ) -> ImportPreviewResponse:
         try:
             payload = await self.read_upload_bytes(file)
-            return self.service.preview(payload, file.filename)
+            return await asyncio.to_thread(self.service.preview, payload, file.filename)
         except ValueError as exc:
             raise self.bad_request(exc) from exc
 
@@ -103,8 +104,11 @@ class DatasetEndpoint:
     ) -> ImportValidationResponse:
         try:
             payload = await self.read_upload_bytes(file)
-            return self.service.validate(
-                payload, file.filename, self.service.parse_mapping(mapping)
+            return await asyncio.to_thread(
+                self.service.validate,
+                payload,
+                file.filename,
+                self.service.parse_mapping(mapping),
             )
         except ValueError as exc:
             raise self.bad_request(exc) from exc
@@ -117,8 +121,11 @@ class DatasetEndpoint:
     ) -> DatasetImportResponse:
         try:
             payload = await self.read_upload_bytes(file)
-            result = self.service.commit(
-                payload, file.filename, self.service.parse_mapping(mapping)
+            result = await asyncio.to_thread(
+                self.service.commit,
+                payload,
+                file.filename,
+                self.service.parse_mapping(mapping),
             )
         except ValueError as exc:
             raise self.bad_request(exc) from exc
