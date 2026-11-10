@@ -103,28 +103,27 @@ class NISTRepository:
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
                 .where(Dataset.source == "nist")
             )
-            single_component_rows = session.scalar(
+            observation_count = session.scalar(
                 select(func.count(Observation.id))
                 .join(Isotherm, Isotherm.id == Observation.isotherm_id)
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
                 .where(Dataset.source == "nist")
             )
-            mixture_ids = (
+            multi_species_ids = (
                 select(IsothermComponent.isotherm_id)
                 .join(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
                 .where(Dataset.source == "nist")
                 .group_by(IsothermComponent.isotherm_id)
-                .having(func.count(IsothermComponent.id) > 1)
+                .having(func.count(IsothermComponent.adsorbate_id) > 1)
                 .subquery()
             )
-            binary_mixture_rows = session.scalar(
-                select(func.count()).select_from(mixture_ids)
+            multi_species_experiments = session.scalar(
+                select(func.count()).select_from(multi_species_ids)
             )
             guest_rows = session.scalar(
                 select(func.count(func.distinct(Adsorbate.id)))
-                .join(IsothermComponent, IsothermComponent.adsorbate_id == Adsorbate.id)
-                .join(Observation, Observation.component_id == IsothermComponent.id)
+                .join(Observation, Observation.adsorbate_id == Adsorbate.id)
                 .join(Isotherm, Isotherm.id == Observation.isotherm_id)
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
                 .where(Dataset.source == "nist")
@@ -137,8 +136,8 @@ class NISTRepository:
             )
         return {
             "experiments_count": int(experiments_count or 0),
-            "single_component_rows": int(single_component_rows or 0),
-            "binary_mixture_rows": int(binary_mixture_rows or 0),
+            "observation_count": int(observation_count or 0),
+            "multi_species_experiments": int(multi_species_experiments or 0),
             "guest_rows": int(guest_rows or 0),
             "host_rows": int(host_rows or 0),
         }
@@ -155,7 +154,7 @@ class NISTRepository:
                     Isotherm.temperature_k,
                     Adsorbent.name.label("adsorbent"),
                     Adsorbate.name.label("adsorbate"),
-                    Observation.component_id,
+                    Observation.adsorbate_id,
                     Observation.pressure_canonical_unit,
                     Observation.pressure_canonical.label("pressure"),
                     Observation.uptake_mol_kg.label("adsorbed_amount"),
@@ -163,13 +162,9 @@ class NISTRepository:
                 .join(Dataset, Dataset.id == Isotherm.dataset_id)
                 .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
                 .join(Observation, Observation.isotherm_id == Isotherm.id)
-                .join(
-                    IsothermComponent,
-                    IsothermComponent.id == Observation.component_id,
-                )
-                .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
+                .join(Adsorbate, Adsorbate.id == Observation.adsorbate_id)
                 .where(Dataset.source == "nist")
-                .order_by(Isotherm.id, Observation.sequence_index)
+                .order_by(Isotherm.id, Observation.adsorbate_id, Observation.pressure_canonical)
             ).mappings()
             guests = session.scalars(
                 select(Adsorbate)

@@ -24,6 +24,7 @@ ColumnRole = Literal[
     "uptake_unit",
     "temperature_unit",
     "uptake_stddev",
+    "gas_mole_fraction",
     "saturation_pressure",
     "metadata",
     "ignore",
@@ -69,6 +70,7 @@ class SpeciesColumn(BaseModel):
 
     uptake_column: str = Field(min_length=1)
     adsorbate: str = Field(min_length=1, max_length=255)
+    mole_fraction_column: str | None = None
 
 ###############################################################################
 class CustomUnitDefinition(BaseModel):
@@ -100,7 +102,7 @@ class ImportMapping(BaseModel):
     header_row: int = Field(default=0, ge=0)
     thousands_separator: str | None = None
     encoding: str = "utf-8"
-    duplicate_policy: Literal["keep", "average", "reject"] = "reject"
+    duplicate_policy: Literal["reject", "average"] = "reject"
     confirmed_issue_codes: list[str] = Field(default_factory=list)
 
     # -------------------------------------------------------------------------
@@ -115,6 +117,7 @@ class ImportMapping(BaseModel):
             "uptake_unit",
             "temperature_unit",
             "uptake_stddev",
+            "gas_mole_fraction",
             "saturation_pressure",
         }
         used: dict[str, str] = {}
@@ -169,7 +172,6 @@ class ImportPreviewResponse(BaseModel):
 class NormalizedObservationPreview(BaseModel):
     adsorbate: str
     source_row: int | None
-    sequence_index: int
     pressure_original: float
     pressure_original_unit: str
     pressure_canonical: float
@@ -177,6 +179,7 @@ class NormalizedObservationPreview(BaseModel):
     uptake_original: float
     uptake_original_unit: str
     uptake_mol_kg: float
+    gas_mole_fraction: float | None = None
 
 ###############################################################################
 class NormalizedExperimentPreview(BaseModel):

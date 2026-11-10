@@ -740,10 +740,8 @@ class NISTDataService:
         self, successful: list[tuple[str, dict[str, Any]]], restore_edited: bool = False
     ) -> tuple[list[dict[str, Any]], dict[str, str]]:
         fetched = pd.DataFrame([payload for _identifier, payload in successful])
-        single_component, binary_mixture = self.builder.build_datasets(fetched)
-        records, reasons = self.mapper.experiment_records_with_skips(
-            single_component, binary_mixture
-        )
+        measurements = self.builder.build_dataset(fetched)
+        records, reasons = self.mapper.experiment_records_with_skips(measurements)
         self.mapper.attach_source_identities(
             records, [payload for _identifier, payload in successful]
         )

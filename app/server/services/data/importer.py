@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -11,6 +10,7 @@ from typing import Any
 import pandas as pd
 
 from server.configurations.settings import DEFAULT_DATASET_ALLOWED_EXTENSIONS
+from server.domain.canonical import CanonicalizationError, normalize_experiment
 from server.domain.datasets import (
     ColumnDetection,
     ImportIssue,
@@ -46,6 +46,7 @@ EXPERIMENT_PREVIEW_POINTS = 25
 UNIT_QUANTITIES = ("pressure", "uptake", "temperature")
 SPECIES_UPTAKE_COLUMN = "__species_uptake__"
 SPECIES_ADSORBATE_COLUMN = "__species_adsorbate__"
+SPECIES_FRACTION_COLUMN = "__species_gas_mole_fraction__"
 
 ###############################################################################
 @dataclass
@@ -181,9 +182,10 @@ class AdsorptionImportEngine:
         issues: list[ImportIssue] = []
         if mapping.species_columns:
             missing = [
-                item.uptake_column
+                column
                 for item in mapping.species_columns
-                if item.uptake_column not in frame.columns
+                for column in (item.uptake_column, item.mole_fraction_column)
+                if column and column not in frame.columns
             ]
             if missing:
                 return self._bundle(
@@ -208,6 +210,8 @@ class AdsorptionImportEngine:
                 "uptake": SPECIES_UPTAKE_COLUMN,
                 "adsorbate": SPECIES_ADSORBATE_COLUMN,
             }
+            if any(item.mole_fraction_column for item in mapping.species_columns):
+                roles["gas_mole_fraction"] = SPECIES_FRACTION_COLUMN
         issues.extend(self._mapping_issues(mapping, frame, roles))
         issues.extend(self._unit_selection_issues(mapping, roles, catalog))
         if issues:
@@ -272,6 +276,11 @@ class AdsorptionImportEngine:
                     **{
                         SPECIES_UPTAKE_COLUMN: cells[present],
                         SPECIES_ADSORBATE_COLUMN: item.adsorbate.strip(),
+                        SPECIES_FRACTION_COLUMN: (
+                            frame.loc[present, item.mole_fraction_column]
+                            if item.mole_fraction_column
+                            else None
+                        ),
                     }
                 )
             )
@@ -430,98 +439,62 @@ class AdsorptionImportEngine:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _duplicate_pressure_issue(
-        group_key: str, duplicate_policy: str
-    ) -> ImportIssue:
-        if duplicate_policy == "reject":
-            return ImportIssue(
-                code="duplicate_pressure",
-                severity="confirmation",
-                experiment=group_key,
-                message=(
-                    f"Experiment '{group_key}' has repeated pressure values. "
-                    "Keeping them weights those pressures as replicate observations."
-                ),
-                remediation="Choose the keep-replicates policy or correct duplicate rows.",
-            )
-        if duplicate_policy == "average":
-            return ImportIssue(
-                code="duplicates_average_on_fit",
-                severity="warning",
-                experiment=group_key,
-                message=f"Repeated pressures in '{group_key}' will be averaged deterministically for fitting; all source observations are retained.",
-            )
-        return ImportIssue(
-            code="duplicates_kept",
-            severity="warning",
-            experiment=group_key,
-            message=f"Repeated pressures in '{group_key}' were retained as replicates.",
-        )
-
-    # -------------------------------------------------------------------------
     def _build_experiments(
-        self,
         grouped_records: dict[str, list[dict[str, Any]]],
         metadata_by_group: dict[str, dict[str, Any]],
         mapping: ImportMapping,
         issues: list[ImportIssue],
     ) -> list[dict[str, Any]]:
+        """Assemble canonical experiments through the shared normalization gate."""
         experiments: list[dict[str, Any]] = []
         for group_key, observations in grouped_records.items():
-            if group_key not in metadata_by_group:
+            metadata = metadata_by_group.get(group_key)
+            if metadata is None:
                 continue
-            metadata = metadata_by_group[group_key]
-            species = metadata["species"]
-            by_species: dict[str, list[dict[str, Any]]] = {key: [] for key in species}
-            for observation in observations:
-                by_species[observation["adsorbate"].casefold()].append(observation)
-            duplicated = False
-            for key, items in by_species.items():
-                items.sort(
-                    key=lambda item: (
-                        item["pressure_canonical"],
-                        item["source_row"] or 0,
-                        item["sequence_index"],
-                    )
-                )
-                pressure_counts = Counter(item["pressure_canonical"] for item in items)
-                duplicated = duplicated or any(
-                    count > 1 for count in pressure_counts.values()
-                )
-                if len(items) < 2:
-                    label = f" of {species[key]['name']}" if len(species) > 1 else ""
-                    issues.append(
-                        ImportIssue(
-                            code="insufficient_observations",
-                            severity="error",
-                            experiment=group_key,
-                            message=f"Each experiment requires at least two valid observations{label}.",
-                        )
-                    )
-                for sequence_index, observation in enumerate(items):
-                    observation["sequence_index"] = sequence_index
-            if duplicated:
+            record = {
+                "external_key": group_key,
+                "name": metadata["name"],
+                "adsorbent": {"name": metadata["adsorbent"]},
+                "adsorbates": list(metadata["species"].values()),
+                "temperature_original": metadata["temperature_original"],
+                "temperature_original_unit": metadata["temperature_original_unit"],
+                "temperature_k": metadata["temperature_k"],
+                "pressure_basis": metadata["pressure_basis"],
+                "saturation_pressure_pa": metadata.get("saturation_pressure_pa"),
+                "conditions": metadata.get("conditions", {}),
+                "provenance": {"source_rows": metadata.get("source_rows", [])},
+                "observations": observations,
+            }
+            try:
+                experiment = normalize_experiment(record, mapping.duplicate_policy)
+            except CanonicalizationError as exc:
                 issues.append(
-                    self._duplicate_pressure_issue(group_key, mapping.duplicate_policy)
+                    ImportIssue(
+                        code=exc.code,
+                        severity="error",
+                        experiment=group_key,
+                        message=str(exc),
+                        remediation=(
+                            "Choose the average-replicates policy or correct the duplicate rows."
+                            if exc.code == "duplicate_measurement"
+                            else None
+                        ),
+                    )
                 )
-            observations = [item for items in by_species.values() for item in items]
-            experiments.append(
-                {
-                    "external_key": group_key,
-                    "name": metadata["name"],
-                    "adsorbent": {"name": metadata["adsorbent"]},
-                    "adsorbates": list(species.values()),
-                    "temperature_original": metadata["temperature_original"],
-                    "temperature_original_unit": metadata["temperature_original_unit"],
-                    "temperature_k": metadata["temperature_k"],
-                    "pressure_basis": metadata["pressure_basis"],
-                    "duplicate_policy": mapping.duplicate_policy,
-                    "saturation_pressure_pa": metadata.get("saturation_pressure_pa"),
-                    "conditions": metadata.get("conditions", {}),
-                    "provenance": {"source_rows": metadata.get("source_rows", [])},
-                    "observations": observations,
-                }
-            )
+                continue
+            if experiment.provenance.get("duplicates") == "averaged":
+                issues.append(
+                    ImportIssue(
+                        code="duplicates_averaged",
+                        severity="warning",
+                        experiment=group_key,
+                        message=(
+                            f"Repeated pressures in '{group_key}' were averaged into one "
+                            "measurement each; the replicate values are kept in its metadata."
+                        ),
+                    )
+                )
+            experiments.append(experiment.model_dump())
         return experiments
 
     # -------------------------------------------------------------------------
@@ -579,16 +552,15 @@ class AdsorptionImportEngine:
     # -------------------------------------------------------------------------
     def _observation_pairs(
         self, row: pd.Series, roles: dict[str, str], mapping: ImportMapping
-    ) -> list[tuple[float, float, int]]:
-        """Return (pressure, uptake, sequence_index) from wide columns or series cells."""
+    ) -> list[tuple[float, float]]:
+        """Return (pressure, uptake) pairs from wide columns or series cells."""
         if mapping.wide_pairs:
             return [
                 (
                     parse_number(row.get(pair.pressure_column), mapping.decimal_separator),
                     parse_number(row.get(pair.uptake_column), mapping.decimal_separator),
-                    pair_index,
                 )
-                for pair_index, pair in enumerate(mapping.wide_pairs)
+                for pair in mapping.wide_pairs
             ]
         pressure_values = parse_series_cell(
             self._mapped_value(row, "pressure", roles, mapping),
@@ -605,12 +577,7 @@ class AdsorptionImportEngine:
                 "Pressure and uptake series have unequal lengths "
                 f"({len(pressure_values)} and {len(uptake_values)})."
             )
-        return [
-            (pressure, uptake, index)
-            for index, (pressure, uptake) in enumerate(
-                zip(pressure_values, uptake_values, strict=True)
-            )
-        ]
+        return list(zip(pressure_values, uptake_values, strict=True))
 
     # -------------------------------------------------------------------------
     def _normalize_row(
@@ -670,6 +637,14 @@ class AdsorptionImportEngine:
             row, roles, mapping, catalog, pressure_unit
         )
         pairs = self._observation_pairs(row, roles, mapping)
+        fraction_raw = safe_cell(
+            self._mapped_value(row, "gas_mole_fraction", roles, mapping)
+        )
+        gas_mole_fraction = (
+            parse_number(fraction_raw, mapping.decimal_separator)
+            if fraction_raw not in (None, "")
+            else None
+        )
         pressure_raw = self._mapped_value(row, "pressure", roles, mapping)
         uptake_raw = self._mapped_value(row, "uptake", roles, mapping)
 
@@ -679,7 +654,7 @@ class AdsorptionImportEngine:
             if role == "metadata"
         ]
         observations: list[dict[str, Any]] = []
-        for pressure_value, uptake_value, sequence_index in pairs:
+        for pressure_value, uptake_value in pairs:
             pressure = catalog.convert_pressure(
                 pressure_value, pressure_unit, mapping.pressure_basis
             )
@@ -692,7 +667,6 @@ class AdsorptionImportEngine:
             observations.append(
                 {
                     "adsorbate": adsorbate,
-                    "sequence_index": sequence_index,
                     "source_row": source_row,
                     "pressure_original": pressure.original_value,
                     "pressure_original_unit": pressure.original_unit,
@@ -702,6 +676,7 @@ class AdsorptionImportEngine:
                     "uptake_original_unit": uptake.original_unit,
                     "uptake_mol_kg": uptake.canonical_value,
                     "uptake_stddev_mol_kg": stddev,
+                    "gas_mole_fraction": gas_mole_fraction,
                     "conversion_metadata": {
                         "pressure_rule": pressure.rule,
                         "uptake_rule": uptake.rule,
@@ -825,36 +800,6 @@ class AdsorptionImportEngine:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _average_duplicates(
-        observations: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        grouped: dict[float, list[dict[str, Any]]] = {}
-        for item in observations:
-            grouped.setdefault(item["pressure_canonical"], []).append(item)
-        averaged: list[dict[str, Any]] = []
-        for pressure, items in sorted(grouped.items()):
-            if len(items) == 1:
-                averaged.append(items[0])
-                continue
-            base = dict(items[0])
-            base["uptake_mol_kg"] = sum(item["uptake_mol_kg"] for item in items) / len(
-                items
-            )
-            base["uptake_original"] = base["uptake_mol_kg"]
-            base["uptake_original_unit"] = "mol/kg"
-            base["conversion_metadata"] = {
-                **base["conversion_metadata"],
-                "duplicate_policy": "average",
-                "replicate_count": len(items),
-                "source_uptake_values_mol_kg": [
-                    item["uptake_mol_kg"] for item in items
-                ],
-            }
-            averaged.append(base)
-        return averaged
-
-    # -------------------------------------------------------------------------
-    @staticmethod
     def _bundle(
         mapping: ImportMapping,
         payload: bytes,
@@ -893,7 +838,6 @@ class AdsorptionImportEngine:
                             for key in (
                                 "adsorbate",
                                 "source_row",
-                                "sequence_index",
                                 "pressure_original",
                                 "pressure_original_unit",
                                 "pressure_canonical",
@@ -901,6 +845,7 @@ class AdsorptionImportEngine:
                                 "uptake_original",
                                 "uptake_original_unit",
                                 "uptake_mol_kg",
+                                "gas_mole_fraction",
                             )
                         }
                     )

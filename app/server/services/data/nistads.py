@@ -38,293 +38,147 @@ def _shared_request_budget(limit: int) -> asyncio.Semaphore:
         budget = _REQUEST_BUDGETS[loop] = asyncio.Semaphore(limit)
     return budget
 
+
 ###############################################################################
 class NISTDatasetBuilder:
+    """Flatten NIST ISODB isotherm payloads into one long measurement frame.
+
+    Every experiment, whatever its number of species, yields one row per
+    (equilibrium point, species): ``pressure`` is the point's total pressure,
+    ``adsorbed_amount`` the species uptake, and ``gas_mole_fraction`` the
+    species gas-phase composition (empty for single-species experiments).
+    """
+
+    columns = [
+        "name",
+        "adsorbent",
+        "adsorbate",
+        "adsorbate_inchi_key",
+        "point_index",
+        "pressure",
+        "adsorbed_amount",
+        "gas_mole_fraction",
+        "pressure_units",
+        "adsorption_units",
+        "temperature",
+        "composition_type",
+    ]
+    required = [
+        "name",
+        "pressure",
+        "adsorbed_amount",
+        "pressure_units",
+        "adsorption_units",
+        "temperature",
+        "adsorbent",
+        "adsorbate",
+    ]
 
     # -------------------------------------------------------------------------
-    def __init__(self) -> None:
-        self.raw_drop_cols = [
-            "DOI",
-            "category",
-            "tabular_data",
-            "digitizer",
-            "isotherm_type",
-            "articleSource",
-            "concentrationUnits",
-            "compositionType",
-        ]
-        self.single_explode_cols = ["pressure", "adsorbed_amount"]
-        identity_cols = [
-            "filename",
-            "pressureUnits",
-            "adsorptionUnits",
-            "temperature",
-        ]
-        self.single_required_cols = [
-            *identity_cols,
-            *self.single_explode_cols,
-            "adsorbent_name",
-            "adsorbate_name",
-        ]
-        self.single_drop_cols = [
-            "date",
-            "adsorbent",
-            "adsorbates",
-            "num_guests",
-            "isotherm_data",
-            "adsorbent_ID",
-            "adsorbates_ID",
-        ]
-        self.binary_explode_cols = [
-            "compound_1_pressure",
-            "compound_2_pressure",
-            "compound_1_adsorption",
-            "compound_2_adsorption",
-            "compound_1_composition",
-            "compound_2_composition",
-        ]
-        self.binary_required_cols = [*identity_cols, *self.binary_explode_cols]
-        self.binary_drop_cols = [
-            "date",
-            "adsorbent",
-            "adsorbates",
-            "num_guests",
-            "isotherm_data",
-            "adsorbent_ID",
-            "adsorbates_ID",
-            "adsorbate_name",
-            "total_pressure",
-            "all_species_data",
-            "compound_1_data",
-            "compound_2_data",
+    @staticmethod
+    def _species(payload: dict[str, Any]) -> list[dict[str, Any]]:
+        return [
+            item for item in payload.get("adsorbates") or [] if isinstance(item, dict)
         ]
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _drop_incomplete(
-        dataframe: pd.DataFrame, required: list[str]
-    ) -> pd.DataFrame:
-        """Drop only rows missing a field the measurement cannot exist without.
+    def _species_entry(
+        entries: list[Any], species: dict[str, Any], position: int
+    ) -> dict[str, Any]:
+        """Match a point's species datum by InChIKey, falling back to position.
 
-        Optional metadata (for example molecular weight) never removes a row.
+        A missing datum stays empty so the incomplete row is rejected later,
+        never replaced by an invented measurement.
         """
-        subset = [column for column in required if column in dataframe.columns]
-        complete = dataframe.dropna(subset=subset).reset_index(drop=True)
-        dropped = len(dataframe) - len(complete)
-        if dropped:
+        valid = [item for item in entries if isinstance(item, dict)]
+        key = species.get("InChIKey")
+        if key:
+            for item in valid:
+                if item.get("InChIKey") == key:
+                    return item
+            if any(item.get("InChIKey") for item in valid):
+                return {}
+        return valid[position] if position < len(valid) else {}
+
+    # -------------------------------------------------------------------------
+    def _rows(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        species = self._species(payload)
+        if not species:
+            return []
+        adsorbent = payload.get("adsorbent") or {}
+        base = {
+            "name": payload.get("filename"),
+            "adsorbent": str(adsorbent.get("name", "")).lower()
+            if isinstance(adsorbent, dict)
+            else "",
+            "pressure_units": payload.get("pressureUnits"),
+            "adsorption_units": payload.get("adsorptionUnits"),
+            "temperature": payload.get("temperature"),
+            "composition_type": payload.get("compositionType"),
+        }
+        rows: list[dict[str, Any]] = []
+        points = [
+            item
+            for item in payload.get("isotherm_data") or []
+            if isinstance(item, dict)
+        ]
+        for point_index, point in enumerate(points):
+            for position, item in enumerate(species):
+                if len(species) == 1:
+                    uptake, fraction = point.get("total_adsorption"), None
+                else:
+                    datum = self._species_entry(
+                        point.get("species_data") or [], item, position
+                    )
+                    uptake, fraction = datum.get("adsorption"), datum.get("composition")
+                rows.append(
+                    {
+                        **base,
+                        "adsorbate": str(item.get("name", "")).lower(),
+                        "adsorbate_inchi_key": item.get("InChIKey"),
+                        "point_index": point_index,
+                        "pressure": point.get("pressure"),
+                        "adsorbed_amount": uptake,
+                        "gas_mole_fraction": fraction,
+                    }
+                )
+        return rows
+
+    # -------------------------------------------------------------------------
+    def _drop_incomplete(self, dataframe: pd.DataFrame) -> pd.DataFrame:
+        """Drop only rows missing a field the measurement cannot exist without."""
+        incomplete = dataframe[self.required].isna().any(axis=1) | (
+            dataframe[["name", "adsorbent", "adsorbate"]]
+            .astype(str)
+            .apply(lambda column: column.str.strip() == "")
+            .any(axis=1)
+        )
+        if incomplete.any():
             logger.warning(
                 "Rejected %d NIST measurement row(s) missing required fields %s.",
-                dropped,
-                subset,
+                int(incomplete.sum()),
+                self.required,
             )
-        return complete
+        return dataframe.loc[~incomplete].reset_index(drop=True)
 
     # -------------------------------------------------------------------------
-    @staticmethod
-    def normalize_string_columns(dataframe: pd.DataFrame) -> pd.DataFrame:
-        return sanitize_dataframe_strings(dataframe)
-
-    # -------------------------------------------------------------------------
-    def drop_excluded_columns(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        return dataframe.drop(columns=self.raw_drop_cols, errors="ignore")
-
-    # -------------------------------------------------------------------------
-    def split_by_mixture_complexity(
-        self, dataframe: pd.DataFrame
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        if dataframe.empty:
-            return dataframe, dataframe
-        dataframe = dataframe.copy()
-        dataframe["num_guests"] = dataframe["adsorbates"].str.len()
-        single_component = dataframe.loc[dataframe["num_guests"] == 1].copy()
-        binary_mixture = dataframe.loc[dataframe["num_guests"] == 2].copy()
-        return single_component, binary_mixture
-
-    # -------------------------------------------------------------------------
-    def is_single_component(self, dataframe: pd.DataFrame) -> bool:
-        return (dataframe["num_guests"] == 1).all()
-
-    # -------------------------------------------------------------------------
-    def is_binary_mixture(self, dataframe: pd.DataFrame) -> bool:
-        return (dataframe["num_guests"] == 2).all()
-
-    # -------------------------------------------------------------------------
-    def add_material_fields(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        dataframe["adsorbent_ID"] = dataframe["adsorbent"].apply(
-            lambda x: (x or {}).get("hashkey")
-        )
-        dataframe["adsorbent_name"] = dataframe["adsorbent"].apply(
-            lambda x: str((x or {}).get("name", "")).lower()
-        )
-        dataframe["adsorbates_ID"] = dataframe["adsorbates"].apply(
-            lambda x: [
-                item.get("InChIKey") for item in (x or []) if isinstance(item, dict)
-            ]
-        )
-        dataframe["adsorbate_name"] = dataframe["adsorbates"].apply(
-            lambda x: [
-                str(item.get("name", "")).lower()
-                for item in (x or [])
-                if isinstance(item, dict)
-            ]
-        )
-        return dataframe
-
-    # -------------------------------------------------------------------------
-    def add_single_component_fields(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        dataframe["pressure"] = dataframe["isotherm_data"].apply(
-            lambda x: [
-                item.get("pressure") for item in (x or []) if isinstance(item, dict)
-            ]
-        )
-        dataframe["adsorbed_amount"] = dataframe["isotherm_data"].apply(
-            lambda x: [
-                item.get("total_adsorption")
-                for item in (x or [])
-                if isinstance(item, dict)
-            ]
-        )
-        dataframe["adsorbate_name"] = dataframe["adsorbates"].apply(
-            lambda x: (
-                str(x[0].get("name", "")).lower() if isinstance(x, list) and x else ""
-            )
-        )
-        return dataframe
-
-    # -------------------------------------------------------------------------
-    def add_binary_mixture_fields(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        # A missing species datum stays empty (None) so the incomplete point is
-        # rejected later, never replaced by an invented measurement.
-        data_placeholder: dict[str, Any] = {}
-        dataframe["total_pressure"] = dataframe["isotherm_data"].apply(
-            lambda x: [
-                item.get("pressure") for item in (x or []) if isinstance(item, dict)
-            ]
-        )
-        dataframe["all_species_data"] = dataframe["isotherm_data"].apply(
-            lambda x: [
-                item.get("species_data") for item in (x or []) if isinstance(item, dict)
-            ]
-        )
-        dataframe["compound_1"] = dataframe["adsorbate_name"].apply(
-            lambda x: str(x[0]).lower() if isinstance(x, list) and x else ""
-        )
-        dataframe["compound_2"] = dataframe["adsorbate_name"].apply(
-            lambda x: str(x[1]).lower() if isinstance(x, list) and len(x) > 1 else ""
-        )
-        dataframe["compound_1_data"] = dataframe["all_species_data"].apply(
-            lambda x: [item[0] if item else data_placeholder for item in (x or [])]
-        )
-        dataframe["compound_2_data"] = dataframe["all_species_data"].apply(
-            lambda x: [
-                item[1] if item and len(item) > 1 else data_placeholder
-                for item in (x or [])
-            ]
-        )
-        dataframe["compound_1_composition"] = dataframe["compound_1_data"].apply(
-            lambda x: [item.get("composition") for item in (x or [])]
-        )
-        dataframe["compound_2_composition"] = dataframe["compound_2_data"].apply(
-            lambda x: [item.get("composition") for item in (x or [])]
-        )
-        for position in (1, 2):
-            composition_column = f"compound_{position}_composition"
-            dataframe[f"compound_{position}_pressure"] = dataframe.apply(
-                lambda row, column=composition_column: [
-                    None if a is None or b is None else a * b
-                    for a, b in zip(row[column], row["total_pressure"], strict=False)
-                ],
-                axis=1,
-            )
-        dataframe["compound_1_adsorption"] = dataframe["compound_1_data"].apply(
-            lambda x: [item.get("adsorption") for item in (x or [])]
-        )
-        dataframe["compound_2_adsorption"] = dataframe["compound_2_data"].apply(
-            lambda x: [item.get("adsorption") for item in (x or [])]
-        )
-        return dataframe
-
-    # -------------------------------------------------------------------------
-    def extract_nested_data(self, dataframe: pd.DataFrame) -> pd.DataFrame:
-        if dataframe.empty:
-            return dataframe
-
-        dataframe = self.add_material_fields(dataframe)
-        if self.is_single_component(dataframe):
-            return self.add_single_component_fields(dataframe)
-        if self.is_binary_mixture(dataframe):
-            return self.add_binary_mixture_fields(dataframe)
-
-        return dataframe
-
-    # -------------------------------------------------------------------------
-    def expand_dataset(
-        self, single_component: pd.DataFrame, binary_mixture: pd.DataFrame
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
-        if single_component.empty:
-            single_dataset = pd.DataFrame()
-        else:
-            single_dataset = single_component.explode(self.single_explode_cols)
-            single_dataset = single_dataset.drop(
-                columns=self.single_drop_cols, errors="ignore"
-            )
-            single_dataset = self._drop_incomplete(
-                single_dataset, self.single_required_cols
-            )
-            single_dataset = single_dataset.rename(
-                columns={
-                    "filename": "name",
-                    "adsorptionUnits": "adsorption_units",
-                    "pressureUnits": "pressure_units",
-                    "adsorbent_name": "adsorbent",
-                    "adsorbate_name": "adsorbate",
-                }
-            )
-            single_dataset = self.normalize_string_columns(single_dataset)
-
-        if binary_mixture.empty:
-            binary_dataset = pd.DataFrame()
-        else:
-            binary_dataset = binary_mixture.explode(self.binary_explode_cols)
-            binary_dataset = binary_dataset.drop(
-                columns=self.binary_drop_cols, errors="ignore"
-            )
-            binary_dataset = self._drop_incomplete(
-                binary_dataset, self.binary_required_cols
-            )
-            binary_dataset = binary_dataset.rename(
-                columns={
-                    "filename": "name",
-                    "adsorptionUnits": "adsorption_units",
-                    "pressureUnits": "pressure_units",
-                }
-            )
-            binary_dataset = self.normalize_string_columns(binary_dataset)
-
-        return single_dataset, binary_dataset
-
-    # -------------------------------------------------------------------------
-    def build_datasets(
-        self, adsorption_data: pd.DataFrame
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def build_dataset(self, adsorption_data: pd.DataFrame | None) -> pd.DataFrame:
         if adsorption_data is None or adsorption_data.empty:
-            return pd.DataFrame(), pd.DataFrame()
+            return pd.DataFrame(columns=self.columns)
+        rows = [
+            row
+            for payload in adsorption_data.to_dict("records")
+            for row in self._rows(payload)
+        ]
+        if not rows:
+            return pd.DataFrame(columns=self.columns)
+        dataframe = pd.DataFrame(rows, columns=self.columns)
+        return sanitize_dataframe_strings(self._drop_incomplete(dataframe))
 
-        cleaned = self.drop_excluded_columns(adsorption_data)
-        if cleaned.empty:
-            return pd.DataFrame(), pd.DataFrame()
-
-        single_component, binary_mixture = self.split_by_mixture_complexity(cleaned)
-        if not single_component.empty:
-            single_component = self.extract_nested_data(single_component)
-        if not binary_mixture.empty:
-            binary_mixture = self.extract_nested_data(binary_mixture)
-
-        return self.expand_dataset(single_component, binary_mixture)
 
 ###############################################################################
 class NISTApiClient:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -374,9 +228,7 @@ class NISTApiClient:
         content: bytes | None = None
         for attempt in range(self.max_attempts):
             try:
-                content, retry_delay = await self._fetch_attempt(
-                    client, url, attempt
-                )
+                content, retry_delay = await self._fetch_attempt(client, url, attempt)
                 if retry_delay is not None:
                     await asyncio.sleep(retry_delay)
                     continue
@@ -487,7 +339,7 @@ class NISTApiClient:
                         0.0,
                         (retry_at - datetime.now(timezone.utc)).total_seconds(),
                     )
-                except (TypeError, ValueError, OverflowError):
+                except TypeError, ValueError, OverflowError:
                     delay = None
         if delay is None:
             # Jitter desynchronises concurrent retries; a server-provided
@@ -497,7 +349,9 @@ class NISTApiClient:
 
     # -------------------------------------------------------------------------
     async def fetch_experiments_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
-        return await self._fetch_index(client, self.url_isotherms, "adsorption isotherm")
+        return await self._fetch_index(
+            client, self.url_isotherms, "adsorption isotherm"
+        )
 
     # -------------------------------------------------------------------------
     async def _fetch_index(
@@ -513,11 +367,15 @@ class NISTApiClient:
 
     # -------------------------------------------------------------------------
     async def fetch_guest_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
-        return await self._fetch_index(client, self.url_guest_index, "adsorbate species")
+        return await self._fetch_index(
+            client, self.url_guest_index, "adsorbate species"
+        )
 
     # -------------------------------------------------------------------------
     async def fetch_host_index(self, client: httpx.AsyncClient) -> pd.DataFrame:
-        return await self._fetch_index(client, self.url_host_index, "adsorbent material")
+        return await self._fetch_index(
+            client, self.url_host_index, "adsorbent material"
+        )
 
     # -------------------------------------------------------------------------
     def prepare_materials_frame(
@@ -540,7 +398,6 @@ class NISTApiClient:
         if "InChICode" in data.columns:
             data["inchi"] = data["InChICode"].replace("", pd.NA)
         return data
-
 
 
 __all__ = [

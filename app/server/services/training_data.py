@@ -46,9 +46,9 @@ class TrainingDataService:
     # -------------------------------------------------------------------------
     def list_sources(self) -> list[dict[str, Any]]:
         sources: list[dict[str, Any]] = []
-        nist_count = int(self.container.nist_repository.count_nist_rows().get("single_component_rows", 0))
+        nist_count = int(self.container.nist_repository.count_nist_rows().get("observation_count", 0))
         if nist_count > 0:
-            sources.append({"source": "nist", "dataset_name": "NIST ISODB", "display_name": "NIST Single Component", "row_count": nist_count, "dataset_id": None})
+            sources.append({"source": "nist", "dataset_name": "NIST ISODB", "display_name": "NIST ISODB", "row_count": nist_count, "dataset_id": None})
         sources.extend({"source": item["source"], "dataset_name": item["name"], "display_name": item["name"], "row_count": item["observation_count"], "dataset_id": item["id"]} for item in self.container.datasets.list_summaries() if item["source"] == "uploaded")
         return sources
 
@@ -61,7 +61,7 @@ class TrainingDataService:
     def create_snapshot_from_selections(self, selections: list[dict[str, Any]], *, metadata: dict[str, Any] | None = None) -> SnapshotReference:
         validated = [SnapshotDatasetSelection.model_validate(selection) for selection in selections]
         rows: list[dict[str, Any]] = []
-        excluded = {"multi_component_isotherms": 0, "non_pascal_pressure_isotherms": 0}
+        excluded = {"multi_species_isotherms": 0, "non_pascal_pressure_isotherms": 0}
         for selection in validated:
             if selection.source == "uploaded":
                 selected = self._uploaded_snapshot_rows(selection.dataset_name, selection.dataset_id)
@@ -73,7 +73,7 @@ class TrainingDataService:
                 excluded[reason] += count
         if not rows:
             raise ValueError(
-                "No isotherm is usable for ML training: single-component isotherms "
+                "No isotherm is usable for ML training: single-species isotherms "
                 f"with absolute pressure in Pa are required (excluded: {excluded})."
             )
         return self.create_snapshot(rows, metadata={**dict(metadata or {}), "selections": [selection.model_dump(mode="json") for selection in validated], "excluded": excluded})
@@ -81,20 +81,20 @@ class TrainingDataService:
     # -------------------------------------------------------------------------
     @staticmethod
     def _screen_training_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
-        """Drop isotherms the single-component, Pa-based ML pipeline cannot represent."""
-        components: dict[Any, set[Any]] = {}
+        """Drop isotherms the ML pipeline cannot represent: it models one species in Pa."""
+        species: dict[Any, set[Any]] = {}
         units: dict[Any, set[Any]] = {}
         for row in rows:
-            components.setdefault(row["isotherm_id"], set()).add(row.get("component_id"))
+            species.setdefault(row["isotherm_id"], set()).add(row.get("adsorbate_id"))
             units.setdefault(row["isotherm_id"], set()).add(row.get("pressure_canonical_unit"))
-        mixtures = {key for key, value in components.items() if len(value) > 1}
-        non_pascal = {key for key, value in units.items() if value != {"Pa"}} - mixtures
+        multi_species = {key for key, value in species.items() if len(value) > 1}
+        non_pascal = {key for key, value in units.items() if value != {"Pa"}} - multi_species
         kept = [
-            {key: value for key, value in row.items() if key not in {"component_id", "pressure_canonical_unit"}}
+            {key: value for key, value in row.items() if key not in {"adsorbate_id", "pressure_canonical_unit"}}
             for row in rows
-            if row["isotherm_id"] not in mixtures and row["isotherm_id"] not in non_pascal
+            if row["isotherm_id"] not in multi_species and row["isotherm_id"] not in non_pascal
         ]
-        return kept, {"multi_component_isotherms": len(mixtures), "non_pascal_pressure_isotherms": len(non_pascal)}
+        return kept, {"multi_species_isotherms": len(multi_species), "non_pascal_pressure_isotherms": len(non_pascal)}
 
     # -------------------------------------------------------------------------
     def fetch_snapshot(self, snapshot_id: str) -> SnapshotPayload:
