@@ -24,7 +24,13 @@ The unified backend serves all versioned routes under `/api/v1`:
   `offset`, `limit`, `q`, `adsorbent_id`, `adsorbate_id`, temperature range,
   `edited_only`), `GET /datasets/{id}/experiments/{experiment_id}`, and
   `GET /datasets/{id}/experiments/{experiment_id}/observations`
-  (`order=pressure|sequence`).
+  (`order=pressure|source`, optional `adsorbate_id` for one species). An
+  experiment lists its species as `components` (`position`, `adsorbate_id`,
+  `name`); observation rows carry `adsorbate_id` and `gas_mole_fraction`.
+  Edits replace a species by `position` and set `gas_mole_fraction` per
+  measurement. Import mappings accept a `gas_mole_fraction` column role,
+  `species_columns[].mole_fraction_column`, and `duplicate_policy`
+  `reject|average`.
 - `/materials` and `/species` (list, detail with the datasets that use the
   entity, and `DELETE`, which returns HTTP 409 while experiments reference it)
 - `/public-data/*` (NIST, PubChem, and COD provider catalog, acquisition, and

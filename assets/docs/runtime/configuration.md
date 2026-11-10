@@ -1,6 +1,6 @@
 # ADSMOD runtime and application settings
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ## Settings ownership
 
@@ -80,7 +80,7 @@ All connection fields are in `database.json`: backend; SQLite file path and conn
 
 When `database.json` is absent, ADSMOD selects the current default SQLite configuration. Startup initializes an empty database with the current schema, seeds typed application settings, and then writes `database.json`. Retired database environment values and old `data/adsmod.json` files are not imported. Per-training checkpoint `configuration.json` files remain run artifacts and are unrelated to global settings.
 
-The migration package contains one root revision for the baseline schema followed by a linear chain of revisions up to the head. Existing databases stamped with a historical revision are rejected and must be recreated for use with this version. Startup never drops or recreates an existing database automatically, so it does not delete user data.
+The migration package contains one root revision, `20261110_unified_baseline`, for the unified schema; later revisions chain linearly from it. Existing databases stamped with any earlier revision are rejected and must be recreated for use with this version. Startup never drops or recreates an existing database automatically, so it does not delete user data. To recreate a SQLite database, stop ADSMOD, rename `data/database.db` under the storage root (keep it as a backup), and start again; NIST data is re-acquired from Sources and uploads are imported again.
 
 ## Logging
 

@@ -23,7 +23,9 @@ Purpose:
 - adsorbent/material reference records;
 - durable, bounded NIST collection acquisition runs.
 
-NIST acquisition remains asynchronous because full collection retrieval can be expensive. Retrieved experiments are persisted in the existing canonical adsorption schema and linked to NIST `source_records`.
+NIST acquisition remains asynchronous because full collection retrieval can be expensive. Retrieved experiments are persisted in the canonical adsorption schema and linked to NIST `source_records`.
+
+`NISTDatasetBuilder.build_dataset` flattens every isotherm payload, whatever its number of species, into one long frame with one row per (equilibrium point, species). `pressure` is the point's total pressure and the basis is `absolute`. For a single species the uptake is `total_adsorption`, falling back to the species datum when it is absent. For two or more species each `species_data` entry is matched to its species by InChIKey (by list position only when the payload gives none) and supplies the uptake and its gas-phase `composition`, stored as `gas_mole_fraction`. Mixtures whose `compositionType` is not a gas mole fraction are skipped with a recorded reason. So are experiments that repeat a pressure for one species: one uptake per (species, pressure) is stored, and vertical steps or desorption points at an identical pressure are not averaged. A point missing a species uptake drops only that row.
 
 The NIST web service is treated as an external dependency. Provider health failures do not make locally cached data unavailable.
 
@@ -109,9 +111,10 @@ To add another source:
 3. Convert remote responses into normalized service/repository inputs. Do not expose the remote schema directly to the frontend.
 4. Register the provider in `CoreServiceContainer`.
 5. Add a source definition to `SOURCE_DEFINITIONS` and, if persistence changes, an Alembic migration.
-6. Add deterministic provider-normalization and failure tests with remote calls mocked.
-7. Add UI controls only for capabilities the source can reliably support.
-8. Document rate limits, authentication requirements, licensing, and known limitations.
+6. Emit `CanonicalExperiment` records (`domain/canonical.py`) for any adsorption data and persist them through `DatasetRepository.persist_canonical`; never add source-specific measurement tables or single/mixture paths.
+7. Add deterministic provider-normalization and failure tests with remote calls mocked.
+8. Add UI controls only for capabilities the source can reliably support.
+9. Document rate limits, authentication requirements, licensing, and known limitations.
 
 ## Normalized domain and provenance model
 

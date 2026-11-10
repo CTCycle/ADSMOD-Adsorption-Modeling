@@ -1,6 +1,6 @@
 # Persistence and packages
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ## Backend package
 
@@ -13,11 +13,13 @@ CI install this package and use its lockfile.
 
 Core owns the active database and its Alembic baseline under
 `app/server/migrations`. SQLite and PostgreSQL share the same schema. The
-history starts from one root revision (`20261021_current_schema`) that creates
-the baseline schema; later revisions chain linearly from it (currently
-`20261106_modeling_sessions`; earlier steps add `custom_units` and dataset editing). Startup upgrades
-an empty or baseline-stamped database to the head and accepts only that head; it never infers or silently adopts an unknown schema. Databases stamped
-with removed historical revisions fail closed and must be recreated. Startup
+history is one root revision, `20261110_unified_baseline`, which creates the
+whole schema including the unified adsorption tables; future revisions chain
+linearly from it. Startup upgrades an empty database to the head and accepts
+only that head; it never infers or silently adopts an unknown schema. Databases
+stamped with any earlier revision (including the retired
+`20261021_current_schema` … `20261110_species_identity` chain) fail closed and
+must be recreated. Startup
 does not drop or recreate them. The current schema includes
 the `application_settings` singleton and immutable `training_snapshots` and
 `training_snapshot_rows` tables.
@@ -58,9 +60,11 @@ and `isotherm_name` is kept so results survive experiment deletion), and
 (`model_key`, `enabled`, `parameter_bounds` JSON in canonical units,
 `updated_at`) and supplies the global solver bounds; the former
 `application_settings.fitting_default_parameter_*` columns were dropped.
-Migration `20261106_modeling_sessions` drops the old `fitting_runs` tables, so
-previously stored single-experiment runs are intentionally discarded. The
-dataset delete-impact field is `fitting_session_count`.
+Older single-experiment `fitting_runs` were discarded when sessions were
+introduced. The dataset delete-impact field is `fitting_session_count`. A fit
+series is one species of one experiment; the fitting service rejects
+experiments with several species at the capability level because every model
+in the catalog describes pure-species adsorption.
 
 ## ML artifacts
 
@@ -69,24 +73,66 @@ in-process `TrainingDataAccess` contract, checks the content hash, and keeps its
 training manifest and checkpoints under the configured storage root. This
 prevents ORM changes from becoming an implicit ML API.
 
-## Adsorption data hierarchy
+## Adsorption data model
 
-Adsorption data is stored as dataset → experiment → measurement:
+There is one adsorption model, independent of the number of species. Adsorption
+data is stored as dataset → experiment → species → measurement:
+
+```mermaid
+erDiagram
+    datasets ||--o{ isotherms : contains
+    adsorbents ||--o{ isotherms : "exactly one per experiment"
+    isotherms ||--|{ isotherm_components : "1..N species"
+    adsorbates ||--o{ isotherm_components : "canonical species"
+    isotherm_components ||--o{ observations : "(isotherm_id, adsorbate_id)"
+```
 
 - `datasets` is a collection of one or more experiments (`created_at`, and
   `updated_at`, exposed as `last_update`, which is bumped on every saved edit
   and whenever experiments are appended).
 - `isotherms` is the experiment table: one dataset, exactly one adsorbent
-  (`adsorbent_id`, RESTRICT), one temperature, pressure basis, and optional
+  (`adsorbent_id`, RESTRICT), exactly one temperature (`temperature_k`;
+  measurements carry none, and an upload whose rows disagree on temperature
+  within one experiment is rejected), a pressure basis, and an optional
   saturation pressure. `edited_at` records the last local edit; NIST
   re-download restores edited experiments only when explicitly confirmed.
-- `isotherm_components` links an experiment to one or more adsorbates
-  (RESTRICT); single-species isotherms have one component, NIST binary
-  mixtures and uploaded multi-species experiments one per species. Upload
-  files with one uptake column per species are melted to this long form
-  during import, so no per-species column is ever stored.
-- `observations` holds measurements with source values and units next to the
-  canonical pressure (Pa or p/p₀) and uptake (mol/kg).
+  `provenance.duplicates` records whether replicates were averaged at import.
+- `isotherm_components` links an experiment to its species, primary key
+  `(isotherm_id, adsorbate_id)`, with a unique `position` and the received
+  `source_name`. The species count is derived from these rows and never
+  selects a different structure.
+- `observations` is the single measurement table: one row per species and
+  pressure, with source values and units next to the canonical pressure
+  (`pressure_canonical`, Pa or p/p₀) and uptake (`uptake_mol_kg`), an optional
+  uncertainty, and an optional per-point gas-phase mole fraction
+  (`gas_mole_fraction`). A composite foreign key to
+  `isotherm_components(isotherm_id, adsorbate_id)` (ON DELETE/UPDATE CASCADE)
+  guarantees that a measurement's species belongs to its experiment.
+
+Measurement identity is `(isotherm_id, adsorbate_id, pressure_key)`, enforced
+by `uq_observations_identity`. `pressure_key` quantizes the canonical pressure
+(1 µPa for Pa, 1e-9 for p/p₀) through `domain.canonical.pressure_key`, the same
+helper the importer uses, so duplicate detection and the constraint never
+disagree. Duplicates are rejected, or averaged at import into one stored row
+whose `extra_metadata.replicates` keeps the count, source rows, and values; a
+conflicting insert raises instead of overwriting.
+
+Pressure basis (`isotherms.pressure_basis`) defines the canonical pressure
+column:
+
+| Basis | Canonical pressure | Notes |
+|---|---|---|
+| `absolute` | System total pressure in Pa, shared by every species at a point | Partial pressure is `gas_mole_fraction × pressure`; with one species total equals partial |
+| `partial` | Each species' own partial pressure in Pa | Only when the source states partial pressures; never derived from a total |
+| `relative` | p/p₀ (unit `1`) | Single-species experiments only, because p₀ is per species |
+
+Every source goes through `domain.canonical.normalize_experiment` (a
+`CanonicalExperiment` model) before persistence; `write_experiment_content`
+re-applies it as a guard. It validates declared species, units per basis, at
+least two distinct pressures per species, gas fractions (≤ 1 per point,
+1 or empty for one species), and duplicates. Upload files with one uptake
+column per species are melted to long rows during import, so no per-species
+column is ever stored.
 
 `adsorbents` and `adsorbates` are reusable across datasets; deleting a dataset
 cascades to its experiments, measurements, and fitting sessions but never removes

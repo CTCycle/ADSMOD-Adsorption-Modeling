@@ -95,7 +95,7 @@ def _experiments(client: TestClient, dataset_id: int, **params: Any) -> dict[str
 def _observations(client: TestClient, dataset_id: int, experiment_id: int) -> list[dict[str, Any]]:
     response = client.get(
         f"/api/v1/datasets/{dataset_id}/experiments/{experiment_id}/observations",
-        params={"order": "sequence"},
+        params={"order": "source"},
     )
     assert response.status_code == 200, response.text
     return response.json()["rows"]
