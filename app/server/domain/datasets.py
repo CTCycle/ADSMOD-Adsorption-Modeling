@@ -7,6 +7,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from server.domain.canonical import ObservationBranch
+
+BranchAssignment = Literal["explicit", "inferred"]
 
 DatasetStructure = Literal["atomic", "aggregated", "mixed", "ambiguous"]
 PressureBasis = Literal["absolute", "partial", "relative"]
@@ -26,6 +29,7 @@ ColumnRole = Literal[
     "uptake_stddev",
     "gas_mole_fraction",
     "saturation_pressure",
+    "branch",
     "metadata",
     "ignore",
 ]
@@ -125,6 +129,7 @@ class ImportMapping(BaseModel):
             "uptake_stddev",
             "gas_mole_fraction",
             "saturation_pressure",
+            "branch",
         }
         used: dict[str, str] = {}
         for column, role in self.column_roles.items():
@@ -188,6 +193,7 @@ class NormalizedObservationPreview(BaseModel):
     pressure_original_unit: str
     pressure_canonical: float
     pressure_canonical_unit: str
+    branch: ObservationBranch
     uptake_original: float
     uptake_original_unit: str
     uptake_mol_kg: float
@@ -205,6 +211,8 @@ class NormalizedExperimentPreview(BaseModel):
     temperature_original_unit: str
     pressure_basis: PressureBasis
     observation_count: int
+    desorption_count: int = 0
+    branch_assignment: BranchAssignment
     observations: list[NormalizedObservationPreview]
 
 
@@ -331,6 +339,7 @@ class ExperimentSummary(BaseModel):
     pressure_basis: PressureBasis
     saturation_pressure_pa: float | None = None
     observation_count: int
+    desorption_count: int = 0
     pressure_min: float | None = None
     pressure_max: float | None = None
     pressure_canonical_unit: str | None = None
@@ -430,6 +439,7 @@ class ObservationUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: int = Field(ge=1)
+    branch: ObservationBranch | None = None
     pressure_original: float | None = None
     uptake_original: float | None = None
     uptake_stddev_mol_kg: float | None = None
@@ -475,6 +485,7 @@ class ObservationRow(BaseModel):
     id: int
     adsorbate_id: int
     source_row: int | None = None
+    branch: ObservationBranch
     pressure_original: float
     pressure_original_unit: str
     pressure_canonical: float

@@ -113,6 +113,7 @@ class DatasetEditRepository:
                             {
                                 "id": item.id,
                                 "adsorbate_id": item.adsorbate_id,
+                                "branch": item.branch,
                                 "pressure_original": item.pressure_original,
                                 "pressure_original_unit": item.pressure_original_unit,
                                 "pressure_canonical": item.pressure_canonical,
@@ -222,8 +223,9 @@ class DatasetEditRepository:
                 session.flush()
             except IntegrityError as exc:
                 raise ValueError(
-                    "The edit would give a species two measurements at the same "
-                    "pressure or list a species twice; nothing was saved."
+                    "The edit would give a species two measurements on the same "
+                    "branch at the same pressure or list a species twice; nothing "
+                    "was saved."
                 ) from exc
 
     # -------------------------------------------------------------------------

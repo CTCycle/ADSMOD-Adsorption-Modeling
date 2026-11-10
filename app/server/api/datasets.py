@@ -17,6 +17,7 @@ from fastapi import (
     status,
 )
 
+from server.domain.canonical import ObservationBranch
 from server.domain.datasets import (
     CustomUnitRequest,
     CustomUnitResponse,
@@ -234,10 +235,11 @@ class DatasetEndpoint:
         limit: int = Query(100, ge=1, le=500),
         order: Literal["pressure", "source"] = "pressure",
         adsorbate_id: int | None = Query(None, ge=1),
+        branch: ObservationBranch | None = None,
     ) -> ObservationPage:
         try:
             return self.service.get_observations(
-                dataset_id, isotherm_id, offset, limit, order, adsorbate_id
+                dataset_id, isotherm_id, offset, limit, order, adsorbate_id, branch
             )
         except LookupError as exc:
             raise self.not_found(exc) from exc

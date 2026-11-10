@@ -171,7 +171,7 @@ def write_experiment_content(
             "duplicate_measurement",
             name,
             f"Experiment '{name}' already holds a measurement of the same species "
-            "at the same pressure; it was not overwritten.",
+            "on the same branch at the same pressure; it was not overwritten.",
         ) from exc
 
 
@@ -373,7 +373,11 @@ class DatasetRepository:
 
     # -------------------------------------------------------------------------
     def observation_frame(self, dataset_id: int) -> pd.DataFrame:
-        """Return one canonical row per persisted adsorption observation."""
+        """Return one canonical row per adsorption-branch observation.
+
+        The frame feeds ML training, which models adsorption only, so
+        desorption points are never part of it.
+        """
         statement = (
             select(
                 Dataset.id.label("dataset_id"),
@@ -394,7 +398,7 @@ class DatasetRepository:
             .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
             .join(Observation, Observation.isotherm_id == Isotherm.id)
             .join(Adsorbate, Adsorbate.id == Observation.adsorbate_id)
-            .where(Dataset.id == dataset_id)
+            .where(Dataset.id == dataset_id, Observation.branch == "adsorption")
             .order_by(Isotherm.id, Observation.adsorbate_id, Observation.pressure_canonical)
         )
         with self.database.session_factory() as session:
@@ -546,6 +550,10 @@ class DatasetRepository:
                 select(
                     Observation.isotherm_id,
                     func.count(Observation.id),
+                    func.coalesce(
+                        func.sum(case((Observation.branch == "desorption", 1), else_=0)),
+                        0,
+                    ),
                     func.min(Observation.pressure_canonical),
                     func.max(Observation.pressure_canonical),
                     func.min(Observation.pressure_canonical_unit),
@@ -558,15 +566,21 @@ class DatasetRepository:
         } if ids else {}
         output: list[dict[str, Any]] = []
         for isotherm in isotherms:
-            count, pressure_min, pressure_max, canonical_unit, pressure_unit, uptake_unit = (
-                stats.get(isotherm.id, (0, None, None, None, None, None))
-            )
+            (
+                count,
+                desorption,
+                pressure_min,
+                pressure_max,
+                canonical_unit,
+                pressure_unit,
+                uptake_unit,
+            ) = stats.get(isotherm.id, (0, 0, None, None, None, None, None))
             components = sorted(isotherm.components, key=lambda item: item.position)
             reason = None
             if len(components) != 1:
                 reason = "The available adsorption models support single-species experiments."
-            elif count < 2:
-                reason = "At least two observations are required."
+            elif count - int(desorption) < 2:
+                reason = "At least two adsorption-branch observations are required."
             output.append(
                 {
                     "id": isotherm.id,
@@ -590,6 +604,7 @@ class DatasetRepository:
                     "pressure_basis": isotherm.pressure_basis,
                     "saturation_pressure_pa": isotherm.saturation_pressure_pa,
                     "observation_count": count,
+                    "desorption_count": int(desorption),
                     "pressure_min": pressure_min,
                     "pressure_max": pressure_max,
                     "pressure_canonical_unit": canonical_unit,
@@ -611,8 +626,10 @@ class DatasetRepository:
         limit: int = 100,
         order: str = "pressure",
         adsorbate_id: int | None = None,
+        branch: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
-        """One page of an experiment's measurements, optionally of one species."""
+        """One page of an experiment's measurements, optionally of one species
+        or one branch. Pressure order lists the adsorption branch first."""
         base = (
             select(Observation)
             .join(Isotherm, Isotherm.id == Observation.isotherm_id)
@@ -623,10 +640,17 @@ class DatasetRepository:
         )
         if adsorbate_id is not None:
             base = base.where(Observation.adsorbate_id == adsorbate_id)
+        if branch is not None:
+            base = base.where(Observation.branch == branch)
         ordering = (
             (Observation.source_row, Observation.id)
             if order == "source"
-            else (Observation.pressure_canonical, Observation.adsorbate_id, Observation.id)
+            else (
+                Observation.branch,
+                Observation.pressure_canonical,
+                Observation.adsorbate_id,
+                Observation.id,
+            )
         )
         with self.database.session_factory() as session:
             total = int(
@@ -643,6 +667,7 @@ class DatasetRepository:
                         "id": row.id,
                         "adsorbate_id": row.adsorbate_id,
                         "source_row": row.source_row,
+                        "branch": row.branch,
                         "pressure_original": row.pressure_original,
                         "pressure_original_unit": row.pressure_original_unit,
                         "pressure_canonical": row.pressure_canonical,
@@ -700,15 +725,19 @@ class DatasetRepository:
                     "The available adsorption models support single-species experiments."
                 )
             component = components[0]
-            # Stored measurements are unique per (species, pressure), so no
-            # replicate handling is needed here.
+            # Algorithm rule: the catalog models are equilibrium adsorption
+            # isotherms, so only the adsorption branch is fitted; a hysteresis
+            # desorption branch is not described by them. Stored measurements
+            # are unique per (species, branch, pressure), so no replicate
+            # handling is needed here.
             observations = sorted(
-                isotherm.observations,
+                (item for item in isotherm.observations if item.branch == "adsorption"),
                 key=lambda item: (item.pressure_canonical, item.id),
             )
             if len(observations) < 2:
                 raise ValueError(
-                    "At least two canonical observations are required for fitting."
+                    "At least two adsorption-branch observations are required "
+                    "for fitting."
                 )
             return {
                 "dataset_id": isotherm.dataset.id,

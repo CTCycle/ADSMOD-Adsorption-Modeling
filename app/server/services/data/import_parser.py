@@ -176,6 +176,12 @@ ROLE_ALIASES: dict[str, set[str]] = {
         "pression saturation",
         "sattigungsdruck",
     },
+    "branch": {
+        "branch",
+        "isotherm branch",
+        "sorption branch",
+        "hysteresis branch",
+    },
 }
 
 SPECIES_UPTAKE_HEADER = re.compile(r"\b(?:uptake|adsorption|adsorbed|loading)\b")

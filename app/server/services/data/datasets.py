@@ -289,9 +289,10 @@ class DatasetService:
         limit: int,
         order: str,
         adsorbate_id: int | None = None,
+        branch: str | None = None,
     ) -> ObservationPage:
         rows, total = self.repository.observations(
-            dataset_id, isotherm_id, offset, limit, order, adsorbate_id
+            dataset_id, isotherm_id, offset, limit, order, adsorbate_id, branch
         )
         return ObservationPage(
             dataset_id=dataset_id,

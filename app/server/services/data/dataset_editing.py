@@ -426,6 +426,47 @@ class DatasetEditService:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _optional_fields(
+        plan: EditPlan,
+        update: ObservationUpdate | None,
+        experiment_id: int,
+        observation_id: int,
+    ) -> dict[str, Any]:
+        """Branch, uncertainty and gas fraction changes that need no conversion."""
+        if update is None:
+            return {}
+        sent = update.model_fields_set
+        row: dict[str, Any] = {}
+        if update.branch is not None:
+            row["branch"] = update.branch
+        if "uptake_stddev_mol_kg" in sent:
+            sigma = update.uptake_stddev_mol_kg
+            if sigma is None or (is_finite(sigma) and sigma > 0):
+                row["uptake_stddev_mol_kg"] = sigma
+            else:
+                plan.issue(
+                    "observation",
+                    "uptake_stddev_mol_kg",
+                    "Uncertainty must be a positive number or empty.",
+                    experiment_id,
+                    observation_id,
+                )
+        if "gas_mole_fraction" in sent:
+            fraction = update.gas_mole_fraction
+            if fraction is None or (is_finite(fraction) and 0 <= fraction <= 1):
+                row["gas_mole_fraction"] = fraction
+            else:
+                plan.issue(
+                    "observation",
+                    "gas_mole_fraction",
+                    "Gas mole fraction must be between 0 and 1 or empty.",
+                    experiment_id,
+                    observation_id,
+                )
+        return row
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _observation(
         plan: EditPlan,
         context: ExperimentContext,
@@ -450,31 +491,9 @@ class DatasetEditService:
                 )
             else:
                 values[name] = float(value)
-        row: dict[str, Any] = {}
-        if "uptake_stddev_mol_kg" in sent:
-            sigma = update.uptake_stddev_mol_kg if update else None
-            if sigma is None or (is_finite(sigma) and sigma > 0):
-                row["uptake_stddev_mol_kg"] = sigma
-            else:
-                plan.issue(
-                    "observation",
-                    "uptake_stddev_mol_kg",
-                    "Uncertainty must be a positive number or empty.",
-                    experiment_id,
-                    observation_id,
-                )
-        if "gas_mole_fraction" in sent:
-            fraction = update.gas_mole_fraction if update else None
-            if fraction is None or (is_finite(fraction) and 0 <= fraction <= 1):
-                row["gas_mole_fraction"] = fraction
-            else:
-                plan.issue(
-                    "observation",
-                    "gas_mole_fraction",
-                    "Gas mole fraction must be between 0 and 1 or empty.",
-                    experiment_id,
-                    observation_id,
-                )
+        row = DatasetEditService._optional_fields(
+            plan, update, experiment_id, observation_id
+        )
         if len(values) < 2:
             return None
         name, molar_mass = species.get(
@@ -561,22 +580,29 @@ class DatasetEditService:
             )
         if not changed:
             return
-        seen: set[tuple[int, int]] = set()
-        totals: dict[int, float] = {}
+        seen: set[tuple[int, str, int]] = set()
+        totals: dict[tuple[str, int], float] = {}
+        adsorption_points: dict[int, int] = dict.fromkeys(
+            context.species_map.values(), 0
+        )
         for current in context.current["observations"]:
             state = {**current, **changed.get(current["id"], {})}
             key = pressure_key(
                 state["pressure_canonical"], state["pressure_canonical_unit"]
             )
-            identity = (context.species_map[current["adsorbate_id"]], key)
+            species = context.species_map[current["adsorbate_id"]]
+            identity = (species, state["branch"], key)
             if identity in seen:
                 plan.issue(
                     "observation",
                     "pressure_original",
-                    "This species already has a measurement at this pressure.",
+                    "This species already has a measurement at this pressure "
+                    f"on the {state['branch']} branch.",
                     experiment_id,
                     int(current["id"]),
                 )
+            elif state["branch"] == "adsorption":
+                adsorption_points[species] += 1
             seen.add(identity)
             fraction = state.get("gas_mole_fraction")
             if fraction is None:
@@ -589,7 +615,17 @@ class DatasetEditService:
                     experiment_id,
                     int(current["id"]),
                 )
-            totals[key] = totals.get(key, 0.0) + fraction
+            totals[(state["branch"], key)] = (
+                totals.get((state["branch"], key), 0.0) + fraction
+            )
+        if any(count < 2 for count in adsorption_points.values()):
+            plan.issue(
+                "experiment",
+                "branch",
+                "Each species needs at least two distinct pressures on its "
+                "adsorption branch.",
+                experiment_id,
+            )
         if multi_species and any(
             total > 1 + FRACTION_TOLERANCE for total in totals.values()
         ):

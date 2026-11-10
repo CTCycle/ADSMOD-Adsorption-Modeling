@@ -10,7 +10,12 @@ from typing import Any
 import pandas as pd
 
 from server.configurations.settings import DEFAULT_DATASET_ALLOWED_EXTENSIONS
-from server.domain.canonical import CanonicalizationError, normalize_experiment
+from server.domain.canonical import (
+    CanonicalizationError,
+    assign_branches,
+    normalize_experiment,
+    parse_branch,
+)
 from server.domain.datasets import (
     ColumnDetection,
     ImportIssue,
@@ -47,6 +52,10 @@ UNIT_QUANTITIES = ("pressure", "uptake", "temperature")
 SPECIES_UPTAKE_COLUMN = "__species_uptake__"
 SPECIES_ADSORBATE_COLUMN = "__species_adsorbate__"
 SPECIES_FRACTION_COLUMN = "__species_gas_mole_fraction__"
+IMPORT_REMEDIATIONS = {
+    "duplicate_measurement": "Choose the average-replicates policy or correct the duplicate rows.",
+    "ambiguous_branch": "Map a branch column (adsorption/desorption) or split the cycles into separate experiments.",
+}
 
 ###############################################################################
 @dataclass
@@ -230,7 +239,7 @@ class AdsorptionImportEngine:
             frame, roles, mapping, detected, catalog, issues
         )
         experiments = self._build_experiments(
-            grouped_records, metadata_by_group, mapping, issues
+            grouped_records, metadata_by_group, mapping, issues, "branch" in roles
         )
         return self._bundle(mapping, payload, experiments, issues)
 
@@ -444,8 +453,13 @@ class AdsorptionImportEngine:
         metadata_by_group: dict[str, dict[str, Any]],
         mapping: ImportMapping,
         issues: list[ImportIssue],
+        explicit_branch: bool,
     ) -> list[dict[str, Any]]:
-        """Assemble canonical experiments through the shared normalization gate."""
+        """Assemble canonical experiments through the shared normalization gate.
+
+        Without a mapped branch column, `assign_branches` labels each species
+        in file order; the preview reports the inferred desorption points.
+        """
         experiments: list[dict[str, Any]] = []
         for group_key, observations in grouped_records.items():
             metadata = metadata_by_group.get(group_key)
@@ -462,11 +476,17 @@ class AdsorptionImportEngine:
                 "pressure_basis": metadata["pressure_basis"],
                 "saturation_pressure_pa": metadata.get("saturation_pressure_pa"),
                 "conditions": metadata.get("conditions", {}),
-                "provenance": {"source_rows": metadata.get("source_rows", [])},
+                "provenance": {
+                    "source_rows": metadata.get("source_rows", []),
+                    "branch_assignment": "explicit",
+                },
                 "observations": observations,
             }
             try:
-                experiment = normalize_experiment(record, mapping.duplicate_policy)
+                experiment = normalize_experiment(
+                    record if explicit_branch else assign_branches(record),
+                    mapping.duplicate_policy,
+                )
             except CanonicalizationError as exc:
                 issues.append(
                     ImportIssue(
@@ -474,14 +494,27 @@ class AdsorptionImportEngine:
                         severity="error",
                         experiment=group_key,
                         message=str(exc),
-                        remediation=(
-                            "Choose the average-replicates policy or correct the duplicate rows."
-                            if exc.code == "duplicate_measurement"
-                            else None
-                        ),
+                        remediation=IMPORT_REMEDIATIONS.get(exc.code),
                     )
                 )
                 continue
+            desorption = sum(
+                1 for item in experiment.observations if item.branch == "desorption"
+            )
+            if desorption and not explicit_branch:
+                issues.append(
+                    ImportIssue(
+                        code="branches_inferred",
+                        severity="warning",
+                        experiment=group_key,
+                        message=(
+                            f"{desorption} point(s) of '{group_key}' follow the "
+                            "pressure maximum with falling pressure and were "
+                            "stored as the desorption branch."
+                        ),
+                        remediation="Map a branch column to label each point explicitly.",
+                    )
+                )
             if experiment.provenance.get("duplicates") == "averaged":
                 issues.append(
                     ImportIssue(
@@ -647,6 +680,11 @@ class AdsorptionImportEngine:
         )
         pressure_raw = self._mapped_value(row, "pressure", roles, mapping)
         uptake_raw = self._mapped_value(row, "uptake", roles, mapping)
+        branch = (
+            {"branch": parse_branch(safe_cell(row.get(roles["branch"])))}
+            if "branch" in roles
+            else {}
+        )
 
         metadata_columns = [
             column
@@ -672,6 +710,7 @@ class AdsorptionImportEngine:
                     "pressure_original_unit": pressure.original_unit,
                     "pressure_canonical": pressure.canonical_value,
                     "pressure_canonical_unit": pressure.canonical_unit,
+                    **branch,
                     "uptake_original": uptake.original_value,
                     "uptake_original_unit": uptake.original_unit,
                     "uptake_mol_kg": uptake.canonical_value,
@@ -831,6 +870,14 @@ class AdsorptionImportEngine:
                 temperature_original_unit=experiment["temperature_original_unit"],
                 pressure_basis=experiment["pressure_basis"],
                 observation_count=len(experiment["observations"]),
+                desorption_count=sum(
+                    1
+                    for observation in experiment["observations"]
+                    if observation["branch"] == "desorption"
+                ),
+                branch_assignment=experiment["provenance"].get(
+                    "branch_assignment", "explicit"
+                ),
                 observations=[
                     NormalizedObservationPreview(
                         **{
@@ -842,6 +889,7 @@ class AdsorptionImportEngine:
                                 "pressure_original_unit",
                                 "pressure_canonical",
                                 "pressure_canonical_unit",
+                                "branch",
                                 "uptake_original",
                                 "uptake_original_unit",
                                 "uptake_mol_kg",
