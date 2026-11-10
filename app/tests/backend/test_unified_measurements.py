@@ -706,22 +706,58 @@ def test_nist_branches_are_inferred_from_point_order() -> None:
         ]
     )
 
-    [loop] = records
-    assert loop["provenance"]["branch_assignment"] == "inferred"
-    assert [
-        (item["branch"], item["pressure_canonical"]) for item in loop["observations"]
-    ] == [
-        ("adsorption", 5e4),
-        ("adsorption", 1e5),
-        ("adsorption", 2e5),
-        ("adsorption", 4e5),
-        ("desorption", 1e5),
-        ("desorption", 2e5),
-    ]
-    assert set(skipped) == {"step", "cycles", "falling"}
+    branches = {
+        record["name"]: [
+            (item["branch"], item["pressure_canonical"])
+            for item in record["observations"]
+        ]
+        for record in records
+    }
+    assert branches == {
+        "loop": [
+            ("adsorption", 5e4),
+            ("adsorption", 1e5),
+            ("adsorption", 2e5),
+            ("adsorption", 4e5),
+            ("desorption", 1e5),
+            ("desorption", 2e5),
+        ],
+        # A series that starts at its maximum and falls is desorption throughout.
+        "falling": [("desorption", 1e5), ("desorption", 2e5), ("desorption", 4e5)],
+    }
+    assert {record["provenance"]["branch_assignment"] for record in records} == {
+        "inferred"
+    }
+    assert set(skipped) == {"step", "cycles"}
     assert "on the adsorption branch" in skipped["step"]
     assert "rises in pressure again" in skipped["cycles"]
-    assert "2 desorption point(s)" in skipped["falling"]
+
+
+###############################################################################
+def test_desorption_only_series_are_stored_but_not_fitted(client: TestClient) -> None:
+    falling = SINGLE_CSV.splitlines(keepends=True)
+    dataset_id = _commit(
+        client, falling[0] + "".join(reversed(falling[1:])), SINGLE_MAPPING
+    )
+
+    [experiment] = _experiments(client, dataset_id)
+    assert (experiment["observation_count"], experiment["desorption_count"]) == (7, 7)
+    assert experiment["fitting_eligible"] is False
+    assert "adsorption-branch" in experiment["ineligibility_reason"]
+
+    def series(branch: str) -> list[dict[str, Any]]:
+        return client.post(
+            "/api/v1/analytics/series",
+            json={
+                "filter": {"dataset_ids": [dataset_id], "pressure_basis": "absolute"},
+                "branch": branch,
+            },
+        ).json()["series"]
+
+    # No empty adsorption series is listed; the desorption branch holds every point.
+    assert series("adsorption") == []
+    [desorption] = series("desorption")
+    assert len(desorption["points"]) == 7
 
 
 ###############################################################################

@@ -260,22 +260,14 @@ def _check_coverage(
     collapsed: dict[tuple[int, int, int], CanonicalObservation],
 ) -> None:
     name = experiment.name
-    adsorption = BRANCH_ORDER["adsorption"]
     counts = Counter((position, branch) for position, branch, _ in collapsed)
     for position, species in enumerate(experiment.adsorbates):
-        if counts[(position, adsorption)] < 2:
-            desorption = counts[(position, BRANCH_ORDER["desorption"])]
+        if all(counts[(position, branch)] < 2 for branch in BRANCH_ORDER.values()):
             raise CanonicalizationError(
                 "insufficient_observations",
                 name,
                 f"Species '{species.name}' in experiment '{name}' needs at least "
-                "two distinct pressures on its adsorption branch"
-                + (
-                    f" (it has {desorption} desorption point(s), which cannot "
-                    "be stored without an adsorption branch)."
-                    if desorption
-                    else "."
-                ),
+                "two distinct pressures on one branch (adsorption or desorption).",
             )
     if len(experiment.adsorbates) < 2 or experiment.pressure_basis != "absolute":
         return
@@ -304,8 +296,9 @@ def normalize_experiment(
     Observations are ordered by species position, branch (adsorption first),
     then pressure. Repeated (species, branch, pressure) identities raise with
     ``reject`` and are averaged into one observation with ``average``; they are
-    never silently overwritten. Each species needs at least two adsorption
-    pressures; desorption points are optional.
+    never silently overwritten. Each species needs at least two distinct
+    pressures on one branch, so a desorption-only series is valid; consumers
+    that model adsorption (fitting, ML) select the adsorption branch.
     The function is idempotent, so persistence can re-apply it as a guard.
     """
     experiment = _validated(record)
@@ -357,7 +350,9 @@ def assign_branches(record: Mapping[str, Any]) -> dict[str, Any]:
     of acquisition:
 
     - every point up to the first point at the species' highest pressure
-      (inclusive) is ``adsorption``;
+      (inclusive) is ``adsorption``, unless the series starts at that maximum
+      and then falls: such a series is a desorption branch measured on its
+      own, so its first point is ``desorption`` too;
     - no later point may rise in pressure: a point below its predecessor is
       ``desorption``, and a point at its predecessor's pressure joins that
       point's branch, so a vertical step stays a repeated measurement that
@@ -389,7 +384,8 @@ def assign_branches(record: Mapping[str, Any]) -> dict[str, Any]:
             # Invalid points are reported by `normalize_experiment`.
             continue
         peak = keys.index(max(keys))
-        branch = "adsorption"
+        falls_from_start = peak == 0 and min(keys) < keys[0]
+        branch = "desorption" if falls_from_start else "adsorption"
         for index, point in enumerate(points):
             if index > peak:
                 if keys[index] > keys[index - 1]:

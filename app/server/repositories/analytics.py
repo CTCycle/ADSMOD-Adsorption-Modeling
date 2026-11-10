@@ -231,9 +231,11 @@ class AnalyticsRepository:
 
     # -------------------------------------------------------------------------
     def series_metadata(
-        self, filters: dict[str, Any], *, limit: int
+        self, filters: dict[str, Any], *, limit: int, branch: str = "adsorption"
     ) -> tuple[list[dict[str, Any]], int]:
-        """One row per (isotherm, species) with its point count, capped at ``limit``."""
+        """One row per (isotherm, species) with points on ``branch`` and their
+        count, capped at ``limit``. A desorption-only species has no
+        adsorption series, so it is not listed for the adsorption branch."""
         matching = select(self._matching_isotherms(filters).subquery().c.id)
         point_counts = (
             select(
@@ -241,6 +243,7 @@ class AnalyticsRepository:
                 Observation.adsorbate_id,
                 func.count(Observation.id).label("point_count"),
             )
+            .where(Observation.branch == branch)
             .group_by(Observation.isotherm_id, Observation.adsorbate_id)
             .subquery()
         )
@@ -267,7 +270,7 @@ class AnalyticsRepository:
                 species_counts.c.species_count,
                 Isotherm.temperature_k,
                 Isotherm.pressure_basis,
-                func.coalesce(point_counts.c.point_count, 0).label("point_count"),
+                point_counts.c.point_count,
             )
             .select_from(IsothermComponent)
             .join(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
@@ -275,7 +278,7 @@ class AnalyticsRepository:
             .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
             .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
             .join(species_counts, species_counts.c.isotherm_id == Isotherm.id)
-            .outerjoin(
+            .join(
                 point_counts,
                 (point_counts.c.isotherm_id == IsothermComponent.isotherm_id)
                 & (point_counts.c.adsorbate_id == IsothermComponent.adsorbate_id),

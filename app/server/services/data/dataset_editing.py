@@ -12,6 +12,7 @@ same rules as imported ones.
 from __future__ import annotations
 
 import math
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
@@ -22,7 +23,7 @@ from server.common.units import (
     UnitCatalog,
     UnitConversionError,
 )
-from server.domain.canonical import FRACTION_TOLERANCE, pressure_key
+from server.domain.canonical import BRANCH_ORDER, FRACTION_TOLERANCE, pressure_key
 from server.domain.datasets import (
     DatasetEditIssue,
     DatasetUpdateRequest,
@@ -582,9 +583,8 @@ class DatasetEditService:
             return
         seen: set[tuple[int, str, int]] = set()
         totals: dict[tuple[str, int], float] = {}
-        adsorption_points: dict[int, int] = dict.fromkeys(
-            context.species_map.values(), 0
-        )
+        # (species, branch) -> distinct pressures; a species needs two on one branch.
+        branch_points: Counter[tuple[int, str]] = Counter()
         for current in context.current["observations"]:
             state = {**current, **changed.get(current["id"], {})}
             key = pressure_key(
@@ -601,8 +601,8 @@ class DatasetEditService:
                     experiment_id,
                     int(current["id"]),
                 )
-            elif state["branch"] == "adsorption":
-                adsorption_points[species] += 1
+            else:
+                branch_points[(species, state["branch"])] += 1
             seen.add(identity)
             fraction = state.get("gas_mole_fraction")
             if fraction is None:
@@ -618,12 +618,14 @@ class DatasetEditService:
             totals[(state["branch"], key)] = (
                 totals.get((state["branch"], key), 0.0) + fraction
             )
-        if any(count < 2 for count in adsorption_points.values()):
+        if any(
+            all(branch_points[(species, branch)] < 2 for branch in BRANCH_ORDER)
+            for species in set(context.species_map.values())
+        ):
             plan.issue(
                 "experiment",
                 "branch",
-                "Each species needs at least two distinct pressures on its "
-                "adsorption branch.",
+                "Each species needs at least two distinct pressures on one branch.",
                 experiment_id,
             )
         if multi_species and any(

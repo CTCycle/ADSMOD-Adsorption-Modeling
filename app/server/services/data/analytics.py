@@ -185,10 +185,10 @@ class AnalyticsService:
 
     # -------------------------------------------------------------------------
     def _series_rows(
-        self, analytics_filter: AnalyticsFilter
+        self, analytics_filter: AnalyticsFilter, branch: str
     ) -> tuple[list[dict[str, Any]], int, str | None]:
         rows, total = self.repository.series_metadata(
-            self._filters(analytics_filter), limit=MAX_SERIES
+            self._filters(analytics_filter), limit=MAX_SERIES, branch=branch
         )
         basis = self._single_basis(rows)
         kept: list[dict[str, Any]] = []
@@ -248,7 +248,7 @@ class AnalyticsService:
 
     # -------------------------------------------------------------------------
     def series(self, request: SeriesRequest) -> SeriesResponse:
-        rows, total, basis = self._series_rows(request.filter)
+        rows, total, basis = self._series_rows(request.filter, request.branch)
         pressure_unit, pressure_divisor = self._pressure_factor(
             basis, request.pressure_unit
         )
@@ -294,7 +294,7 @@ class AnalyticsService:
     def uptake_at_pressure(
         self, request: UptakeAtPressureRequest
     ) -> UptakeAtPressureResponse:
-        rows, total, basis = self._series_rows(request.filter)
+        rows, total, basis = self._series_rows(request.filter, request.branch)
         pressure_unit, pressure_divisor = self._pressure_factor(
             basis, request.pressure_unit
         )
