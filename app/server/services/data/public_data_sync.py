@@ -13,14 +13,18 @@ from server.common.utils.logger import logger
 from server.configurations.settings import PublicDataConfig
 from server.repositories.public_data import PublicDataRepository
 from server.services.data.nist_service import NISTDataService
-from server.services.data.public_data import PublicDataService
+from server.services.data.public_data import IdentityReviewRequired, PublicDataService
 from server.services.providers.public_data import (
     ProviderHealth,
     ProviderError,
+    ProviderNotFoundError,
     ProviderUnavailableError,
 )
 
 NIST_CATEGORIES = ("experiments", "guest", "host")
+# A negative result (not found, ambiguous, sent to review) is reconsidered after
+# this long, so later provider data or local fixes can still resolve the record.
+NEGATIVE_RESULT_TTL = timedelta(days=30)
 
 
 ProgressCallback = Callable[[dict[str, Any]], Awaitable[None]]
@@ -597,8 +601,16 @@ class PublicDataSyncCoordinator:
                 list(parameters["identifiers"])
             )
 
+        # Records settled as unimportable are left out of fractional selection
+        # so they do not consume the budget again; targeted runs retry them.
+        excluded = (
+            set()
+            if parameters.get("identifiers")
+            else await asyncio.to_thread(self.repository.permanent_exclusions, source_key)
+        )
         result = await nist.sync_category_records(
             category=str(parameters["category"]),
+            excluded=excluded,
             fraction=float(parameters.get("fraction", 1.0)),
             identifiers=parameters.get("identifiers"),
             overwrite_local_edits=bool(parameters.get("overwrite_local_edits", False)),
@@ -718,11 +730,19 @@ class PublicDataSyncCoordinator:
 
     # -------------------------------------------------------------------------
     def _retry_time(self, error: Exception) -> datetime | None:
-        if not isinstance(error, ProviderUnavailableError):
-            return None
-        return datetime.now(timezone.utc) + timedelta(
-            seconds=min(30.0, self._active_settings()[0].retry_backoff_max_seconds)
-        )
+        """When a failed record becomes eligible again; None is permanent."""
+        if isinstance(error, ProviderUnavailableError):
+            return datetime.now(timezone.utc) + timedelta(
+                seconds=min(30.0, self._active_settings()[0].retry_backoff_max_seconds)
+            )
+        if isinstance(error, (ProviderNotFoundError, IdentityReviewRequired)):
+            return self._negative_retry_time()
+        return None
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _negative_retry_time() -> datetime:
+        return datetime.now(timezone.utc) + NEGATIVE_RESULT_TTL
 
     # -------------------------------------------------------------------------
     async def _run_cod_import(
@@ -810,8 +830,9 @@ class PublicDataSyncCoordinator:
     ) -> dict[str, Any]:
         """Look up COD structures for stored materials that have none.
 
-        Only exact name matches are imported and linked; unavailable
-        and ambiguous materials are recorded as skips and not retried.
+        Only unique exact name matches are imported and linked; unavailable
+        and ambiguous materials are recorded as skips and reconsidered only
+        after NEGATIVE_RESULT_TTL.
         """
         run_id = str(run["id"])
         config, public_data, _ = self._active_settings()
@@ -842,8 +863,12 @@ class PublicDataSyncCoordinator:
             else:
                 if structure_id is None:
                     counts["skipped"] += 1
-                    await self._store_skip(
-                        run_id, "cod", external_id, f"{candidate['name']}: {reason}"
+                    await self._store_failure(
+                        run_id,
+                        "cod",
+                        external_id,
+                        f"{candidate['name']}: {reason}",
+                        self._negative_retry_time(),
                     )
                 else:
                     entity_ids.append(structure_id)

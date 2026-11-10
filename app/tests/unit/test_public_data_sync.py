@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -1219,6 +1219,73 @@ def test_nist_fractional_requests_progress_through_missing_records() -> None:
     fetched.clear()
     asyncio.run(_run_scripted_sync(service, [], fraction=0.2, batch_size=10))
     assert fetched == [["id4", "id5"]]
+
+
+def test_nist_fractional_requests_advance_past_permanent_exclusions() -> None:
+    # The leading records are unimportable; without exclusion they would fill
+    # every fractional budget and the acquisition would never progress.
+    ids = [f"id{index}" for index in range(10)]
+    service, fetched = _scripted_nist_service(ids, set(), failing=set())
+    asyncio.run(
+        _run_scripted_sync(
+            service, [], fraction=0.2, batch_size=10, excluded={"id0", "id1"}
+        )
+    )
+    assert fetched == [["id2", "id3"]]
+
+
+def test_failure_retry_times_gate_candidate_selection(tmp_path: Path) -> None:
+    from server.repositories.schemas.models import Adsorbate
+
+    manager = _database(tmp_path)
+    try:
+        repository = PublicDataRepository(manager)
+        repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
+        with manager.transaction() as session:
+            for name in ("permanent", "pending", "expired", "transient-due", "fresh"):
+                session.add(Adsorbate(key=name, name=name))
+        ids = {item["name"]: item["id"] for item in repository.pubchem_enrichment_candidates(10)}
+        run = repository.create_sync_run(
+            source_key="pubchem", operation="pubchem_enrich", parameters={}
+        )
+        now = datetime.now(timezone.utc)
+        for name, retry_at in (
+            ("permanent", None),
+            ("pending", now + timedelta(days=29)),
+            ("expired", now - timedelta(days=1)),
+            ("transient-due", now - timedelta(seconds=1)),
+        ):
+            repository.add_sync_failure(
+                sync_run_id=run["id"],
+                source_key="pubchem",
+                external_id=f"adsorbate:{ids[name]}",
+                reason=name,
+                retry_eligible_at=retry_at,
+            )
+
+        remaining = [item["name"] for item in repository.pubchem_enrichment_candidates(10)]
+        # Permanent and not-yet-due outcomes stay out; expired ones are reconsidered.
+        assert remaining == ["expired", "transient-due", "fresh"]
+        assert repository.permanent_exclusions("pubchem") == {f"adsorbate:{ids['permanent']}"}
+    finally:
+        manager.dispose()
+
+
+def test_negative_results_expire_and_transient_failures_retry_soon() -> None:
+    from server.services.data.public_data import IdentityReviewRequired
+    from server.services.data.public_data_sync import NEGATIVE_RESULT_TTL
+    from server.services.providers.public_data import ProviderNotFoundError
+
+    coordinator = PublicDataSyncCoordinator.__new__(PublicDataSyncCoordinator)
+    coordinator._active_settings = lambda: (PublicDataConfig(), None, None)  # type: ignore[method-assign,assignment,return-value]
+    now = datetime.now(timezone.utc)
+
+    transient = coordinator._retry_time(ProviderUnavailableError("down"))
+    assert transient is not None and transient - now <= timedelta(seconds=31)
+    for negative in (ProviderNotFoundError("none"), IdentityReviewRequired("review")):
+        retry_at = coordinator._retry_time(negative)
+        assert retry_at is not None and retry_at - now >= NEGATIVE_RESULT_TTL - timedelta(seconds=5)
+    assert coordinator._retry_time(LookupError("bad record")) is None
 
 
 def test_nist_targeted_unknown_identifiers_are_reported_as_failures() -> None:

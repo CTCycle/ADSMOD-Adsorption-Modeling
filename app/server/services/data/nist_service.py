@@ -462,10 +462,13 @@ class NISTDataService:
         resume_after_external_id: str | None = None,
         overwrite_local_edits: bool = False,
         identifiers: list[str] | None = None,
+        excluded: frozenset[str] | set[str] = frozenset(),
     ) -> dict[str, Any]:
         """Fetch one NIST collection in idempotent, checkpointed batches.
 
-        Existing experiments are skipped. With `overwrite_local_edits`, locally
+        Existing experiments and `excluded` identifiers (records settled as
+        unimportable by earlier runs) are skipped, so the fractional budget
+        covers records that can still be imported. With `overwrite_local_edits`, locally
         edited NIST experiments are fetched again and restored from source.
         Explicit `identifiers` (targeted acquisition) replace the fractional
         selection but must still be present in the current NIST index.
@@ -499,37 +502,20 @@ class NISTDataService:
                 existing = existing - await asyncio.to_thread(
                     self.repository.edited_experiment_ids
                 )
-            checkpointed_identifiers = identifiers
-            if resume_after_external_id:
-                checkpoint_index = identifiers.index(resume_after_external_id)
-                checkpointed_identifiers = identifiers[checkpoint_index + 1 :]
-            candidates = self._unimported_identifiers(
-                checkpointed_identifiers, existing
-            )
-            # A fractional request covers the next share of the catalogue that
-            # is still missing locally, so repeated requests make progress.
             budget = (
                 len(identifiers)
                 if targeted
                 else int(math.ceil(self.clamp_fraction(fraction) * available_count))
             )
-            eligible = candidates[: max(0, budget - max(0, processed_before))]
             record_cap = None if max_records is None else max(0, max_records)
-            remaining = (
-                eligible
-                if record_cap is None
-                else candidates[
-                    : max(0, min(budget, record_cap) - max(0, processed_before))
-                ]
+            eligible, remaining, skipped_count = self._budgeted_selection(
+                identifiers,
+                existing | excluded,
+                resume_after=resume_after_external_id,
+                budget=budget,
+                record_cap=record_cap,
+                processed_before=processed_before,
             )
-            scanned = (
-                checkpointed_identifiers[
-                    : checkpointed_identifiers.index(remaining[-1]) + 1
-                ]
-                if remaining
-                else checkpointed_identifiers
-            )
-            skipped_count = len(scanned) - len(remaining)
             batch_size = max(1, batch_size)
             for offset in range(0, len(remaining), batch_size):
                 if await should_cancel():
@@ -614,6 +600,41 @@ class NISTDataService:
             "pending_count": max(0, len(eligible) - processed_count),
             "request_stats": api_client.request_statistics(),
         }
+
+    # -------------------------------------------------------------------------
+    def _budgeted_selection(
+        self,
+        identifiers: list[str],
+        settled: set[str],
+        *,
+        resume_after: str | None,
+        budget: int,
+        record_cap: int | None,
+        processed_before: int,
+    ) -> tuple[list[str], list[str], int]:
+        """Pick the records a run fetches: (eligible, remaining, skipped count).
+
+        A fractional request covers the next share of the catalogue that is
+        not yet settled locally, so repeated requests make progress. Records
+        scanned past but already settled count as skipped. A resume starts
+        after the checkpointed identifier.
+        """
+        if resume_after:
+            identifiers = identifiers[identifiers.index(resume_after) + 1 :]
+        candidates = self._unimported_identifiers(identifiers, settled)
+        done = max(0, processed_before)
+        eligible = candidates[: max(0, budget - done)]
+        remaining = (
+            eligible
+            if record_cap is None
+            else candidates[: max(0, min(budget, record_cap) - done)]
+        )
+        scanned = (
+            identifiers[: identifiers.index(remaining[-1]) + 1]
+            if remaining
+            else identifiers
+        )
+        return eligible, remaining, len(scanned) - len(remaining)
 
     # -------------------------------------------------------------------------
     async def _category_sync_details(

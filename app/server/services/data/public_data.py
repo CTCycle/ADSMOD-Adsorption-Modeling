@@ -37,6 +37,11 @@ _IDENTITY_CANDIDATE_LIMIT = 20
 
 
 ###############################################################################
+class IdentityReviewRequired(ValueError):
+    """The species was sent to the identity review queue instead of linked."""
+
+
+###############################################################################
 def _cod_search_name(name: str) -> str:
     cleaned = _TRAILING_NAME_QUALIFIER.sub("", name).strip()
     return cleaned if len(cleaned) >= 3 else name.strip()
@@ -226,7 +231,9 @@ class PublicDataService:
             entity_id=adsorbate_id,
             evidence=evidence,
         )
-        raise ValueError(f"Identity needs review ({reason.replace('_', ' ')}).")
+        raise IdentityReviewRequired(
+            f"Identity needs review ({reason.replace('_', ' ')})."
+        )
 
     # -------------------------------------------------------------------------
     async def ensure_conformer(self, adsorbate_id: int) -> tuple[str, bool]:

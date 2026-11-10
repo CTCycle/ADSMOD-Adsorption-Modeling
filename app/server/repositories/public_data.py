@@ -997,8 +997,9 @@ class PublicDataRepository:
     ) -> list[dict[str, Any]]:
         """Return chemicals without PubChem identity that may still resolve.
 
-        Chemicals whose earlier lookup failed permanently (no retry time) are
-        excluded so repeated enrichment runs make progress. `fraction` selects
+        Chemicals with a permanent failure, or a failure or negative result
+        whose retry time has not passed, are excluded so repeated enrichment
+        runs make progress and stale negative results are reconsidered. `fraction` selects
         the leading share of the eligible chemicals.
         """
         with self.database.session_factory() as session:
@@ -1008,11 +1009,7 @@ class PublicDataRepository:
                 .join(DataSource, DataSource.id == SourceRecord.source_id)
                 .where(DataSource.key == "pubchem")
             )
-            unresolvable = select(PublicDataSyncFailure.external_id).where(
-                PublicDataSyncFailure.source_key == "pubchem",
-                PublicDataSyncFailure.retry_eligible_at.is_(None),
-                PublicDataSyncFailure.external_id.like("adsorbate:%"),
-            )
+            unresolvable = self._ineligible_failures("pubchem", "adsorbate:")
             rows = session.execute(
                 select(
                     Adsorbate.id,
@@ -1103,18 +1100,14 @@ class PublicDataRepository:
     def conformer_candidates(self, limit: int | None, fraction: float = 1.0) -> list[dict[str, Any]]:
         """Enriched chemicals with a published 3D conformer that is not cached yet.
 
-        Chemicals whose earlier download failed permanently are excluded so
-        repeated runs make progress.
+        Chemicals whose earlier download failed and is not yet eligible for
+        retry are excluded so repeated runs make progress.
         """
         with self.database.session_factory() as session:
             cached = select(ChemicalProperty.source_record_id).where(
                 ChemicalProperty.key == CONFORMER_PROPERTY
             )
-            settled = select(PublicDataSyncFailure.external_id).where(
-                PublicDataSyncFailure.source_key == "pubchem",
-                PublicDataSyncFailure.retry_eligible_at.is_(None),
-                PublicDataSyncFailure.external_id.like("conformer:%"),
-            )
+            settled = self._ineligible_failures("pubchem", "conformer:")
             rows = session.execute(
                 select(AdsorbateSourceRecord.adsorbate_id)
                 .join(ChemicalProperty, ChemicalProperty.source_record_id == AdsorbateSourceRecord.source_record_id)
@@ -1130,6 +1123,38 @@ class PublicDataRepository:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _ineligible_failures(source_key: str, prefix: str) -> Any:
+        """External ids whose failure is permanent or not yet eligible for retry.
+
+        A NULL retry time is a permanent exclusion; a future one covers both
+        transient failures and expiring negative results.
+        """
+        return select(PublicDataSyncFailure.external_id).where(
+            PublicDataSyncFailure.source_key == source_key,
+            PublicDataSyncFailure.external_id.like(f"{prefix}%"),
+            or_(
+                PublicDataSyncFailure.retry_eligible_at.is_(None),
+                PublicDataSyncFailure.retry_eligible_at > datetime.now(timezone.utc),
+            ),
+        )
+
+    # -------------------------------------------------------------------------
+    def permanent_exclusions(self, source_key: str) -> set[str]:
+        """External ids a source has settled as permanently unimportable."""
+        with self.database.session_factory() as session:
+            return {
+                str(value)
+                for value in session.scalars(
+                    select(PublicDataSyncFailure.external_id).where(
+                        PublicDataSyncFailure.source_key == source_key,
+                        PublicDataSyncFailure.external_id.is_not(None),
+                        PublicDataSyncFailure.retry_eligible_at.is_(None),
+                    )
+                )
+            }
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _fraction_count(total: int, fraction: float, limit: int | None) -> int:
         share = min(1.0, max(0.0, float(fraction)))
         count = math.ceil(share * total)
@@ -1141,18 +1166,14 @@ class PublicDataRepository:
     ) -> list[dict[str, Any]]:
         """Return stored materials that have no structure and no final COD outcome.
 
-        Materials already judged unavailable or ambiguous (a stored failure
-        without retry time) are excluded so repeated bulk runs make progress.
+        Materials judged unavailable or ambiguous are excluded until their
+        negative result expires, so repeated bulk runs make progress.
         """
         with self.database.session_factory() as session:
             linked = select(Structure.adsorbent_id).where(
                 Structure.adsorbent_id.is_not(None)
             )
-            settled = select(PublicDataSyncFailure.external_id).where(
-                PublicDataSyncFailure.source_key == "cod",
-                PublicDataSyncFailure.retry_eligible_at.is_(None),
-                PublicDataSyncFailure.external_id.like("adsorbent:%"),
-            )
+            settled = self._ineligible_failures("cod", "adsorbent:")
             rows = session.execute(
                 select(Adsorbent.id, Adsorbent.name)
                 .where(
