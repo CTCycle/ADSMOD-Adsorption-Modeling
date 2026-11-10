@@ -24,7 +24,7 @@ from server.repositories.schemas.models import Base
 
 MIGRATION_LOCK_KEY = 8_174_209_531
 MIGRATION_CONFIG_PATH = Path(__file__).resolve().parents[2] / "pyproject.toml"
-INITIAL_REVISION = "20261021_current_schema"
+INITIAL_REVISION = "20261110_unified_baseline"
 CURRENT_TABLES = frozenset(Base.metadata.tables)
 
 

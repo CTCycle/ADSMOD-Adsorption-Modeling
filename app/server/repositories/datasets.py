@@ -3,11 +3,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
-import numpy as np
 import pandas as pd
 from sqlalchemy import case, delete, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from server.common.identity import (
@@ -19,6 +20,12 @@ from server.common.identity import (
     clean_name,
     exact_key,
     stable_material_key,
+)
+from server.domain.canonical import (
+    CanonicalizationError,
+    normalize_experiment,
+    pressure_key,
+    species_key,
 )
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.identity import METHOD_GENERIC, IdentityResolver, add_alias
@@ -104,58 +111,72 @@ def resolve_adsorbate(
 
 
 ###############################################################################
-def write_experiment_content(
-    session: Session,
-    isotherm: Isotherm,
-    record: dict[str, Any],
-    resolver: IdentityResolver,
-) -> None:
-    """Insert the components and observations of one canonical experiment."""
-    component_by_name: dict[str, IsothermComponent] = {}
-    seen: dict[int, str] = {}
-    for position, adsorbate_record in enumerate(record["adsorbates"], start=1):
-        adsorbate = resolve_adsorbate(session, resolver, adsorbate_record)
-        if adsorbate.id in seen:
-            raise ValueError(
-                f"Experiment '{record['name']}' lists '{seen[adsorbate.id]}' and "
-                f"'{adsorbate_record['name']}', which are the same species."
-            )
-        seen[adsorbate.id] = adsorbate_record["name"]
-        component = IsothermComponent(
-            isotherm_id=isotherm.id,
-            position=position,
-            adsorbate_id=adsorbate.id,
-            source_name=adsorbate_record["name"],
-            mole_fraction=adsorbate_record.get("mole_fraction"),
-        )
-        session.add(component)
-        session.flush()
-        component_by_name[normalize_identity(adsorbate_record["name"])] = component
-
-    for observation in record["observations"]:
-        component = component_by_name[normalize_identity(observation["adsorbate"])]
-        session.add(
-            Observation(
-                isotherm_id=isotherm.id,
-                component_id=component.id,
-                sequence_index=observation["sequence_index"],
-                source_row=observation.get("source_row"),
-                pressure_original=observation["pressure_original"],
-                pressure_original_unit=observation["pressure_original_unit"],
-                pressure_canonical=observation["pressure_canonical"],
-                pressure_canonical_unit=observation["pressure_canonical_unit"],
-                uptake_original=observation["uptake_original"],
-                uptake_original_unit=observation["uptake_original_unit"],
-                uptake_mol_kg=observation["uptake_mol_kg"],
-                uptake_stddev_mol_kg=observation.get("uptake_stddev_mol_kg"),
-                conversion_metadata=observation.get("conversion_metadata", {}),
-                extra_metadata=observation.get("extra_metadata", {}),
-            )
-        )
+def canonical_record(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Run a source record through the one canonical normalization gate."""
+    return normalize_experiment(record).model_dump()
 
 
 ###############################################################################
-def isotherm_fields(record: dict[str, Any], adsorbent_id: int) -> dict[str, Any]:
+def write_experiment_content(
+    session: Session,
+    isotherm: Isotherm,
+    record: Mapping[str, Any],
+    resolver: IdentityResolver,
+) -> None:
+    """Insert the species and long-format measurements of one experiment."""
+    canonical = canonical_record(record)
+    name = canonical["name"]
+    species_ids: dict[str, int] = {}
+    names_by_id: dict[int, str] = {}
+    for position, species in enumerate(canonical["adsorbates"], start=1):
+        adsorbate = resolve_adsorbate(session, resolver, species)
+        if adsorbate.id in names_by_id:
+            raise CanonicalizationError(
+                "duplicate_species",
+                name,
+                f"Experiment '{name}' lists '{names_by_id[adsorbate.id]}' and "
+                f"'{species['name']}', which are the same species.",
+            )
+        names_by_id[adsorbate.id] = species["name"]
+        session.add(
+            IsothermComponent(
+                isotherm_id=isotherm.id,
+                adsorbate_id=adsorbate.id,
+                position=position,
+                source_name=species["name"],
+            )
+        )
+        species_ids[species_key(species["name"])] = adsorbate.id
+    session.flush()
+
+    for observation in canonical["observations"]:
+        fields = {key: value for key, value in observation.items() if key != "adsorbate"}
+        session.add(
+            Observation(
+                isotherm_id=isotherm.id,
+                adsorbate_id=species_ids[species_key(observation["adsorbate"])],
+                pressure_key=pressure_key(
+                    observation["pressure_canonical"],
+                    observation["pressure_canonical_unit"],
+                ),
+                **fields,
+            )
+        )
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        if "pressure_key" not in str(exc.orig) and "uq_observations_identity" not in str(exc.orig):
+            raise
+        raise CanonicalizationError(
+            "duplicate_measurement",
+            name,
+            f"Experiment '{name}' already holds a measurement of the same species "
+            "at the same pressure; it was not overwritten.",
+        ) from exc
+
+
+###############################################################################
+def isotherm_fields(record: Mapping[str, Any], adsorbent_id: int) -> dict[str, Any]:
     return {
         "name": record["name"],
         "adsorbent_id": adsorbent_id,
@@ -164,7 +185,6 @@ def isotherm_fields(record: dict[str, Any], adsorbent_id: int) -> dict[str, Any]
         "temperature_original_unit": record["temperature_original_unit"],
         "temperature_k": record["temperature_k"],
         "pressure_basis": record["pressure_basis"],
-        "duplicate_policy": record.get("duplicate_policy", "reject"),
         "saturation_pressure_pa": record.get("saturation_pressure_pa"),
         "conditions": record.get("conditions", {}),
         "provenance": record.get("provenance", {}),
@@ -365,7 +385,7 @@ class DatasetRepository:
                 Adsorbate.name.label("adsorbate_name"),
                 Adsorbate.molar_mass_g_mol.label("adsorbate_molecular_weight"),
                 Adsorbate.smiles.label("adsorbate_SMILE"),
-                Observation.component_id,
+                Observation.adsorbate_id,
                 Observation.pressure_canonical_unit,
                 Observation.pressure_canonical.label("pressure"),
                 Observation.uptake_mol_kg.label("adsorbed_amount"),
@@ -373,10 +393,9 @@ class DatasetRepository:
             .join(Isotherm, Isotherm.dataset_id == Dataset.id)
             .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
             .join(Observation, Observation.isotherm_id == Isotherm.id)
-            .join(IsothermComponent, IsothermComponent.id == Observation.component_id)
-            .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
+            .join(Adsorbate, Adsorbate.id == Observation.adsorbate_id)
             .where(Dataset.id == dataset_id)
-            .order_by(Isotherm.id, Observation.sequence_index, Observation.id)
+            .order_by(Isotherm.id, Observation.adsorbate_id, Observation.pressure_canonical)
         )
         with self.database.session_factory() as session:
             if session.get(Dataset, dataset_id) is None:
@@ -545,7 +564,7 @@ class DatasetRepository:
             components = sorted(isotherm.components, key=lambda item: item.position)
             reason = None
             if len(components) != 1:
-                reason = "The available theoretical models are single-component models."
+                reason = "The available adsorption models support single-species experiments."
             elif count < 2:
                 reason = "At least two observations are required."
             output.append(
@@ -559,11 +578,9 @@ class DatasetRepository:
                     "adsorbates": [item.adsorbate.name for item in components],
                     "components": [
                         {
-                            "id": item.id,
                             "position": item.position,
                             "adsorbate_id": item.adsorbate_id,
                             "name": item.adsorbate.name,
-                            "mole_fraction": item.mole_fraction,
                         }
                         for item in components
                     ],
@@ -572,7 +589,6 @@ class DatasetRepository:
                     "temperature_original_unit": isotherm.temperature_original_unit,
                     "pressure_basis": isotherm.pressure_basis,
                     "saturation_pressure_pa": isotherm.saturation_pressure_pa,
-                    "duplicate_policy": isotherm.duplicate_policy,
                     "observation_count": count,
                     "pressure_min": pressure_min,
                     "pressure_max": pressure_max,
@@ -604,13 +620,9 @@ class DatasetRepository:
             )
         )
         ordering = (
-            (Observation.sequence_index, Observation.component_id, Observation.id)
-            if order == "sequence"
-            else (
-                Observation.pressure_canonical,
-                Observation.sequence_index,
-                Observation.id,
-            )
+            (Observation.source_row, Observation.id)
+            if order == "source"
+            else (Observation.pressure_canonical, Observation.adsorbate_id, Observation.id)
         )
         with self.database.session_factory() as session:
             total = int(
@@ -625,8 +637,7 @@ class DatasetRepository:
                 [
                     {
                         "id": row.id,
-                        "component_id": row.component_id,
-                        "sequence_index": row.sequence_index,
+                        "adsorbate_id": row.adsorbate_id,
                         "source_row": row.source_row,
                         "pressure_original": row.pressure_original,
                         "pressure_original_unit": row.pressure_original_unit,
@@ -636,6 +647,7 @@ class DatasetRepository:
                         "uptake_original_unit": row.uptake_original_unit,
                         "uptake_mol_kg": row.uptake_mol_kg,
                         "uptake_stddev_mol_kg": row.uptake_stddev_mol_kg,
+                        "gas_mole_fraction": row.gas_mole_fraction,
                     }
                     for row in rows
                 ],
@@ -677,69 +689,39 @@ class DatasetRepository:
                     f"Isotherm {isotherm_id} does not belong to dataset {dataset_id}."
                 )
             components = sorted(isotherm.components, key=lambda item: item.position)
+            # Algorithm capability, not storage: every model in the catalog
+            # describes pure-species adsorption.
             if len(components) != 1:
                 raise ValueError(
-                    "The available theoretical models require a single-component isotherm."
+                    "The available adsorption models support single-species experiments."
                 )
             component = components[0]
+            # Stored measurements are unique per (species, pressure), so no
+            # replicate handling is needed here.
             observations = sorted(
-                (
-                    item
-                    for item in isotherm.observations
-                    if item.component_id == component.id
-                ),
-                key=lambda item: (
-                    item.pressure_canonical,
-                    item.sequence_index,
-                    item.id,
-                ),
+                isotherm.observations,
+                key=lambda item: (item.pressure_canonical, item.id),
             )
             if len(observations) < 2:
                 raise ValueError(
                     "At least two canonical observations are required for fitting."
                 )
-            if isotherm.duplicate_policy == "average":
-                grouped: dict[float, list[Observation]] = {}
-                for item in observations:
-                    grouped.setdefault(float(item.pressure_canonical), []).append(item)
-                averaged: list[tuple[float, float, float | None]] = []
-                source_ids: list[int] = []
-                for pressure, group in sorted(grouped.items()):
-                    source_ids.extend(item.id for item in group)
-                    values = [float(item.uptake_mol_kg) for item in group]
-                    sigmas = [item.uptake_stddev_mol_kg for item in group]
-                    sigma = (
-                        float(np.sqrt(np.sum(np.square(sigmas))) / len(sigmas))
-                        if sigmas
-                        and all(value is not None and value > 0 for value in sigmas)
-                        else None
-                    )
-                    averaged.append((pressure, float(np.mean(values)), sigma))
-                pressure_values = [item[0] for item in averaged]
-                uptake_values = [item[1] for item in averaged]
-                sigma_values = [item[2] for item in averaged]
-            else:
-                source_ids = [item.id for item in observations]
-                pressure_values = [item.pressure_canonical for item in observations]
-                uptake_values = [item.uptake_mol_kg for item in observations]
-                sigma_values = [item.uptake_stddev_mol_kg for item in observations]
             return {
                 "dataset_id": isotherm.dataset.id,
                 "dataset_name": isotherm.dataset.name,
                 "isotherm_id": isotherm.id,
                 "isotherm_name": isotherm.name,
-                "component_id": component.id,
+                "adsorbate_id": component.adsorbate_id,
                 "adsorbent": isotherm.adsorbent.name,
                 "adsorbate": component.adsorbate.name,
                 "adsorbate_molar_mass_g_mol": component.adsorbate.molar_mass_g_mol,
                 "temperature_k": isotherm.temperature_k,
                 "pressure_basis": isotherm.pressure_basis,
                 "saturation_pressure_pa": isotherm.saturation_pressure_pa,
-                "observation_ids": source_ids,
-                "pressure": pressure_values,
-                "uptake": uptake_values,
-                "uptake_stddev": sigma_values,
-                "duplicate_policy": isotherm.duplicate_policy,
+                "observation_ids": [item.id for item in observations],
+                "pressure": [item.pressure_canonical for item in observations],
+                "uptake": [item.uptake_mol_kg for item in observations],
+                "uptake_stddev": [item.uptake_stddev_mol_kg for item in observations],
             }
 
     # -------------------------------------------------------------------------
@@ -811,6 +793,7 @@ class DatasetRepository:
             dataset_id=dataset.id,
             alias_origin="nist" if source == "nist" else "upload",
         )
+        experiments = [canonical_record(record) for record in experiments]
         resolver.prefetch(experiments)
         for record in experiments:
             adsorbent = resolve_adsorbent(session, resolver, record["adsorbent"])

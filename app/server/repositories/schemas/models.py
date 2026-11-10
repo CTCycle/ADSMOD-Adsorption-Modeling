@@ -14,10 +14,12 @@ from server.repositories.schemas.types import (
 )
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -283,10 +285,10 @@ class Isotherm(Base):
     temperature_original: Mapped[float] = mapped_column(Float, nullable=False)
     temperature_original_unit: Mapped[str] = mapped_column(String(16), nullable=False)
     temperature_k: Mapped[float] = mapped_column(Float, nullable=False)
+    # 'absolute': system total pressure, shared by every species at a point.
+    # 'partial': each species' own partial pressure, as supplied by the source.
+    # 'relative': p/p0 of a single species (unit "1").
     pressure_basis: Mapped[str] = mapped_column(String(16), nullable=False)
-    duplicate_policy: Mapped[str] = mapped_column(
-        String(16), nullable=False, default="reject"
-    )
     saturation_pressure_pa: Mapped[float | None] = mapped_column(Float)
     conditions: Mapped[dict[str, Any]] = mapped_column(
         JSONMapping, nullable=False, default=dict
@@ -327,10 +329,6 @@ class Isotherm(Base):
             name="ck_isotherms_pressure_basis",
         ),
         CheckConstraint(
-            "duplicate_policy IN ('reject', 'keep', 'average')",
-            name="ck_isotherms_duplicate_policy",
-        ),
-        CheckConstraint(
             "saturation_pressure_pa IS NULL OR saturation_pressure_pa > 0",
             name="ck_isotherms_saturation_pressure",
         ),
@@ -342,59 +340,57 @@ class Isotherm(Base):
 
 ###############################################################################
 class IsothermComponent(Base):
+    """One adsorbate species taking part in an experiment."""
+
     __tablename__ = "isotherm_components"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     isotherm_id: Mapped[int] = mapped_column(
-        ForeignKey("isotherms.id", ondelete="CASCADE"), nullable=False
+        ForeignKey("isotherms.id", ondelete="CASCADE"), primary_key=True
+    )
+    adsorbate_id: Mapped[int] = mapped_column(
+        ForeignKey("adsorbates.id", ondelete="RESTRICT"), primary_key=True
     )
     position: Mapped[int] = mapped_column(Integer, nullable=False)
-    adsorbate_id: Mapped[int] = mapped_column(
-        ForeignKey("adsorbates.id", ondelete="RESTRICT"), nullable=False
-    )
     source_name: Mapped[str | None] = mapped_column(String(255))
-    mole_fraction: Mapped[float | None] = mapped_column(Float)
 
     isotherm: Mapped[Isotherm] = relationship(back_populates="components", lazy="raise")
     adsorbate: Mapped[Adsorbate] = relationship(
         back_populates="components", lazy="raise"
     )
-    observations: Mapped[list[Observation]] = relationship(
-        back_populates="component", lazy="raise"
-    )
 
     __table_args__ = (
         UniqueConstraint("isotherm_id", "position", name="uq_components_position"),
-        UniqueConstraint("isotherm_id", "adsorbate_id", name="uq_components_adsorbate"),
         CheckConstraint("position >= 1", name="ck_components_position"),
-        CheckConstraint(
-            "mole_fraction IS NULL OR (mole_fraction >= 0 AND mole_fraction <= 1)",
-            name="ck_components_fraction",
-        ),
         Index("ix_components_adsorbate", "adsorbate_id"),
     )
 
 ###############################################################################
 class Observation(Base):
+    """One uptake of one species in one experiment at one pressure.
+
+    `pressure_key` is the quantized canonical pressure
+    (`domain.canonical.pressure_key`), so the identity
+    (isotherm_id, adsorbate_id, pressure_key) is enforced by the database.
+    """
+
     __tablename__ = "observations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     isotherm_id: Mapped[int] = mapped_column(
         ForeignKey("isotherms.id", ondelete="CASCADE"), nullable=False
     )
-    component_id: Mapped[int] = mapped_column(
-        ForeignKey("isotherm_components.id", ondelete="CASCADE"), nullable=False
-    )
-    sequence_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    adsorbate_id: Mapped[int] = mapped_column(Integer, nullable=False)
     source_row: Mapped[int | None] = mapped_column(Integer)
     pressure_original: Mapped[float] = mapped_column(Float, nullable=False)
     pressure_original_unit: Mapped[str] = mapped_column(String(32), nullable=False)
     pressure_canonical: Mapped[float] = mapped_column(Float, nullable=False)
     pressure_canonical_unit: Mapped[str] = mapped_column(String(8), nullable=False)
+    pressure_key: Mapped[int] = mapped_column(BigInteger, nullable=False)
     uptake_original: Mapped[float] = mapped_column(Float, nullable=False)
     uptake_original_unit: Mapped[str] = mapped_column(String(32), nullable=False)
     uptake_mol_kg: Mapped[float] = mapped_column(Float, nullable=False)
     uptake_stddev_mol_kg: Mapped[float | None] = mapped_column(Float)
+    gas_mole_fraction: Mapped[float | None] = mapped_column(Float)
     conversion_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONMapping, nullable=False, default=dict
     )
@@ -405,18 +401,20 @@ class Observation(Base):
     isotherm: Mapped[Isotherm] = relationship(
         back_populates="observations", lazy="raise"
     )
-    component: Mapped[IsothermComponent] = relationship(
-        back_populates="observations", lazy="raise"
-    )
 
     __table_args__ = (
+        ForeignKeyConstraint(
+            ["isotherm_id", "adsorbate_id"],
+            ["isotherm_components.isotherm_id", "isotherm_components.adsorbate_id"],
+            ondelete="CASCADE",
+            name="fk_observations_component",
+        ),
         UniqueConstraint(
             "isotherm_id",
-            "component_id",
-            "sequence_index",
-            name="uq_observations_sequence",
+            "adsorbate_id",
+            "pressure_key",
+            name="uq_observations_identity",
         ),
-        CheckConstraint("sequence_index >= 0", name="ck_observations_sequence"),
         CheckConstraint("pressure_canonical >= 0", name="ck_observations_pressure"),
         CheckConstraint("uptake_mol_kg >= 0", name="ck_observations_uptake"),
         CheckConstraint(
@@ -427,12 +425,16 @@ class Observation(Base):
             "uptake_stddev_mol_kg IS NULL OR uptake_stddev_mol_kg > 0",
             name="ck_observations_uncertainty",
         ),
+        CheckConstraint(
+            "gas_mole_fraction IS NULL OR "
+            "(gas_mole_fraction >= 0 AND gas_mole_fraction <= 1)",
+            name="ck_observations_gas_fraction",
+        ),
         Index(
-            "ix_observations_isotherm_component_pressure",
+            "ix_observations_species_pressure",
             "isotherm_id",
-            "component_id",
+            "adsorbate_id",
             "pressure_canonical",
-            "sequence_index",
         ),
     )
 
