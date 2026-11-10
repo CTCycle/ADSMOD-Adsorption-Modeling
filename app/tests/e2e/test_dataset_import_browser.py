@@ -73,8 +73,9 @@ def _import_inspect_reload_and_delete(
     page.reload()
     dataset_row = page.locator(".dataset-row").filter(has_text=dataset_name)
     expect(dataset_row).to_have_count(1)
-    expect(dataset_row.locator(".dataset-row-facts dd").nth(0)).to_have_text("2")
-    expect(dataset_row.locator(".dataset-row-facts dd").nth(1)).to_have_text("6")
+    expect(dataset_row.locator(".dataset-row-meta")).to_contain_text(
+        re.compile(r"2 experiments\s*·\s*6 measurements")
+    )
     dataset_row.get_by_role("link", name=f"Explore {dataset_name}").click()
 
     experiments = page.locator(".experiment-item")
