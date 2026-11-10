@@ -74,16 +74,15 @@ def test_default_bounds_recover_high_affinity_on_relative_pressure() -> None:
 
 
 ###############################################################################
-def test_input_hash_covers_uncertainty_and_duplicate_policy() -> None:
+def test_input_hash_covers_uncertainty_and_species() -> None:
     series = {
         "dataset_id": 1,
         "isotherm_id": 1,
-        "component_id": 1,
+        "adsorbate_id": 1,
         "observation_ids": [1, 2],
         "pressure": [1.0, 2.0],
         "uptake": [1.0, 2.0],
         "uptake_stddev": [0.1, 0.1],
-        "duplicate_policy": "reject",
         "temperature_k": 298.15,
         "pressure_basis": "absolute",
         "saturation_pressure_pa": None,
@@ -91,7 +90,7 @@ def test_input_hash_covers_uncertainty_and_duplicate_policy() -> None:
     base = FittingPipeline.input_hash(series)
 
     assert FittingPipeline.input_hash({**series, "uptake_stddev": [0.1, 0.2]}) != base
-    assert FittingPipeline.input_hash({**series, "duplicate_policy": "average"}) != base
+    assert FittingPipeline.input_hash({**series, "adsorbate_id": 2}) != base
 
 
 ###############################################################################

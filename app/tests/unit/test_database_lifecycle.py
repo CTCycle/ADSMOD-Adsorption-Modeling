@@ -478,7 +478,7 @@ def test_postgres_creation_permission_error_is_actionable(
 
 # Alembic quality
 
-HEAD_REVISION = "20261110_species_identity"
+HEAD_REVISION = "20261110_unified_baseline"
 RETIRED_TABLES = {"training_datasets", "training_samples", "fitting_runs"}
 RETIRED_SETTINGS_COLUMNS = {
     "runtime_host",
@@ -512,7 +512,7 @@ def test_packaged_history_is_linear_from_one_root_and_matches_current_models(
         revisions = tuple(script.walk_revisions())
 
         head, root = revisions[0], revisions[-1]
-        assert root.revision == INITIAL_REVISION == "20261021_current_schema"
+        assert root.revision == INITIAL_REVISION == HEAD_REVISION
         assert root.down_revision is None
         for newer, older in zip(revisions, revisions[1:]):
             assert newer.down_revision == older.revision
@@ -535,81 +535,13 @@ def test_packaged_history_is_linear_from_one_root_and_matches_current_models(
 
 
 ###############################################################################
-SEED_STATEMENTS = (
-    "INSERT INTO datasets (id, name, normalized_name, source, description, tags,"
-    " provenance, created_at, updated_at) VALUES (7, 'Seed', 'seed', 'uploaded', '',"
-    " '[]', '{}', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
-    "INSERT INTO adsorbents (id, key, name, normalized_name, created_at, updated_at)"
-    " VALUES (3, 'adsorbent:a', 'Zeolite', 'zeolite', '2026-01-01 00:00:00',"
-    " '2026-01-01 00:00:00')",
-    "INSERT INTO adsorbates (id, key, name, normalized_name, created_at, updated_at)"
-    " VALUES (5, 'adsorbate:b', 'CO2', 'co2', '2026-01-01 00:00:00',"
-    " '2026-01-01 00:00:00')",
-    "INSERT INTO isotherms (id, dataset_id, external_key, name, adsorbent_id,"
-    " temperature_original, temperature_original_unit, temperature_k, pressure_basis,"
-    " duplicate_policy, conditions, provenance, created_at, updated_at) VALUES"
-    " (11, 7, 'exp-1', 'Exp 1', 3, 298.15, 'K', 298.15, 'absolute', 'reject', '{}',"
-    " '{}', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
-    "INSERT INTO isotherm_components (id, isotherm_id, position, adsorbate_id)"
-    " VALUES (13, 11, 1, 5)",
-    "INSERT INTO observations (id, isotherm_id, component_id, sequence_index,"
-    " pressure_original, pressure_original_unit, pressure_canonical,"
-    " pressure_canonical_unit, uptake_original, uptake_original_unit, uptake_mol_kg,"
-    " conversion_metadata, extra_metadata) VALUES (17, 11, 13, 0, 1.5, 'bar',"
-    " 150000.0, 'Pa', 2.25, 'mol/kg', 2.25, '{}', '{}')",
-    "INSERT INTO fitting_runs (id, isotherm_id, input_sha256, optimizer,"
-    " max_evaluations, pressure_display_unit, uptake_display_unit, configuration,"
-    " status, message, created_at) VALUES (19, 11, 'x', 'trf', 100, 'bar', 'mmol/g',"
-    " '{}', 'completed', '', '2026-01-01 00:00:00')",
+@pytest.mark.parametrize(
+    "retired_revision",
+    # An arbitrary unknown id and the head replaced by the unified baseline.
+    ["23f1110c64a9", "20261110_species_identity"],
 )
-
-
-def test_previous_head_with_data_upgrades_to_head_preserving_records(
-    tmp_path,
-) -> None:  # type: ignore[no-untyped-def]
-    settings = _sqlite_settings(str(tmp_path / "previous-head.db"))
-    manager = DatabaseManager(settings)
-    try:
-        config = build_alembic_config()
-        with manager.engine.begin() as connection:
-            config.attributes["connection"] = connection
-            command.upgrade(config, "20261103_custom_units")
-            for statement in SEED_STATEMENTS:
-                connection.exec_driver_sql(statement)
-
-        result = migrate_engine(manager.engine, settings)
-
-        assert result.before == ("20261103_custom_units",)
-        assert result.after == (HEAD_REVISION,)
-        with manager.engine.connect() as connection:
-            isotherm = connection.exec_driver_sql(
-                "SELECT id, dataset_id, adsorbent_id, temperature_k, edited_at"
-                " FROM isotherms"
-            ).all()
-            assert isotherm == [(11, 7, 3, 298.15, None)]
-            assert connection.exec_driver_sql(
-                "SELECT id, isotherm_id, component_id, pressure_canonical,"
-                " uptake_mol_kg FROM observations"
-            ).all() == [(17, 11, 13, 150000.0, 2.25)]
-            assert connection.exec_driver_sql(
-                "SELECT isotherm_id, adsorbate_id FROM isotherm_components"
-            ).all() == [(11, 5)]
-            indexes = {
-                index["name"] for index in inspect(connection).get_indexes("isotherms")
-            }
-            assert "ix_isotherms_dataset_edited" in indexes
-            # Single-experiment fitting runs are discarded by the session migration.
-            assert "fitting_runs" not in inspect(connection).get_table_names()
-            assert connection.exec_driver_sql(
-                "SELECT COUNT(*) FROM fitting_sessions"
-            ).scalar() == 0
-    finally:
-        manager.dispose()
-
-
-###############################################################################
 def test_unknown_historical_revision_fails_closed_without_dropping_data(
-    tmp_path,
+    tmp_path, retired_revision: str
 ) -> None:  # type: ignore[no-untyped-def]
     path = tmp_path / "historical-schema.db"
     with sqlite3.connect(path) as connection:
@@ -618,7 +550,7 @@ def test_unknown_historical_revision_fails_closed_without_dropping_data(
         )
         connection.execute(
             "INSERT INTO alembic_version (version_num) VALUES (?)",
-            ("23f1110c64a9",),
+            (retired_revision,),
         )
         connection.execute(
             "CREATE TABLE retained_user_data (id INTEGER PRIMARY KEY, value TEXT NOT NULL)"
@@ -633,7 +565,7 @@ def test_unknown_historical_revision_fails_closed_without_dropping_data(
     with sqlite3.connect(path) as connection:
         assert connection.execute(
             "SELECT version_num FROM alembic_version"
-        ).fetchone() == ("23f1110c64a9",)
+        ).fetchone() == (retired_revision,)
         assert connection.execute(
             "SELECT value FROM retained_user_data WHERE id = 1"
         ).fetchone() == ("preserve",)

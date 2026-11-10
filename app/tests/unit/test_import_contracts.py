@@ -119,8 +119,9 @@ def test_wide_species_columns_become_one_multi_species_experiment() -> None:
         name: [item for item in experiment["observations"] if item["adsorbate"] == name]
         for name in ("CO2", "N2")
     }
-    assert [item["sequence_index"] for item in by_species["CO2"]] == [0, 1, 2]
-    assert [item["sequence_index"] for item in by_species["N2"]] == [0, 1]
+    # Both species share the experiment and its pressures in the long layout.
+    assert [item["pressure_canonical"] for item in by_species["CO2"]] == [1e4, 2e4, 3e4]
+    assert [item["pressure_canonical"] for item in by_species["N2"]] == [1e4, 2e4]
     assert [item["source_row"] for item in by_species["N2"]] == [2, 3]
     assert by_species["N2"][0]["uptake_mol_kg"] == 0.1
     assert by_species["N2"][0]["pressure_canonical"] == 10_000

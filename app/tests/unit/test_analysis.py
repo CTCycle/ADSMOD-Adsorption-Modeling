@@ -17,6 +17,7 @@ from server.domain.analytics import (
     SeriesRequest,
     UptakeAtPressureRequest,
 )
+from server.domain.canonical import pressure_key
 from server.repositories.analytics import AnalyticsRepository
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.schemas import Base
@@ -96,8 +97,11 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
                     session.add(
                         Observation(
                             isotherm_id=isotherm.id,
-                            component_id=component.id,
-                            sequence_index=index,
+                            adsorbate_id=adsorbate.id,
+                            source_row=index + 1,
+                            pressure_key=pressure_key(
+                                pressure, "Pa" if basis != "relative" else "1"
+                            ),
                             pressure_original=pressure,
                             pressure_original_unit="Pa" if basis != "relative" else "1",
                             pressure_canonical=pressure,
@@ -116,7 +120,7 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
             material_a,
             273.15,
             "absolute",
-            [(co2, [(1e4, 1.0), (5e4, 2.0), (1e5, 3.0), (2e5, 4.0), (1e5, 3.5)])],
+            [(co2, [(1e4, 1.0), (5e4, 2.0), (1e5, 3.0), (2e5, 4.0), (1.5e5, 3.7)])],
         )
         add_isotherm(
             "a-co2-298",
@@ -198,7 +202,7 @@ def test_series_never_mix_pressure_bases_and_convert_display_units() -> None:
 
     response = service.series(
         SeriesRequest(
-            filter=AnalyticsFilter(pressure_basis="absolute", include_mixtures=True),
+            filter=AnalyticsFilter(pressure_basis="absolute", include_multi_species=True),
             pressure_unit="bar",
             uptake_unit="mg/g",
         )
@@ -317,7 +321,7 @@ def test_distribution_and_overview_keep_pressure_bases_apart() -> None:
     assert relative.stats.max == pytest.approx(0.5)
 
     overview = service.overview()
-    assert (overview.isotherms, overview.observations, overview.mixture_isotherms) == (
+    assert (overview.isotherms, overview.observations, overview.multi_species_isotherms) == (
         4,
         11,
         1,

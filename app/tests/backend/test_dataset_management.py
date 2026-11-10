@@ -180,7 +180,7 @@ def test_wide_species_columns_are_stored_as_one_experiment_with_two_species(
     rows = _observations(client, dataset["id"], experiment["id"])
     by_component: dict[int, list[float]] = {}
     for row in rows:
-        by_component.setdefault(row["component_id"], []).append(row["uptake_mol_kg"])
+        by_component.setdefault(row["adsorbate_id"], []).append(row["uptake_mol_kg"])
     assert sorted(by_component.values()) == [[0.2, 0.3, 0.4], [1.0, 2.0, 2.5]]
 
 
@@ -293,7 +293,7 @@ def test_invalid_edit_reports_field_issues_and_persists_nothing(client: TestClie
         json={
             "name": "Should not persist",
             "experiments": [
-                {"id": co2["id"], "components": [{"id": co2["components"][0]["id"], "adsorbate_id": 99999}]}
+                {"id": co2["id"], "components": [{"position": 1, "adsorbate_id": 99999}]}
             ],
             "observations": [
                 {"id": first["id"], "pressure_original": -1.0},
@@ -424,7 +424,6 @@ def _canonical_experiment(external_key: str, uptake: float) -> dict[str, Any]:
         "observations": [
             {
                 "adsorbate": "Methane",
-                "sequence_index": index,
                 "pressure_original": pressure,
                 "pressure_original_unit": "Pa",
                 "pressure_canonical": pressure,

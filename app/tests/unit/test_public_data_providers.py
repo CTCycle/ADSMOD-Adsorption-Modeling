@@ -2,6 +2,8 @@
 # Licensed under the MIT License.
 
 from __future__ import annotations
+
+from typing import Any
 from pathlib import Path
 import pandas as pd
 import asyncio
@@ -11,6 +13,7 @@ import pytest
 from server.configurations.settings import DatabaseConfig
 from server.repositories.public_data import PublicDataRepository
 from server.services.data.nist_mapper import NISTCanonicalMapper
+from server.services.data.nistads import NISTDatasetBuilder
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.datasets import DatasetRepository
 from server.repositories.identity import IdentityRepository
@@ -82,6 +85,51 @@ def build_nist_repository(path: Path) -> NISTRepository:
 
 
 ###############################################################################
+def nist_payload(
+    name: str,
+    adsorbent: tuple[str, str],
+    species: list[tuple[str, str]],
+    points: list[tuple[float, Any]],
+    **fields: Any,
+) -> dict[str, Any]:
+    """A raw NIST ISODB isotherm; multi-species points carry (y, uptake) pairs."""
+    single = len(species) == 1
+    return {
+        "filename": name,
+        "adsorbent": {"hashkey": adsorbent[1], "name": adsorbent[0]},
+        "adsorbates": [{"name": item, "InChIKey": key} for item, key in species],
+        "temperature": 298.15,
+        "pressureUnits": "kPa",
+        "adsorptionUnits": "mol/kg",
+        "isotherm_data": [
+            {"pressure": pressure, "total_adsorption": value}
+            if single
+            else {
+                "pressure": pressure,
+                "species_data": [
+                    {"InChIKey": key, "composition": fraction, "adsorption": uptake}
+                    for (_, key), (fraction, uptake) in zip(species, value, strict=True)
+                ],
+            }
+            for pressure, value in points
+        ],
+        **fields,
+    }
+
+
+###############################################################################
+def nist_experiments(
+    payloads: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    mapper = NISTCanonicalMapper()
+    records, skipped = mapper.experiment_records_with_skips(
+        NISTDatasetBuilder().build_dataset(pd.DataFrame(payloads))
+    )
+    mapper.attach_source_identities(records, payloads)
+    return records, skipped
+
+
+###############################################################################
 def test_nist_repository_counts_and_loader_frame_are_canonical(
     tmp_path: Path,
 ) -> None:
@@ -110,93 +158,47 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
         ),
     )
 
-    single_component = pd.DataFrame(
+    experiments, skipped = nist_experiments(
         [
-            {
-                "name": "single-1",
-                "pressure_units": "kPa",
-                "adsorption_units": "mol/kg",
-                "temperature": 298.15,
-                "adsorbent": "silica",
-                "adsorbate": "methane",
-                "adsorbate_molecular_weight": 16.04,
-                "pressure": 1.0,
-                "adsorbed_amount": 0.1,
-            },
-            {
-                "name": "single-1",
-                "pressure_units": "kPa",
-                "adsorption_units": "mol/kg",
-                "temperature": 298.15,
-                "adsorbent": "silica",
-                "adsorbate": "methane",
-                "adsorbate_molecular_weight": 16.04,
-                "pressure": 2.0,
-                "adsorbed_amount": 0.2,
-            },
+            nist_payload(
+                "single-1",
+                ("Silica", "host-1"),
+                [("Methane", "A" * 27)],
+                [(1.0, 0.1), (2.0, 0.2)],
+                DOI="10.1000/single",
+            ),
+            nist_payload(
+                "binary-1",
+                ("Carbon", "host-2"),
+                [("Nitrogen", "B" * 27), ("Argon", "C" * 27)],
+                [(3.0, [(0.4, 0.3), (0.6, 0.4)]), (5.0, [(0.4, 0.5), (0.6, 0.6)])],
+            ),
         ]
     )
-    binary_mixture = pd.DataFrame(
-        [
-            {
-                "name": "binary-1",
-                "pressure_units": "kPa",
-                "adsorption_units": "mol/kg",
-                "temperature": 300.0,
-                "adsorbent_name": "carbon",
-                "compound_1": "nitrogen",
-                "compound_2": "argon",
-                "compound_1_pressure": 1.0,
-                "compound_1_adsorption": 0.3,
-                "compound_2_pressure": 2.0,
-                "compound_2_adsorption": 0.4,
-            },
-            {
-                "name": "binary-1",
-                "pressure_units": "kPa",
-                "adsorption_units": "mol/kg",
-                "temperature": 300.0,
-                "adsorbent_name": "carbon",
-                "compound_1": "nitrogen",
-                "compound_2": "argon",
-                "compound_1_pressure": 2.0,
-                "compound_1_adsorption": 0.5,
-                "compound_2_pressure": 3.0,
-                "compound_2_adsorption": 0.6,
-            },
-        ]
-    )
-
-    experiments = mapper.experiment_records(single_component, binary_mixture)
-    mapper.attach_source_identities(
-        experiments,
-        [
-            {
-                "filename": "single-1",
-                "DOI": "10.1000/single",
-                "adsorbent": {"hashkey": "host-1", "name": "Silica"},
-                "adsorbates": [{"name": "Methane", "InChIKey": "A" * 27}],
-            },
-            {
-                "filename": "binary-1",
-                "adsorbent": {"hashkey": "host-2", "name": "Carbon"},
-                "adsorbates": [
-                    {"name": "Nitrogen", "InChIKey": "B" * 27},
-                    {"name": "Argon", "InChIKey": "C" * 27},
-                ],
-            },
-        ],
-    )
+    assert skipped == {}
     repository.save_experiments(experiments)
 
     counts = repository.count_nist_rows()
     assert counts == {
         "experiments_count": 2,
-        "single_component_rows": 6,
-        "binary_mixture_rows": 1,
+        "observation_count": 6,
+        "multi_species_experiments": 1,
         "guest_rows": 3,
         "host_rows": 2,
     }
+    # The mixture keeps the shared total pressure and each species' gas
+    # fraction, so partial pressures stay derivable as y * P.
+    mixture = next(item for item in experiments if item["external_key"] == "binary-1")
+    assert {item["pressure_basis"] for item in experiments} == {"absolute"}
+    assert sorted(
+        (item["adsorbate"], item["pressure_canonical"], item["gas_mole_fraction"])
+        for item in mixture["observations"]
+    ) == [
+        ("argon", 3000.0, 0.6),
+        ("argon", 5000.0, 0.6),
+        ("nitrogen", 3000.0, 0.4),
+        ("nitrogen", 5000.0, 0.4),
+    ]
 
     adsorption, guests, hosts = repository.load_adsorption_datasets()
     assert len(adsorption) == 6
@@ -224,23 +226,15 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
 ###############################################################################
 def test_nist_experiment_and_provenance_link_commit_together(tmp_path: Path) -> None:
     repository = build_nist_repository(tmp_path / "atomic.db")
-    experiment = NISTCanonicalMapper().experiment_records(
-        pd.DataFrame(
-            [
-                {
-                    "name": "atomic-1",
-                    "pressure_units": "kPa",
-                    "adsorption_units": "mol/kg",
-                    "temperature": 298.15,
-                    "adsorbent": "silica",
-                    "adsorbate": "methane",
-                    "adsorbate_molecular_weight": 16.04,
-                    "pressure": 1.0,
-                    "adsorbed_amount": 0.1,
-                }
-            ]
-        ),
-        None,
+    experiment, _ = nist_experiments(
+        [
+            nist_payload(
+                "atomic-1",
+                ("Silica", "host-1"),
+                [("Methane", "A" * 27)],
+                [(1.0, 0.1), (2.0, 0.2)],
+            )
+        ]
     )
 
     def failing_link(**_kwargs: object) -> None:
@@ -298,34 +292,15 @@ def test_nist_placeholder_identifier_keeps_identity_without_fake_inchikey(
         ),
         [],
     )
-    experiments = mapper.experiment_records(
-        pd.DataFrame(
-            [
-                {
-                    "name": "placeholder-1",
-                    "pressure_units": "kPa",
-                    "adsorption_units": "mol/kg",
-                    "temperature": 298.15,
-                    "adsorbent": "carbon",
-                    "adsorbate": "coal gas",
-                    "adsorbate_molecular_weight": None,
-                    "pressure": pressure,
-                    "adsorbed_amount": uptake,
-                }
-                for pressure, uptake in ((1.0, 0.1), (2.0, 0.2))
-            ]
-        ),
-        None,
-    )
-    mapper.attach_source_identities(
-        experiments,
+    experiments, _ = nist_experiments(
         [
-            {
-                "filename": "placeholder-1",
-                "adsorbent": {"hashkey": "host-9", "name": "Carbon"},
-                "adsorbates": [{"name": "Coal gas", "InChIKey": placeholder}],
-            }
-        ],
+            nist_payload(
+                "placeholder-1",
+                ("Carbon", "host-9"),
+                [("Coal gas", placeholder)],
+                [(1.0, 0.1), (2.0, 0.2)],
+            )
+        ]
     )
     repository.save_experiments(experiments)
 
@@ -337,33 +312,18 @@ def test_nist_placeholder_identifier_keeps_identity_without_fake_inchikey(
 
 ###############################################################################
 def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> None:
-    mapper = NISTCanonicalMapper()
-    single_component = pd.DataFrame(
-        [
-            {
-                "name": "unsupported-volume",
-                "pressure_units": "bar",
-                "adsorption_units": "% Volume Adsorbed",
-                "temperature": 77.0,
-                "adsorbent": "CuBTC",
-                "adsorbate": "nitrogen",
-                "pressure": 0.1,
-                "adsorbed_amount": 1.0,
-            },
-            {
-                "name": "supported-molar",
-                "pressure_units": "bar",
-                "adsorption_units": "mmol/g",
-                "temperature": 77.0,
-                "adsorbent": "CuBTC",
-                "adsorbate": "nitrogen",
-                "pressure": 0.1,
-                "adsorbed_amount": 1.0,
-            },
-        ]
-    )
+    def payload(name: str, uptake_unit: str) -> dict[str, Any]:
+        return nist_payload(
+            name,
+            ("CuBTC", "host-1"),
+            [("Nitrogen", "B" * 27)],
+            [(0.1, 1.0), (0.2, 1.5)],
+            adsorptionUnits=uptake_unit,
+        )
 
-    records = mapper.experiment_records(single_component, None)
+    records, _ = nist_experiments(
+        [payload("unsupported-volume", "% Volume Adsorbed"), payload("supported-molar", "mmol/g")]
+    )
 
     assert [record["external_key"] for record in records] == ["supported-molar"]
     assert "unsupported-volume" in caplog.text
@@ -371,23 +331,16 @@ def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> No
 
 ###############################################################################
 def test_nist_mapper_skips_experiment_with_non_positive_temperature() -> None:
-    mapper = NISTCanonicalMapper()
-    row = {
-        "pressure_units": "bar",
-        "adsorption_units": "mmol/g",
-        "adsorbent": "CuBTC",
-        "adsorbate": "nitrogen",
-        "pressure": 0.1,
-        "adsorbed_amount": 1.0,
-    }
-    single_component = pd.DataFrame(
-        [
-            {**row, "name": "below-zero", "temperature": -200.0},
-            {**row, "name": "valid", "temperature": 77.0},
-        ]
-    )
+    def payload(name: str, temperature: float) -> dict[str, Any]:
+        return nist_payload(
+            name,
+            ("CuBTC", "host-1"),
+            [("Nitrogen", "B" * 27)],
+            [(0.1, 1.0), (0.2, 1.5)],
+            temperature=temperature,
+        )
 
-    records, skipped = mapper.experiment_records_with_skips(single_component, None)
+    records, skipped = nist_experiments([payload("below-zero", -200.0), payload("valid", 77.0)])
 
     assert [record["external_key"] for record in records] == ["valid"]
     assert "positive number of kelvin" in skipped["below-zero"]
@@ -506,15 +459,14 @@ def _seed_listing_rows(repository: PublicDataRepository) -> int:
                 isotherm_id=isotherm.id,
                 position=1,
                 adsorbate_id=adsorbate.id,
-                mole_fraction=1.0,
             )
             session.add(component)
             session.flush()
             session.add(
                 Observation(
                     isotherm_id=isotherm.id,
-                    component_id=component.id,
-                    sequence_index=0,
+                    adsorbate_id=adsorbate.id,
+                    pressure_key=100_000_000_000,
                     pressure_original=1.0,
                     pressure_original_unit="bar",
                     pressure_canonical=100_000.0,

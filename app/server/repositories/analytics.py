@@ -269,6 +269,7 @@ class AnalyticsRepository:
                 Isotherm.pressure_basis,
                 func.coalesce(point_counts.c.point_count, 0).label("point_count"),
             )
+            .select_from(IsothermComponent)
             .join(Isotherm, Isotherm.id == IsothermComponent.isotherm_id)
             .join(Dataset, Dataset.id == Isotherm.dataset_id)
             .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)

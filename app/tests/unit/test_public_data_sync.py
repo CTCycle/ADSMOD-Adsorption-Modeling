@@ -1342,13 +1342,45 @@ def test_nist_builder_keeps_rows_missing_optional_metadata_and_invents_nothing()
             {"pressure": 4.0, "species_data": [{"composition": 1.0}]},
         ],
     )
+    triple = isotherm(
+        "T1",
+        [
+            {"name": "CO2", "InChIKey": "K1"},
+            {"name": "N2", "InChIKey": "K2"},
+            {"name": "CH4", "InChIKey": "K3"},
+        ],
+        [
+            {
+                "pressure": 3.0,
+                # Species data are matched by InChIKey, not by list order.
+                "species_data": [
+                    {"InChIKey": "K3", "composition": 0.2, "adsorption": 0.3},
+                    {"InChIKey": "K1", "composition": 0.5, "adsorption": 1.5},
+                    {"InChIKey": "K2", "composition": 0.3, "adsorption": 0.4},
+                ],
+            }
+        ],
+    )
     builder = NISTDatasetBuilder()
-    singles, _ = builder.build_datasets(pd.DataFrame([single]))
-    assert len(singles) == 2
-    _, binaries = builder.build_datasets(pd.DataFrame([mixture]))
-    # The point without second-species data is rejected, not filled with 1.0.
-    assert len(binaries) == 1
-    assert binaries.loc[0, "compound_2_adsorption"] == 2.0
+    frame = builder.build_dataset(pd.DataFrame([single, mixture, triple]))
+    rows = {
+        name: frame.loc[frame["name"] == name].reset_index(drop=True)
+        for name in ("S1", "M1", "T1")
+    }
+    # One structure for every species count: one row per (point, species).
+    assert list(frame.columns) == NISTDatasetBuilder.columns
+    assert len(rows["S1"]) == 2
+    assert rows["S1"]["gas_mole_fraction"].isna().all()
+    # The point without species uptakes is rejected, not filled in.
+    assert rows["M1"][["adsorbate", "pressure", "adsorbed_amount"]].values.tolist() == [
+        ["co2", 2.0, 1.0],
+        ["n2", 2.0, 2.0],
+    ]
+    assert rows["T1"][["adsorbate", "adsorbed_amount", "gas_mole_fraction"]].values.tolist() == [
+        ["co2", 1.5, 0.5],
+        ["n2", 0.4, 0.3],
+        ["ch4", 0.3, 0.2],
+    ]
 
 ###############################################################################
 def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
