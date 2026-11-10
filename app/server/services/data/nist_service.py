@@ -510,7 +510,7 @@ class NISTDataService:
             record_cap = None if max_records is None else max(0, max_records)
             eligible, remaining, skipped_count = self._budgeted_selection(
                 identifiers,
-                existing | excluded,
+                existing | {self.normalize_identifier(item) for item in excluded},
                 resume_after=resume_after_external_id,
                 budget=budget,
                 record_cap=record_cap,

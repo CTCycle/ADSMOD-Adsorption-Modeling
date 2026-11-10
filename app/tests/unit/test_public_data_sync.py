@@ -1224,14 +1224,15 @@ def test_nist_fractional_requests_progress_through_missing_records() -> None:
 def test_nist_fractional_requests_advance_past_permanent_exclusions() -> None:
     # The leading records are unimportable; without exclusion they would fill
     # every fractional budget and the acquisition would never progress.
-    ids = [f"id{index}" for index in range(10)]
+    # Exclusions are stored in source case; stored records are matched normalized.
+    ids = [f"Iso{index}" for index in range(10)]
     service, fetched = _scripted_nist_service(ids, set(), failing=set())
     asyncio.run(
         _run_scripted_sync(
-            service, [], fraction=0.2, batch_size=10, excluded={"id0", "id1"}
+            service, [], fraction=0.2, batch_size=10, excluded={"Iso0", "Iso1"}
         )
     )
-    assert fetched == [["id2", "id3"]]
+    assert fetched == [["Iso2", "Iso3"]]
 
 
 def test_failure_retry_times_gate_candidate_selection(tmp_path: Path) -> None:
