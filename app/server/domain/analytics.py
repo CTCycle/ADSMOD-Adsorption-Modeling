@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from server.domain.canonical import ObservationBranch
 from server.domain.public_data import EntityReference, Pagination
 
 DatasetSource = Literal["uploaded", "nist"]
@@ -105,11 +106,15 @@ class SelectionResponse(BaseModel):
 
 ###############################################################################
 class SeriesRequest(BaseModel):
+    """Series and fixed-pressure comparisons read one stored branch, the
+    adsorption branch unless another is requested."""
+
     model_config = ConfigDict(extra="forbid")
 
     filter: AnalyticsFilter = Field(default_factory=AnalyticsFilter)
     pressure_unit: str = Field(default="bar", max_length=16)
     uptake_unit: str = Field(default="mol/kg", max_length=24)
+    branch: ObservationBranch = "adsorption"
 
 
 ###############################################################################
@@ -133,6 +138,7 @@ class SeriesMetadata(BaseModel):
 ###############################################################################
 class SeriesPoint(BaseModel):
     observation_id: int
+    branch: ObservationBranch
     pressure: float
     uptake: float
     uptake_stddev: float | None = None

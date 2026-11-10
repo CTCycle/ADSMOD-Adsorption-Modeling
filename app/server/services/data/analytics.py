@@ -38,23 +38,14 @@ OVERVIEW_TEMPERATURE_BINS = 20
 
 
 ###############################################################################
-def adsorption_branch(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Points up to the pressure maximum in acquisition order, sorted by pressure.
-
-    Stored observations carry no branch marker, so any desorption points that
-    follow the highest pressure are excluded from fixed-pressure comparisons.
-    """
-    if not points:
-        return []
-    peak = max(range(len(points)), key=lambda index: points[index]["pressure"])
-    return sorted(points[: peak + 1], key=lambda point: point["pressure"])
-
-
-###############################################################################
 def uptake_at_pressure(
     branch: list[dict[str, Any]], target: float, *, method: str, tolerance: float
 ) -> dict[str, Any]:
-    """Measured, nearest or log-pressure interpolated uptake; never extrapolates."""
+    """Measured, nearest or log-pressure interpolated uptake; never extrapolates.
+
+    `branch` holds the points of one stored branch in increasing pressure, as
+    `AnalyticsRepository.species_observations` returns them.
+    """
     if not branch:
         return {"status": "out_of_range"}
     exact = [
@@ -262,7 +253,7 @@ class AnalyticsService:
             basis, request.pressure_unit
         )
         observations = self.repository.species_observations(
-            [self._series_key(row) for row in rows]
+            [self._series_key(row) for row in rows], request.branch
         )
         warnings: list[str] = []
         series = []
@@ -276,6 +267,7 @@ class AnalyticsService:
                     points=[
                         SeriesPoint(
                             observation_id=point["observation_id"],
+                            branch=point["branch"],
                             pressure=point["pressure"] / pressure_divisor,
                             uptake=point["uptake"] / uptake_factor,
                             uptake_stddev=(
@@ -308,7 +300,7 @@ class AnalyticsService:
         )
         target = request.pressure * pressure_divisor
         observations = self.repository.species_observations(
-            [self._series_key(row) for row in rows]
+            [self._series_key(row) for row in rows], request.branch
         )
         warnings: list[str] = []
         results = []
@@ -317,7 +309,7 @@ class AnalyticsService:
                 request.uptake_unit, row["molar_mass_g_mol"], warnings, row["adsorbate"]
             )
             outcome = uptake_at_pressure(
-                adsorption_branch(observations.get(self._series_key(row), [])),
+                observations.get(self._series_key(row), []),
                 target,
                 method=request.method,
                 tolerance=request.tolerance,
@@ -332,6 +324,7 @@ class AnalyticsService:
                     sources=[
                         SeriesPoint(
                             observation_id=point["observation_id"],
+                            branch=point["branch"],
                             pressure=point["pressure"] / pressure_divisor,
                             uptake=point["uptake"] / uptake_factor,
                         )
@@ -385,4 +378,4 @@ class AnalyticsService:
         )
 
 
-__all__ = ["AnalyticsService", "adsorption_branch", "histogram", "uptake_at_pressure"]
+__all__ = ["AnalyticsService", "histogram", "uptake_at_pressure"]

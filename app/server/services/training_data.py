@@ -76,7 +76,9 @@ class TrainingDataService:
                 "No isotherm is usable for ML training: single-species isotherms "
                 f"with absolute pressure in Pa are required (excluded: {excluded})."
             )
-        return self.create_snapshot(rows, metadata={**dict(metadata or {}), "selections": [selection.model_dump(mode="json") for selection in validated], "excluded": excluded})
+        # Snapshot rows come from adsorption-branch reads only: the ML models
+        # learn equilibrium adsorption, never a desorption branch.
+        return self.create_snapshot(rows, metadata={**dict(metadata or {}), "selections": [selection.model_dump(mode="json") for selection in validated], "excluded": excluded, "branch": "adsorption"})
 
     # -------------------------------------------------------------------------
     @staticmethod

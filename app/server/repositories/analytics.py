@@ -303,9 +303,10 @@ class AnalyticsRepository:
 
     # -------------------------------------------------------------------------
     def species_observations(
-        self, keys: list[tuple[int, int]]
+        self, keys: list[tuple[int, int]], branch: str = "adsorption"
     ) -> dict[tuple[int, int], list[dict[str, Any]]]:
-        """Measurements per (isotherm_id, adsorbate_id), in source order."""
+        """Measurements of one stored branch per (isotherm_id, adsorbate_id),
+        in increasing pressure."""
         wanted = set(keys)
         grouped: dict[tuple[int, int], list[dict[str, Any]]] = {}
         if not wanted:
@@ -316,14 +317,21 @@ class AnalyticsRepository:
                     Observation.isotherm_id,
                     Observation.adsorbate_id,
                     Observation.id.label("observation_id"),
+                    Observation.branch,
                     Observation.pressure_canonical.label("pressure"),
                     Observation.uptake_mol_kg.label("uptake"),
                     Observation.uptake_stddev_mol_kg.label("uptake_stddev"),
                     Observation.gas_mole_fraction,
                 )
-                .where(Observation.isotherm_id.in_({key[0] for key in wanted}))
+                .where(
+                    Observation.isotherm_id.in_({key[0] for key in wanted}),
+                    Observation.branch == branch,
+                )
                 .order_by(
-                    Observation.isotherm_id, Observation.source_row, Observation.id
+                    Observation.isotherm_id,
+                    Observation.adsorbate_id,
+                    Observation.pressure_canonical,
+                    Observation.id,
                 )
             ):
                 key = (int(row.isotherm_id), int(row.adsorbate_id))
@@ -332,6 +340,7 @@ class AnalyticsRepository:
                 grouped.setdefault(key, []).append(
                     {
                         "observation_id": int(row.observation_id),
+                        "branch": row.branch,
                         "pressure": float(row.pressure),
                         "uptake": float(row.uptake),
                         "uptake_stddev": row.uptake_stddev,

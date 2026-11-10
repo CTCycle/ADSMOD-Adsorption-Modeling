@@ -146,6 +146,7 @@ class NISTRepository:
     def load_adsorption_datasets(
         self,
     ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """NIST adsorption-branch rows for ML training; desorption is excluded."""
         with self.database.session_factory() as session:
             rows = session.execute(
                 select(
@@ -163,7 +164,7 @@ class NISTRepository:
                 .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
                 .join(Observation, Observation.isotherm_id == Isotherm.id)
                 .join(Adsorbate, Adsorbate.id == Observation.adsorbate_id)
-                .where(Dataset.source == "nist")
+                .where(Dataset.source == "nist", Observation.branch == "adsorption")
                 .order_by(Isotherm.id, Observation.adsorbate_id, Observation.pressure_canonical)
             ).mappings()
             guests = session.scalars(
