@@ -376,7 +376,12 @@ def test_every_source_produces_the_same_canonical_record_structure() -> None:
 def test_duplicate_measurements_are_rejected_or_averaged_never_overwritten(
     client: TestClient,
 ) -> None:
-    duplicated = SINGLE_CSV + "CO2-13X,Zeolite 13X,CO2,298.15,0.4,2.50\n"
+    # The replicate directly follows its pair, so both stay on the inferred
+    # adsorption branch (a row after the pressure maximum would be desorption).
+    lines = SINGLE_CSV.splitlines(keepends=True)
+    duplicated = "".join(
+        [*lines[:5], "CO2-13X,Zeolite 13X,CO2,298.15,0.4,2.50\n", *lines[5:]]
+    )
 
     rejected = _validate(client, duplicated, SINGLE_MAPPING)
     assert rejected["status"] == "invalid"
@@ -522,6 +527,236 @@ def test_species_relationships_keep_database_integrity(client: TestClient) -> No
         # Species referenced by an experiment cannot be deleted.
         with pytest.raises(IntegrityError):
             session.execute(delete(Adsorbate).where(Adsorbate.id == other))
+
+
+###############################################################################
+def _langmuir(pressure: float) -> float:
+    return 6.0 * 2.0 * pressure / (1 + 2.0 * pressure)
+
+
+# A hysteresis loop: the desorption branch revisits 1.6, 0.8, 0.4 and 0.2 bar
+# with a higher uptake. Labels mix spellings and case.
+HYSTERESIS_PRESSURES = (0.05, 0.1, 0.2, 0.4, 0.8, 1.6, 3.2)
+HYSTERESIS_CSV = (
+    "experiment,adsorbent,adsorbate,temperature [K],pressure [bar],uptake [mol/kg],branch\n"
+    + "".join(
+        f"LOOP,MCM-41,CO2,298.15,{pressure},{_langmuir(pressure):.6f},{label}\n"
+        for pressure, label in zip(
+            HYSTERESIS_PRESSURES, ("ads", "A", "adsorption", "a", "ADS", "a", "a")
+        )
+    )
+    + "".join(
+        f"LOOP,MCM-41,CO2,298.15,{pressure},{_langmuir(pressure) + 0.3:.6f},{label}\n"
+        for pressure, label in zip(
+            (1.6, 0.8, 0.4, 0.2), ("des", "D", "Desorption", "d")
+        )
+    )
+)
+HYSTERESIS_MAPPING: dict[str, Any] = {
+    **SINGLE_MAPPING,
+    "dataset_name": "Hysteresis",
+    "column_roles": {**SINGLE_MAPPING["column_roles"], "branch": "branch"},
+}
+
+
+###############################################################################
+def test_hysteresis_branches_share_pressures_and_only_adsorption_is_analysed(
+    client: TestClient,
+) -> None:
+    dataset_id = _commit(client, HYSTERESIS_CSV, HYSTERESIS_MAPPING)
+
+    [experiment] = _experiments(client, dataset_id)
+    assert (experiment["observation_count"], experiment["desorption_count"]) == (11, 4)
+    rows = _rows(client, dataset_id, experiment["id"])
+    at_shared = sorted(
+        (row["branch"], row["uptake_mol_kg"])
+        for row in rows
+        if row["pressure_canonical"] == 8e4
+    )
+    assert at_shared == [
+        ("adsorption", pytest.approx(_langmuir(0.8), abs=1e-6)),
+        ("desorption", pytest.approx(_langmuir(0.8) + 0.3, abs=1e-6)),
+    ]
+    desorption = client.get(
+        f"/api/v1/datasets/{dataset_id}/experiments/{experiment['id']}/observations",
+        params={"branch": "desorption"},
+    ).json()
+    assert desorption["total"] == 4
+    assert {row["branch"] for row in desorption["rows"]} == {"desorption"}
+
+    [series] = client.post(
+        "/api/v1/analytics/series",
+        json={"filter": {"dataset_ids": [dataset_id], "pressure_basis": "absolute"}},
+    ).json()["series"]
+    assert len(series["points"]) == 7
+    assert {point["branch"] for point in series["points"]} == {"adsorption"}
+
+    detail = _fit(client, dataset_id)
+    [result] = detail["experiments"][0]["results"]
+    assert result["observation_count"] == 7
+    # Exact Langmuir recovery shows the shifted desorption points were not fitted.
+    parameters = {item["name"]: item["value"] for item in result["parameters"]}
+    assert parameters["qsat"] == pytest.approx(6.0, rel=1e-3)
+
+    with _database(client).session_factory() as session:
+        stored = session.scalars(
+            select(Observation).where(Observation.isotherm_id == experiment["id"])
+        ).first()
+        assert stored is not None
+        session.add(
+            Observation(
+                isotherm_id=stored.isotherm_id,
+                adsorbate_id=stored.adsorbate_id,
+                branch="desorption",
+                pressure_key=pressure_key(8e4, "Pa"),
+                pressure_original=0.8,
+                pressure_original_unit="bar",
+                pressure_canonical=8e4,
+                pressure_canonical_unit="Pa",
+                uptake_original=9.0,
+                uptake_original_unit="mol/kg",
+                uptake_mol_kg=9.0,
+            )
+        )
+        with pytest.raises(IntegrityError, match="pressure_key"):
+            session.flush()
+
+
+###############################################################################
+def test_same_branch_duplicates_and_unknown_labels_are_still_rejected(
+    client: TestClient,
+) -> None:
+    duplicated = HYSTERESIS_CSV + "LOOP,MCM-41,CO2,298.15,0.8,4.9,des\n"
+
+    rejected = _validate(client, duplicated, HYSTERESIS_MAPPING)
+    assert rejected["status"] == "invalid"
+    [issue] = rejected["issues"]
+    assert issue["code"] == "duplicate_measurement"
+    assert "desorption branch" in issue["message"]
+
+    averaged = _validate(
+        client, duplicated, {**HYSTERESIS_MAPPING, "duplicate_policy": "average"}
+    )
+    [preview] = averaged["experiments"]
+    assert (preview["observation_count"], preview["desorption_count"]) == (11, 4)
+    assert preview["branch_assignment"] == "explicit"
+
+    unknown = _validate(
+        client,
+        HYSTERESIS_CSV + "LOOP,MCM-41,CO2,298.15,0.1,2.0,return\n",
+        HYSTERESIS_MAPPING,
+    )
+    assert [(item["code"], item["source_row"]) for item in unknown["issues"]] == [
+        ("invalid_row", 13)
+    ]
+
+
+###############################################################################
+def test_uploads_without_a_branch_column_infer_and_report_the_branches(
+    client: TestClient,
+) -> None:
+    unlabelled = re.sub(r",[^,\n]+$", "", HYSTERESIS_CSV, flags=re.MULTILINE)
+
+    result = _validate(client, unlabelled, SINGLE_MAPPING)
+
+    assert result["status"] == "valid"
+    [preview] = result["experiments"]
+    assert preview["branch_assignment"] == "inferred"
+    assert preview["desorption_count"] == 4
+    assert [
+        (point["branch"], point["pressure_original"])
+        for point in preview["observations"]
+        if point["branch"] == "desorption"
+    ] == [
+        ("desorption", 0.2),
+        ("desorption", 0.4),
+        ("desorption", 0.8),
+        ("desorption", 1.6),
+    ]
+    assert [issue["code"] for issue in result["issues"]] == ["branches_inferred"]
+
+    # A second rise after the desorption branch started is not guessed.
+    cycled = unlabelled + "LOOP,MCM-41,CO2,298.15,0.6,4.0\n"
+    ambiguous = _validate(client, cycled, SINGLE_MAPPING)
+    assert [issue["code"] for issue in ambiguous["issues"]] == ["ambiguous_branch"]
+
+
+###############################################################################
+def test_nist_branches_are_inferred_from_point_order() -> None:
+    def payload(name: str, pressures: list[float]) -> dict[str, Any]:
+        return _nist_payload(
+            name,
+            ["CO2"],
+            [
+                (pressure, [0.5 + index * 0.1])
+                for index, pressure in enumerate(pressures)
+            ],
+        )
+
+    records, skipped = _nist_records(
+        [
+            # Adsorption up to 4 bar, desorption back through 2 and 1 bar.
+            payload("loop", [0.5, 1.0, 2.0, 4.0, 2.0, 1.0]),
+            # Two uptakes at 1 bar on the adsorption branch: a vertical step.
+            payload("step", [0.5, 1.0, 1.0, 2.0]),
+            # A second adsorption cycle after desorption cannot be classified.
+            payload("cycles", [0.5, 2.0, 1.0, 1.5]),
+            # A record holding only a falling (desorption) branch.
+            payload("falling", [4.0, 2.0, 1.0]),
+        ]
+    )
+
+    [loop] = records
+    assert loop["provenance"]["branch_assignment"] == "inferred"
+    assert [
+        (item["branch"], item["pressure_canonical"]) for item in loop["observations"]
+    ] == [
+        ("adsorption", 5e4),
+        ("adsorption", 1e5),
+        ("adsorption", 2e5),
+        ("adsorption", 4e5),
+        ("desorption", 1e5),
+        ("desorption", 2e5),
+    ]
+    assert set(skipped) == {"step", "cycles", "falling"}
+    assert "on the adsorption branch" in skipped["step"]
+    assert "rises in pressure again" in skipped["cycles"]
+    assert "2 desorption point(s)" in skipped["falling"]
+
+
+###############################################################################
+def test_edits_keep_one_measurement_per_branch_and_pressure(client: TestClient) -> None:
+    dataset_id = _commit(client, HYSTERESIS_CSV, HYSTERESIS_MAPPING)
+    [experiment] = _experiments(client, dataset_id)
+    rows = _rows(client, dataset_id, experiment["id"])
+    [shared] = [
+        row
+        for row in rows
+        if row["branch"] == "desorption" and row["pressure_canonical"] == 8e4
+    ]
+
+    clash = client.patch(
+        f"/api/v1/datasets/{dataset_id}",
+        json={"observations": [{"id": shared["id"], "branch": "adsorption"}]},
+    )
+    assert clash.status_code == 422
+    assert "adsorption branch" in clash.json()["detail"]["issues"][0]["message"]
+
+    moved = client.patch(
+        f"/api/v1/datasets/{dataset_id}",
+        json={
+            "observations": [
+                {"id": shared["id"], "branch": "adsorption", "pressure_original": 1.2}
+            ]
+        },
+    )
+    assert moved.status_code == 200, moved.text
+    [edited] = [
+        row
+        for row in _rows(client, dataset_id, experiment["id"])
+        if row["id"] == shared["id"]
+    ]
+    assert (edited["branch"], edited["pressure_canonical"]) == ("adsorption", 1.2e5)
 
 
 ###############################################################################

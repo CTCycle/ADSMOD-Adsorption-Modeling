@@ -32,7 +32,6 @@ from server.repositories.schemas.models import (
 from server.services.data import analytics as analytics_module
 from server.services.data.analytics import (
     AnalyticsService,
-    adsorption_branch,
     histogram,
     uptake_at_pressure,
 )
@@ -70,7 +69,7 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
             material: Adsorbent,
             temperature_k: float,
             basis: str,
-            components: list[tuple[Adsorbate, list[tuple[float, float]]]],
+            components: list[tuple[Adsorbate, list[tuple[float, float, str]]]],
         ) -> None:
             isotherm = Isotherm(
                 dataset_id=dataset.id,
@@ -93,12 +92,13 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
                 )
                 session.add(component)
                 session.flush()
-                for index, (pressure, uptake) in enumerate(points):
+                for index, (pressure, uptake, branch) in enumerate(points):
                     session.add(
                         Observation(
                             isotherm_id=isotherm.id,
                             adsorbate_id=adsorbate.id,
                             source_row=index + 1,
+                            branch=branch,
                             pressure_key=pressure_key(
                                 pressure, "Pa" if basis != "relative" else "1"
                             ),
@@ -114,13 +114,25 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
                         )
                     )
 
+        def adsorption(*points: tuple[float, float]) -> list[tuple[float, float, str]]:
+            return [(pressure, uptake, "adsorption") for pressure, uptake in points]
+
+        # Hysteresis: the desorption point repeats the 1 bar adsorption pressure.
         add_isotherm(
             "a-co2-273",
             nist,
             material_a,
             273.15,
             "absolute",
-            [(co2, [(1e4, 1.0), (5e4, 2.0), (1e5, 3.0), (2e5, 4.0), (1.5e5, 3.7)])],
+            [
+                (
+                    co2,
+                    [
+                        *adsorption((1e4, 1.0), (5e4, 2.0), (1e5, 3.0), (2e5, 4.0)),
+                        (1e5, 3.7, "desorption"),
+                    ],
+                )
+            ],
         )
         add_isotherm(
             "a-co2-298",
@@ -128,7 +140,7 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
             material_a,
             298.15,
             "absolute",
-            [(co2, [(2e4, 1.0), (3e5, 2.0)])],
+            [(co2, adsorption((2e4, 1.0), (3e5, 2.0)))],
         )
         add_isotherm(
             "b-n2-77",
@@ -136,7 +148,7 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
             material_b,
             77.0,
             "relative",
-            [(n2, [(0.1, 5.0), (0.5, 8.0)])],
+            [(n2, adsorption((0.1, 5.0), (0.5, 8.0)))],
         )
         add_isotherm(
             "a-mix-298",
@@ -144,7 +156,7 @@ def _service(sqlite_path: str = ":memory:") -> tuple[AnalyticsService, dict[str,
             material_a,
             298.15,
             "absolute",
-            [(co2, [(1e5, 1.0)]), (n2, [(1e5, 0.2)])],
+            [(co2, adsorption((1e5, 1.0))), (n2, adsorption((1e5, 0.2)))],
         )
     return AnalyticsService(AnalyticsRepository(manager)), ids
 
@@ -243,25 +255,20 @@ def test_series_respect_point_cap_and_report_truncation(
 def test_uptake_at_pressure_interpolates_in_log_pressure_without_extrapolating() -> (
     None
 ):
-    points = [
+    branch = [
         {"observation_id": 1, "pressure": 1e4, "uptake": 1.0},
         {"observation_id": 2, "pressure": 1e5, "uptake": 2.0},
         {"observation_id": 3, "pressure": 1e6, "uptake": 3.0},
-        {"observation_id": 4, "pressure": 5e5, "uptake": 2.9},
     ]
-    branch = adsorption_branch(points)
 
-    assert [point["observation_id"] for point in branch] == [1, 2, 3]
     measured = uptake_at_pressure(branch, 1e5, method="linear", tolerance=0.05)
     assert (measured["method"], measured["value"]) == ("measured", 2.0)
     midpoint = uptake_at_pressure(branch, 10**4.5, method="linear", tolerance=0.05)
     assert midpoint["method"] == "interpolated"
     assert midpoint["value"] == pytest.approx(1.5)
     assert [point["observation_id"] for point in midpoint["sources"]] == [1, 2]
-    desorption_ignored = uptake_at_pressure(
-        branch, 5e5, method="linear", tolerance=0.05
-    )
-    assert desorption_ignored["value"] == pytest.approx(2.0 + math.log10(5))
+    upper = uptake_at_pressure(branch, 5e5, method="linear", tolerance=0.05)
+    assert upper["value"] == pytest.approx(2.0 + math.log10(5))
     assert uptake_at_pressure(branch, 2e6, method="linear", tolerance=0.05) == {
         "status": "out_of_range"
     }
@@ -269,6 +276,43 @@ def test_uptake_at_pressure_interpolates_in_log_pressure_without_extrapolating()
     assert (near["method"], near["value"]) == ("nearest", 2.0)
     far = uptake_at_pressure(branch, 1.2e5, method="nearest", tolerance=0.05)
     assert far["status"] == "no_point_in_tolerance"
+
+
+###############################################################################
+def test_series_and_uptake_at_pressure_read_the_stored_branch() -> None:
+    service, _ = _service()
+    selection = AnalyticsFilter(pressure_basis="absolute")
+
+    def points(branch: str) -> list[tuple[str, float, float]]:
+        response = service.series(
+            SeriesRequest(filter=selection, pressure_unit="bar", branch=branch)
+        )
+        [hysteresis] = [
+            item for item in response.series if item.isotherm == "a-co2-273"
+        ]
+        return [
+            (point.branch, point.pressure, point.uptake) for point in hysteresis.points
+        ]
+
+    assert points("adsorption") == [
+        ("adsorption", 0.1, 1.0),
+        ("adsorption", 0.5, 2.0),
+        ("adsorption", 1.0, 3.0),
+        ("adsorption", 2.0, 4.0),
+    ]
+    assert points("desorption") == [("desorption", 1.0, 3.7)]
+
+    def value_at_one_bar(**branch: str) -> float | None:
+        response = service.uptake_at_pressure(
+            UptakeAtPressureRequest(
+                filter=selection, pressure=1.0, pressure_unit="bar", **branch
+            )
+        )
+        return next(row.value for row in response.rows if row.isotherm == "a-co2-273")
+
+    # Both branches hold 1 bar; neither is averaged into the other.
+    assert value_at_one_bar() == pytest.approx(3.0)
+    assert value_at_one_bar(branch="desorption") == pytest.approx(3.7)
 
 
 ###############################################################################
