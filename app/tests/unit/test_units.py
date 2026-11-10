@@ -7,10 +7,12 @@ import pytest
 
 from server.common.units import (
     BUILT_IN_UNIT_DETAILS,
+    AmbiguousUnitError,
     CustomUnit,
     UnitCatalog,
     UnitConversionError,
     UnitRegistry,
+    detect_header_unit,
 )
 
 
@@ -77,6 +79,38 @@ def test_built_in_units_take_precedence_over_custom_labels() -> None:
 def test_scientifically_distinct_units_do_not_merge() -> None:
     assert UnitRegistry.unit_key("mmol/g") != UnitRegistry.unit_key("mmol/kg")
     assert UnitRegistry.unit_key("mmol / g") == UnitRegistry.unit_key("MMOL/G")
+
+
+###############################################################################
+@pytest.mark.parametrize(
+    ("unit", "expected"),
+    [("MPa", "MPa"), ("Mpa", "MPa"), ("megapascal", "MPa"), ("mbar", "mbar")],
+)
+def test_prefix_case_selects_milli_or_mega(unit, expected) -> None:  # type: ignore[no-untyped-def]
+    assert UnitRegistry.pressure_unit(unit) == expected
+
+
+###############################################################################
+@pytest.mark.parametrize("unit", ["mPa", "mpa", "MPA", "Mbar", "MBAR"])
+def test_case_ambiguous_pressure_units_are_rejected(unit) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(AmbiguousUnitError):
+        UnitRegistry.convert_pressure(1.0, unit, "absolute")
+
+
+###############################################################################
+@pytest.mark.parametrize(
+    ("header", "expected"),
+    [
+        ("Pressure (MPa)", "MPa"),
+        ("pressure_MPa", "MPa"),
+        ("pressure_mbar", "mbar"),
+        ("pressure_kpa", "kPa"),
+        ("pressure (mpa)", None),
+        ("PRESSURE_MPA", None),
+    ],
+)
+def test_header_units_keep_prefix_case_and_whole_symbols(header, expected) -> None:  # type: ignore[no-untyped-def]
+    assert detect_header_unit(header, "pressure") == expected
 
 
 ###############################################################################

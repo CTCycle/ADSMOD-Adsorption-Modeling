@@ -18,6 +18,10 @@ class UnitConversionError(ValueError):
     pass
 
 ###############################################################################
+class AmbiguousUnitError(UnitConversionError):
+    """The spelling cannot tell apart units that differ only by prefix case."""
+
+###############################################################################
 @dataclass(frozen=True)
 class ConvertedValue:
     original_value: float
@@ -169,11 +173,36 @@ class UnitRegistry:
         "degf": "degF",
         "fahrenheit": "degF",
     }
+    # Symbols whose SI prefix differs only by case (m = milli, M = mega). They
+    # resolve from the prefix letter, keyed by its exact case; any other prefix
+    # case, or a spelling without case information, is rejected.
+    CASE_SENSITIVE_PRESSURE = {
+        "mpa": {"M": "MPa"},
+        "mbar": {"m": "mbar"},
+    }
 
     # -------------------------------------------------------------------------
     @staticmethod
     def unit_key(unit: object) -> str:
         return normalize_token(unit).replace(" ", "")
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _case_sensitive_symbol(cls, quantity: str, unit: object) -> str | None:
+        if quantity != "pressure":
+            return None
+        prefixes = cls.CASE_SENSITIVE_PRESSURE.get(cls.unit_key(unit))
+        if prefixes is None:
+            return None
+        raw = "".join(unicodedata.normalize("NFKC", str(unit)).split())
+        resolved = None if raw.isupper() else prefixes.get(raw[0])
+        if resolved is None:
+            raise AmbiguousUnitError(
+                f"Pressure unit '{unit}' is ambiguous: the prefix case separates "
+                "milli (m) from mega (M). Write MPa for megapascal or mbar for "
+                "millibar; millipascal and megabar are not supported."
+            )
+        return resolved
 
     # -------------------------------------------------------------------------
     @classmethod
@@ -190,7 +219,9 @@ class UnitRegistry:
     # -------------------------------------------------------------------------
     @classmethod
     def resolve(cls, quantity: str, unit: object) -> str:
-        resolved = cls.aliases_for(quantity).get(cls.unit_key(unit))
+        resolved = cls._case_sensitive_symbol(quantity, unit)
+        if resolved is None:
+            resolved = cls.aliases_for(quantity).get(cls.unit_key(unit))
         if resolved is None:
             raise UnitConversionError(f"Unsupported {quantity} unit '{unit}'.")
         return resolved
@@ -331,36 +362,44 @@ class UnitRegistry:
 HEADER_UNIT_PATTERN = re.compile(r"(?:\[|\()([^\])]+)(?:\]|\))")
 
 ###############################################################################
+HEADER_UNIT_TOKENS = (
+    "p/p0",
+    "mbar",
+    "bar",
+    "kpa",
+    "mpa",
+    "pa",
+    "mmol/g",
+    "mol/kg",
+    "mg/g",
+    "cm3(stp)/g",
+    "cm3(stp)/kg",
+    "umol/g",
+    "°c",
+    "°f",
+    "kelvin",
+)
+
+###############################################################################
 def detect_header_unit(header: str, quantity: str) -> str | None:
-    candidates = [match.strip() for match in HEADER_UNIT_PATTERN.findall(header)]
-    candidates.extend(
-        token
-        for token in (
-            "p/p0",
-            "bar",
-            "kpa",
-            "mpa",
-            "pa",
-            "mmol/g",
-            "mol/kg",
-            "mg/g",
-            "cm3(stp)/g",
-            "cm3(stp)/kg",
-            "umol/g",
-            "°c",
-            "°f",
-            "kelvin",
+    """Return the unit a header declares, or None when absent or ambiguous.
+
+    Bare tokens match only as whole symbols in their original case, so that
+    'mbar' is never read as 'bar' and the prefix case of 'MPa' is preserved.
+    """
+    text = unicodedata.normalize("NFKC", header)
+    candidates = [match.strip() for match in HEADER_UNIT_PATTERN.findall(text)]
+    for token in HEADER_UNIT_TOKENS:
+        found = re.search(
+            rf"(?<![a-z]){re.escape(token)}(?![a-z])", text, re.IGNORECASE
         )
-        if token in normalize_token(header)
-    )
-    resolver = {
-        "pressure": UnitRegistry.pressure_unit,
-        "uptake": UnitRegistry.uptake_unit,
-        "temperature": UnitRegistry.temperature_unit,
-    }[quantity]
+        if found:
+            candidates.append(found.group(0))
     for candidate in candidates:
         try:
-            return resolver(candidate)
+            return UnitRegistry.resolve(quantity, candidate)
+        except AmbiguousUnitError:
+            return None
         except UnitConversionError:
             continue
     return None
