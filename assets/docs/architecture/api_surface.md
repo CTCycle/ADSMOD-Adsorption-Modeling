@@ -24,13 +24,20 @@ The unified backend serves all versioned routes under `/api/v1`:
   `offset`, `limit`, `q`, `adsorbent_id`, `adsorbate_id`, temperature range,
   `edited_only`), `GET /datasets/{id}/experiments/{experiment_id}`, and
   `GET /datasets/{id}/experiments/{experiment_id}/observations`
-  (`order=pressure|source`, optional `adsorbate_id` for one species). An
-  experiment lists its species as `components` (`position`, `adsorbate_id`,
-  `name`); observation rows carry `adsorbate_id` and `gas_mole_fraction`.
-  Edits replace a species by `position` and set `gas_mole_fraction` per
-  measurement. Import mappings accept a `gas_mole_fraction` column role,
+  (`order=pressure|source`, optional `adsorbate_id` for one species, optional
+  `branch=adsorption|desorption`; pressure order lists the adsorption branch
+  first). An experiment lists its species as `components` (`position`,
+  `adsorbate_id`, `name`) and counts `desorption_count`; observation rows carry
+  `adsorbate_id`, `branch`, and `gas_mole_fraction`. Edits replace a species by
+  `position` and set `branch` and `gas_mole_fraction` per measurement; a
+  relabel that gives a species two uptakes at one pressure on one branch, or
+  leaves it fewer than two adsorption pressures, returns 422. Import mappings
+  accept `gas_mole_fraction` and `branch` column roles,
   `species_columns[].mole_fraction_column`, and `duplicate_policy`
-  `reject|average`.
+  `reject|average`; validation previews report each point's `branch`, the
+  experiment's `desorption_count`, and `branch_assignment`
+  (`explicit|inferred`), plus a `branches_inferred` warning or an
+  `ambiguous_branch` error when branches are inferred from file order.
 - `/materials` and `/species` (list, detail with the datasets that use the
   entity, and `DELETE`, which returns HTTP 409 while experiments reference it)
 - `/public-data/*` (NIST, PubChem, and COD provider catalog, acquisition, and
@@ -84,9 +91,11 @@ Analytics responses are computed per request from canonical observations and
 are never persisted. A response that shares a pressure axis never mixes
 pressure bases (a mixed selection returns 400), every plotted point keeps its
 `observation_id`, and calculated values carry a `method` (`measured`,
-`nearest`, or `interpolated`). Fixed-pressure comparisons interpolate in log
-pressure between bracketing points of the adsorption branch (points up to the
-pressure maximum in acquisition order) and never extrapolate. Series requests
+`nearest`, or `interpolated`). `/series` and `/uptake-at-pressure` read one
+stored branch, `adsorption` unless the request sets `branch: desorption`, and
+every series point reports its `branch`. Fixed-pressure comparisons
+interpolate in log pressure between bracketing points of that branch and never
+extrapolate. Series requests
 are capped at 200 series and 50,000 points and report `truncated`.
 
 The canonical OpenAPI snapshot is `app/server/openapi/backend.json`.

@@ -34,19 +34,29 @@ acquires external data. The former `public-data` routes are not supported.
    experiment contains several species; map a `Gas mole fraction (y)` column to keep composition.
    Species columns must share one uptake unit. Pressure meaning is Total pressure (shared by all
    species at a point), Partial pressure (only when the file reports it), or Relative p/p₀
-   (single-species only). A species may have one uptake per pressure: repeated pressures either
-   block the import (Reject) or are averaged into one measurement (Average replicates). An
-   experiment has one temperature; group by temperature when a file mixes temperatures.
+   (single-species only). For hysteresis data, map a `Branch (adsorption / desorption)` column
+   (values adsorption/desorption, ads/des or a/d). Without it, branches follow the file order of
+   each species: points up to the highest pressure are adsorption and the falling points after it
+   desorption; a pressure that rises again after that blocks the import until a branch column is
+   mapped. A replicate row placed after the pressure maximum is therefore read as desorption, so
+   keep replicates next to their pair or map the column. A species may have one uptake per pressure
+   and branch: repeated pressures on one branch either block the import (Reject) or are averaged
+   into one measurement (Average replicates). Each species needs at least two adsorption pressures.
+   An experiment has one temperature; group by temperature when a file mixes temperatures.
 3. Validate series: experiments appear as collapsible sections with their observations, warnings, and
-   errors. Datasets with blocking errors cannot be saved.
+   errors. Experiments with a desorption branch add a Branch column and state how many desorption
+   points they have and whether the file labelled them or they were inferred from point order.
+   Datasets with blocking errors cannot be saved.
 4. After saving, the new dataset is highlighted in the list; Explore dataset opens it directly. Explore
    shows the experiments in a compact navigator (Up/Down/Home/End change the selection; multi-species
    experiments carry a "mix" tag) and their measurements in a worksheet table (or a plot with one
    series per species). Multi-species worksheets add Species and gas mole fraction (y) columns and a
-   species selector.
+   species selector. Experiments with a desorption branch add a Branch column and a branch filter, and
+   the plot draws each desorption branch as a separate dashed series. Fitting, dashboards and ML
+   training use the adsorption branch.
 5. To correct data, choose Edit dataset: change dataset metadata, experiment name, material, species,
    temperature and units, or individual measurement values (including each measurement's gas mole
-   fraction in multi-species experiments). Save changes validates everything,
+   fraction in multi-species experiments and its branch, which the worksheet shows while editing). Save changes validates everything,
    reports field-specific problems, and overwrites the stored values in one transaction; Cancel
    discards the changes. Delete asks for confirmation and states how many experiments, measurements,
    and fitting sessions are removed; materials and species are kept.

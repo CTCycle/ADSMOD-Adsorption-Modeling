@@ -64,7 +64,11 @@ Older single-experiment `fitting_runs` were discarded when sessions were
 introduced. The dataset delete-impact field is `fitting_session_count`. A fit
 series is one species of one experiment; the fitting service rejects
 experiments with several species at the capability level because every model
-in the catalog describes pure-species adsorption.
+in the catalog describes pure-species adsorption. For the same reason (the
+models describe equilibrium adsorption), `fitting_series` fits only the
+adsorption branch; desorption points are never part of a fit or its input hash.
+ML snapshot rows likewise come from the adsorption branch only, and the snapshot
+metadata records `branch: adsorption`.
 
 ## ML artifacts
 
@@ -101,21 +105,39 @@ erDiagram
   `(isotherm_id, adsorbate_id)`, with a unique `position` and the received
   `source_name`. The species count is derived from these rows and never
   selects a different structure.
-- `observations` is the single measurement table: one row per species and
-  pressure, with source values and units next to the canonical pressure
+- `observations` is the single measurement table: one row per species, branch
+  and pressure. `branch` is `adsorption` or `desorption` (NOT NULL, default
+  `adsorption`, `ck_observations_branch`), so a hysteresis loop stays in the
+  same long format with no per-branch table. Rows hold source values and
+  units next to the canonical pressure
   (`pressure_canonical`, Pa or p/p₀) and uptake (`uptake_mol_kg`), an optional
   uncertainty, and an optional per-point gas-phase mole fraction
   (`gas_mole_fraction`). A composite foreign key to
   `isotherm_components(isotherm_id, adsorbate_id)` (ON DELETE/UPDATE CASCADE)
   guarantees that a measurement's species belongs to its experiment.
 
-Measurement identity is `(isotherm_id, adsorbate_id, pressure_key)`, enforced
-by `uq_observations_identity`. `pressure_key` quantizes the canonical pressure
-(1 µPa for Pa, 1e-9 for p/p₀) through `domain.canonical.pressure_key`, the same
-helper the importer uses, so duplicate detection and the constraint never
-disagree. Duplicates are rejected, or averaged at import into one stored row
-whose `extra_metadata.replicates` keeps the count, source rows, and values; a
+Measurement identity is `(isotherm_id, adsorbate_id, branch, pressure_key)`,
+enforced by `uq_observations_identity`; `ix_observations_species_pressure`
+covers `(isotherm_id, adsorbate_id, branch, pressure_canonical)`.
+`pressure_key` quantizes the canonical pressure (1 µPa for Pa, 1e-9 for p/p₀)
+through `domain.canonical.pressure_key`, the same helper the importer uses, so
+duplicate detection and the constraint never disagree. One pressure may
+therefore hold one adsorption and one desorption uptake. Two uptakes on the
+same branch at the same pressure (a vertical step or a replicate) are
+rejected, or averaged at import into one stored row whose
+`extra_metadata.replicates` keeps the count, source rows, and values; a
 conflicting insert raises instead of overwriting.
+
+Sources that label branches (an upload `branch` column: adsorption/desorption,
+ads/des or a/d, case-insensitive) pass them through. Sources without labels
+(NIST, uploads without the column) go through `domain.canonical.assign_branches`,
+which works per species in source order: points up to the first point at the
+highest pressure (inclusive) are adsorption; later points must not rise in
+pressure, a falling point is desorption, and a point at its predecessor's
+pressure joins that point's branch (so a vertical step stays a duplicate). A
+pressure rise after the desorption branch started raises `ambiguous_branch`
+instead of guessing. `provenance.branch_assignment` records `explicit` or
+`inferred`.
 
 Pressure basis (`isotherms.pressure_basis`) defines the canonical pressure
 column:
@@ -129,8 +151,10 @@ column:
 Every source goes through `domain.canonical.normalize_experiment` (a
 `CanonicalExperiment` model) before persistence; `write_experiment_content`
 re-applies it as a guard. It validates declared species, units per basis, at
-least two distinct pressures per species, gas fractions (≤ 1 per point,
-1 or empty for one species), and duplicates. Upload files with one uptake
+least two distinct adsorption-branch pressures per species (desorption points
+are optional, so a desorption-only series is rejected), gas fractions (≤ 1 per
+branch and pressure, 1 or empty for one species), and duplicates per
+(species, branch, pressure). Upload files with one uptake
 column per species are melted to long rows during import, so no per-species
 column is ever stored.
 
