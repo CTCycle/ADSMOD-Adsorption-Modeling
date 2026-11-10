@@ -132,7 +132,9 @@ Sources that label branches (an upload `branch` column: adsorption/desorption,
 ads/des or a/d, case-insensitive) pass them through. Sources without labels
 (NIST, uploads without the column) go through `domain.canonical.assign_branches`,
 which works per species in source order: points up to the first point at the
-highest pressure (inclusive) are adsorption; later points must not rise in
+highest pressure (inclusive) are adsorption, except that a series starting at
+its maximum and then falling is a desorption branch throughout; later points
+must not rise in
 pressure, a falling point is desorption, and a point at its predecessor's
 pressure joins that point's branch (so a vertical step stays a duplicate). A
 pressure rise after the desorption branch started raises `ambiguous_branch`
@@ -151,8 +153,8 @@ column:
 Every source goes through `domain.canonical.normalize_experiment` (a
 `CanonicalExperiment` model) before persistence; `write_experiment_content`
 re-applies it as a guard. It validates declared species, units per basis, at
-least two distinct adsorption-branch pressures per species (desorption points
-are optional, so a desorption-only series is rejected), gas fractions (≤ 1 per
+least two distinct pressures per species on one branch (so a desorption-only
+series is stored; it has no adsorption branch to fit or train on), gas fractions (≤ 1 per
 branch and pressure, 1 or empty for one species), and duplicates per
 (species, branch, pressure). Upload files with one uptake
 column per species are melted to long rows during import, so no per-species

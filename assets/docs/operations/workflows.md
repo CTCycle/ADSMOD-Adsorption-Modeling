@@ -37,11 +37,12 @@ acquires external data. The former `public-data` routes are not supported.
    (single-species only). For hysteresis data, map a `Branch (adsorption / desorption)` column
    (values adsorption/desorption, ads/des or a/d). Without it, branches follow the file order of
    each species: points up to the highest pressure are adsorption and the falling points after it
-   desorption; a pressure that rises again after that blocks the import until a branch column is
+   desorption (a series that falls from its first point is desorption throughout); a pressure that rises again after that blocks the import until a branch column is
    mapped. A replicate row placed after the pressure maximum is therefore read as desorption, so
    keep replicates next to their pair or map the column. A species may have one uptake per pressure
    and branch: repeated pressures on one branch either block the import (Reject) or are averaged
-   into one measurement (Average replicates). Each species needs at least two adsorption pressures.
+   into one measurement (Average replicates). Each species needs at least two pressures on one branch; a desorption-only experiment is stored
+   and plotted but cannot be fitted.
    An experiment has one temperature; group by temperature when a file mixes temperatures.
 3. Validate series: experiments appear as collapsible sections with their observations, warnings, and
    errors. Experiments with a desorption branch add a Branch column and state how many desorption

@@ -31,7 +31,7 @@ The unified backend serves all versioned routes under `/api/v1`:
   `adsorbate_id`, `branch`, and `gas_mole_fraction`. Edits replace a species by
   `position` and set `branch` and `gas_mole_fraction` per measurement; a
   relabel that gives a species two uptakes at one pressure on one branch, or
-  leaves it fewer than two adsorption pressures, returns 422. Import mappings
+  leaves it fewer than two pressures on any branch, returns 422. Import mappings
   accept `gas_mole_fraction` and `branch` column roles,
   `species_columns[].mole_fraction_column`, and `duplicate_policy`
   `reject|average`; validation previews report each point's `branch`, the
@@ -93,7 +93,9 @@ pressure bases (a mixed selection returns 400), every plotted point keeps its
 `observation_id`, and calculated values carry a `method` (`measured`,
 `nearest`, or `interpolated`). `/series` and `/uptake-at-pressure` read one
 stored branch, `adsorption` unless the request sets `branch: desorption`, and
-every series point reports its `branch`. Fixed-pressure comparisons
+every series point reports its `branch`; a species with no points on the
+requested branch (a desorption-only series for `adsorption`) is not listed.
+Fixed-pressure comparisons
 interpolate in log pressure between bracketing points of that branch and never
 extrapolate. Series requests
 are capped at 200 series and 50,000 points and report `truncated`.
