@@ -407,6 +407,7 @@ class Observation(Base):
             ["isotherm_id", "adsorbate_id"],
             ["isotherm_components.isotherm_id", "isotherm_components.adsorbate_id"],
             ondelete="CASCADE",
+            onupdate="CASCADE",
             name="fk_observations_component",
         ),
         UniqueConstraint(

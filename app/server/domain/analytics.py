@@ -23,6 +23,7 @@ MAX_FILTER_IDS = 500
 MAX_SERIES = 200
 MAX_SERIES_POINTS = 50_000
 
+
 ###############################################################################
 class AnalyticsFilter(BaseModel):
     """Isotherm selection shared by every analytics query; identity is by id."""
@@ -37,7 +38,7 @@ class AnalyticsFilter(BaseModel):
     temperature_min_k: float | None = Field(default=None, gt=0)
     temperature_max_k: float | None = Field(default=None, gt=0)
     pressure_basis: PressureBasis | None = None
-    include_mixtures: bool = False
+    include_multi_species: bool = False
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
@@ -50,11 +51,13 @@ class AnalyticsFilter(BaseModel):
             raise ValueError("temperature_min_k must not exceed temperature_max_k.")
         return self
 
+
 ###############################################################################
 class FacetCount(BaseModel):
     id: int
     name: str
     count: int = Field(ge=0)
+
 
 ###############################################################################
 class SelectionFacets(BaseModel):
@@ -66,6 +69,7 @@ class SelectionFacets(BaseModel):
     temperature_min_k: float | None = None
     temperature_max_k: float | None = None
 
+
 ###############################################################################
 class SelectionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -75,6 +79,7 @@ class SelectionRequest(BaseModel):
     page_size: int = Field(default=25, ge=1, le=100)
     material_search: str | None = Field(default=None, max_length=120)
     adsorbate_search: str | None = Field(default=None, max_length=120)
+
 
 ###############################################################################
 class IsothermSummaryView(BaseModel):
@@ -90,11 +95,13 @@ class IsothermSummaryView(BaseModel):
     pressure_basis: PressureBasis
     point_count: int = Field(ge=0)
 
+
 ###############################################################################
 class SelectionResponse(BaseModel):
     items: list[IsothermSummaryView]
     pagination: Pagination
     facets: SelectionFacets
+
 
 ###############################################################################
 class SeriesRequest(BaseModel):
@@ -104,10 +111,12 @@ class SeriesRequest(BaseModel):
     pressure_unit: str = Field(default="bar", max_length=16)
     uptake_unit: str = Field(default="mol/kg", max_length=24)
 
+
 ###############################################################################
 class SeriesMetadata(BaseModel):
+    """One species of one experiment; series are keyed by (isotherm_id, adsorbate_id)."""
+
     isotherm_id: int
-    component_id: int
     isotherm: str
     dataset_id: int
     dataset: str
@@ -116,9 +125,10 @@ class SeriesMetadata(BaseModel):
     material: str
     adsorbate_id: int
     adsorbate: str
-    mole_fraction: float | None = None
+    species_count: int = Field(ge=1)
     temperature_k: float
     uptake_unit: str
+
 
 ###############################################################################
 class SeriesPoint(BaseModel):
@@ -126,10 +136,13 @@ class SeriesPoint(BaseModel):
     pressure: float
     uptake: float
     uptake_stddev: float | None = None
+    gas_mole_fraction: float | None = None
+
 
 ###############################################################################
 class IsothermSeries(SeriesMetadata):
     points: list[SeriesPoint]
+
 
 ###############################################################################
 class SeriesResponse(BaseModel):
@@ -140,11 +153,13 @@ class SeriesResponse(BaseModel):
     truncated: bool = False
     warnings: list[str] = Field(default_factory=list)
 
+
 ###############################################################################
 class UptakeAtPressureRequest(SeriesRequest):
     pressure: float = Field(gt=0)
     method: UptakeMethod = "linear"
     tolerance: float = Field(default=0.05, gt=0, le=1)
+
 
 ###############################################################################
 class UptakeAtPressureRow(SeriesMetadata):
@@ -152,6 +167,7 @@ class UptakeAtPressureRow(SeriesMetadata):
     method: ValueMethod | None = None
     status: ValueStatus
     sources: list[SeriesPoint] = Field(default_factory=list)
+
 
 ###############################################################################
 class UptakeAtPressureResponse(BaseModel):
@@ -164,6 +180,7 @@ class UptakeAtPressureResponse(BaseModel):
     truncated: bool = False
     warnings: list[str] = Field(default_factory=list)
 
+
 ###############################################################################
 class DistributionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -174,11 +191,13 @@ class DistributionRequest(BaseModel):
     scale: HistogramScale = "linear"
     pressure_unit: str = Field(default="bar", max_length=16)
 
+
 ###############################################################################
 class HistogramBin(BaseModel):
     lower: float
     upper: float
     count: int = Field(ge=0)
+
 
 ###############################################################################
 class DistributionStats(BaseModel):
@@ -188,6 +207,7 @@ class DistributionStats(BaseModel):
     mean: float | None = None
     median: float | None = None
 
+
 ###############################################################################
 class DistributionResponse(BaseModel):
     variable: DistributionVariable
@@ -196,6 +216,7 @@ class DistributionResponse(BaseModel):
     bins: list[HistogramBin]
     stats: DistributionStats
     excluded: int = Field(default=0, ge=0)
+
 
 ###############################################################################
 class BasisSpan(BaseModel):
@@ -210,6 +231,7 @@ class BasisSpan(BaseModel):
     temperature_min_k: float | None = None
     temperature_max_k: float | None = None
 
+
 ###############################################################################
 class AnalyticsOverviewResponse(BaseModel):
     datasets: int = Field(ge=0)
@@ -217,7 +239,7 @@ class AnalyticsOverviewResponse(BaseModel):
     observations: int = Field(ge=0)
     materials: int = Field(ge=0)
     adsorbates: int = Field(ge=0)
-    mixture_isotherms: int = Field(ge=0)
+    multi_species_isotherms: int = Field(ge=0)
     isotherms_by_source: dict[str, int]
     pressure_bases: list[BasisSpan]
     top_materials: list[FacetCount]

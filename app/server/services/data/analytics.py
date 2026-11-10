@@ -36,6 +36,7 @@ RELATIVE_PRESSURE_UNIT = "1"
 EXACT_MATCH_TOLERANCE = 1e-9
 OVERVIEW_TEMPERATURE_BINS = 20
 
+
 ###############################################################################
 def adsorption_branch(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Points up to the pressure maximum in acquisition order, sorted by pressure.
@@ -47,6 +48,7 @@ def adsorption_branch(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return []
     peak = max(range(len(points)), key=lambda index: points[index]["pressure"])
     return sorted(points[: peak + 1], key=lambda point: point["pressure"])
+
 
 ###############################################################################
 def uptake_at_pressure(
@@ -98,6 +100,7 @@ def uptake_at_pressure(
             }
     return {"status": "out_of_range"}
 
+
 ###############################################################################
 def histogram(values: list[float], *, bins: int, scale: str) -> dict[str, Any]:
     data = np.asarray(values, dtype=float)
@@ -120,7 +123,9 @@ def histogram(values: list[float], *, bins: int, scale: str) -> dict[str, Any]:
     counts, edges = np.histogram(data, bins=edges)
     return {
         "bins": [
-            HistogramBin(lower=float(edges[i]), upper=float(edges[i + 1]), count=int(count))
+            HistogramBin(
+                lower=float(edges[i]), upper=float(edges[i + 1]), count=int(count)
+            )
             for i, count in enumerate(counts)
         ],
         "stats": DistributionStats(
@@ -132,6 +137,7 @@ def histogram(values: list[float], *, bins: int, scale: str) -> dict[str, Any]:
         ),
         "excluded": excluded,
     }
+
 
 ###############################################################################
 class AnalyticsService:
@@ -205,12 +211,16 @@ class AnalyticsService:
 
     # -------------------------------------------------------------------------
     @staticmethod
+    def _series_key(row: dict[str, Any]) -> tuple[int, int]:
+        return int(row["isotherm_id"]), int(row["adsorbate_id"])
+
+    # -------------------------------------------------------------------------
+    @staticmethod
     def _metadata(row: dict[str, Any], uptake_unit: str) -> dict[str, Any]:
         return {
             key: row[key]
             for key in (
                 "isotherm_id",
-                "component_id",
                 "isotherm",
                 "dataset_id",
                 "dataset",
@@ -219,7 +229,7 @@ class AnalyticsService:
                 "material",
                 "adsorbate_id",
                 "adsorbate",
-                "mole_fraction",
+                "species_count",
                 "temperature_k",
             )
         } | {"uptake_unit": uptake_unit}
@@ -248,9 +258,11 @@ class AnalyticsService:
     # -------------------------------------------------------------------------
     def series(self, request: SeriesRequest) -> SeriesResponse:
         rows, total, basis = self._series_rows(request.filter)
-        pressure_unit, pressure_divisor = self._pressure_factor(basis, request.pressure_unit)
-        observations = self.repository.component_observations(
-            [int(row["component_id"]) for row in rows]
+        pressure_unit, pressure_divisor = self._pressure_factor(
+            basis, request.pressure_unit
+        )
+        observations = self.repository.species_observations(
+            [self._series_key(row) for row in rows]
         )
         warnings: list[str] = []
         series = []
@@ -271,8 +283,9 @@ class AnalyticsService:
                                 if point["uptake_stddev"] is None
                                 else point["uptake_stddev"] / uptake_factor
                             ),
+                            gas_mole_fraction=point["gas_mole_fraction"],
                         )
-                        for point in observations.get(int(row["component_id"]), [])
+                        for point in observations.get(self._series_key(row), [])
                     ],
                 )
             )
@@ -286,12 +299,16 @@ class AnalyticsService:
         )
 
     # -------------------------------------------------------------------------
-    def uptake_at_pressure(self, request: UptakeAtPressureRequest) -> UptakeAtPressureResponse:
+    def uptake_at_pressure(
+        self, request: UptakeAtPressureRequest
+    ) -> UptakeAtPressureResponse:
         rows, total, basis = self._series_rows(request.filter)
-        pressure_unit, pressure_divisor = self._pressure_factor(basis, request.pressure_unit)
+        pressure_unit, pressure_divisor = self._pressure_factor(
+            basis, request.pressure_unit
+        )
         target = request.pressure * pressure_divisor
-        observations = self.repository.component_observations(
-            [int(row["component_id"]) for row in rows]
+        observations = self.repository.species_observations(
+            [self._series_key(row) for row in rows]
         )
         warnings: list[str] = []
         results = []
@@ -300,7 +317,7 @@ class AnalyticsService:
                 request.uptake_unit, row["molar_mass_g_mol"], warnings, row["adsorbate"]
             )
             outcome = uptake_at_pressure(
-                adsorption_branch(observations.get(int(row["component_id"]), [])),
+                adsorption_branch(observations.get(self._series_key(row), [])),
                 target,
                 method=request.method,
                 tolerance=request.tolerance,
@@ -356,7 +373,7 @@ class AnalyticsService:
     def overview(self) -> AnalyticsOverviewResponse:
         summary = self.repository.overview()
         temperatures = self.repository.distribution_values(
-            {"include_mixtures": True}, "temperature_k"
+            {"include_multi_species": True}, "temperature_k"
         )
         return AnalyticsOverviewResponse.model_validate(
             summary

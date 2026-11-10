@@ -22,6 +22,7 @@ from server.repositories.schemas.models import (
 FACET_LIMIT = 50
 TOP_ENTITY_LIMIT = 10
 
+
 ###############################################################################
 class AnalyticsRepository:
     """Read-only cross-dataset queries over canonical isotherm records."""
@@ -59,12 +60,12 @@ class AnalyticsRepository:
             query = query.where(Isotherm.temperature_k <= filters["temperature_max_k"])
         if filters.get("pressure_basis") and exclude != "bases":
             query = query.where(Isotherm.pressure_basis == filters["pressure_basis"])
-        if not filters.get("include_mixtures"):
+        if not filters.get("include_multi_species"):
             query = query.where(
                 Isotherm.id.in_(
                     select(IsothermComponent.isotherm_id)
                     .group_by(IsothermComponent.isotherm_id)
-                    .having(func.count(IsothermComponent.id) == 1)
+                    .having(func.count(IsothermComponent.adsorbate_id) == 1)
                 )
             )
         return query
@@ -135,7 +136,9 @@ class AnalyticsRepository:
 
     # -------------------------------------------------------------------------
     def _isotherm_id_scope(self, filters: dict[str, Any], exclude: str) -> Any:
-        return select(self._matching_isotherms(filters, exclude=exclude).subquery().c.id)
+        return select(
+            self._matching_isotherms(filters, exclude=exclude).subquery().c.id
+        )
 
     # -------------------------------------------------------------------------
     def facets(
@@ -154,7 +157,9 @@ class AnalyticsRepository:
             .group_by(Adsorbent.id, Adsorbent.name)
         )
         if material_search and material_search.strip():
-            materials = materials.where(Adsorbent.name.ilike(f"%{material_search.strip()}%"))
+            materials = materials.where(
+                Adsorbent.name.ilike(f"%{material_search.strip()}%")
+            )
         adsorbates = (
             select(
                 Adsorbate.id,
@@ -166,7 +171,9 @@ class AnalyticsRepository:
             .group_by(Adsorbate.id, Adsorbate.name)
         )
         if adsorbate_search and adsorbate_search.strip():
-            adsorbates = adsorbates.where(Adsorbate.name.ilike(f"%{adsorbate_search.strip()}%"))
+            adsorbates = adsorbates.where(
+                Adsorbate.name.ilike(f"%{adsorbate_search.strip()}%")
+            )
         datasets = (
             select(Dataset.id, Dataset.name, func.count(Isotherm.id).label("count"))
             .join(Isotherm, Isotherm.dataset_id == Dataset.id)
@@ -180,7 +187,9 @@ class AnalyticsRepository:
                     {"id": int(row.id), "name": str(row.name), "count": int(row.count)}
                     for row in session.execute(
                         query.order_by(
-                            query.selected_columns[0].in_(filters.get(selected) or [-1]).desc(),
+                            query.selected_columns[0]
+                            .in_(filters.get(selected) or [-1])
+                            .desc(),
                             func.count().desc(),
                             query.selected_columns[1],
                         ).limit(FACET_LIMIT)
@@ -208,8 +217,9 @@ class AnalyticsRepository:
                 ).all()
             )
             temperature = session.execute(
-                select(func.min(Isotherm.temperature_k), func.max(Isotherm.temperature_k))
-                .where(Isotherm.id.in_(scope("none")))
+                select(
+                    func.min(Isotherm.temperature_k), func.max(Isotherm.temperature_k)
+                ).where(Isotherm.id.in_(scope("none")))
             ).one()
         return {
             **facet_rows,
@@ -220,21 +230,31 @@ class AnalyticsRepository:
         }
 
     # -------------------------------------------------------------------------
-    def series_metadata(self, filters: dict[str, Any], *, limit: int) -> tuple[list[dict[str, Any]], int]:
-        """One row per (isotherm, component) with its point count, capped at ``limit``."""
+    def series_metadata(
+        self, filters: dict[str, Any], *, limit: int
+    ) -> tuple[list[dict[str, Any]], int]:
+        """One row per (isotherm, species) with its point count, capped at ``limit``."""
         matching = select(self._matching_isotherms(filters).subquery().c.id)
         point_counts = (
             select(
-                Observation.component_id.label("component_id"),
+                Observation.isotherm_id,
+                Observation.adsorbate_id,
                 func.count(Observation.id).label("point_count"),
             )
-            .group_by(Observation.component_id)
+            .group_by(Observation.isotherm_id, Observation.adsorbate_id)
+            .subquery()
+        )
+        species_counts = (
+            select(
+                IsothermComponent.isotherm_id,
+                func.count(IsothermComponent.adsorbate_id).label("species_count"),
+            )
+            .group_by(IsothermComponent.isotherm_id)
             .subquery()
         )
         query = (
             select(
                 Isotherm.id.label("isotherm_id"),
-                IsothermComponent.id.label("component_id"),
                 Isotherm.name.label("isotherm"),
                 Isotherm.dataset_id,
                 Dataset.name.label("dataset"),
@@ -244,7 +264,7 @@ class AnalyticsRepository:
                 Adsorbate.id.label("adsorbate_id"),
                 Adsorbate.name.label("adsorbate"),
                 Adsorbate.molar_mass_g_mol,
-                IsothermComponent.mole_fraction,
+                species_counts.c.species_count,
                 Isotherm.temperature_k,
                 Isotherm.pressure_basis,
                 func.coalesce(point_counts.c.point_count, 0).label("point_count"),
@@ -253,13 +273,22 @@ class AnalyticsRepository:
             .join(Dataset, Dataset.id == Isotherm.dataset_id)
             .join(Adsorbent, Adsorbent.id == Isotherm.adsorbent_id)
             .join(Adsorbate, Adsorbate.id == IsothermComponent.adsorbate_id)
-            .outerjoin(point_counts, point_counts.c.component_id == IsothermComponent.id)
+            .join(species_counts, species_counts.c.isotherm_id == Isotherm.id)
+            .outerjoin(
+                point_counts,
+                (point_counts.c.isotherm_id == IsothermComponent.isotherm_id)
+                & (point_counts.c.adsorbate_id == IsothermComponent.adsorbate_id),
+            )
             .where(IsothermComponent.isotherm_id.in_(matching))
         )
         if filters.get("adsorbate_ids"):
-            query = query.where(IsothermComponent.adsorbate_id.in_(filters["adsorbate_ids"]))
+            query = query.where(
+                IsothermComponent.adsorbate_id.in_(filters["adsorbate_ids"])
+            )
         with self.database.session_factory() as session:
-            total = int(session.scalar(select(func.count()).select_from(query.subquery())) or 0)
+            total = int(
+                session.scalar(select(func.count()).select_from(query.subquery())) or 0
+            )
             rows = session.execute(
                 query.order_by(
                     Adsorbent.name,
@@ -272,40 +301,54 @@ class AnalyticsRepository:
         return [row._asdict() for row in rows], total
 
     # -------------------------------------------------------------------------
-    def component_observations(
-        self, component_ids: list[int]
-    ) -> dict[int, list[dict[str, Any]]]:
-        grouped: dict[int, list[dict[str, Any]]] = {}
-        if not component_ids:
+    def species_observations(
+        self, keys: list[tuple[int, int]]
+    ) -> dict[tuple[int, int], list[dict[str, Any]]]:
+        """Measurements per (isotherm_id, adsorbate_id), in source order."""
+        wanted = set(keys)
+        grouped: dict[tuple[int, int], list[dict[str, Any]]] = {}
+        if not wanted:
             return grouped
         with self.database.session_factory() as session:
             for row in session.execute(
                 select(
-                    Observation.component_id,
+                    Observation.isotherm_id,
+                    Observation.adsorbate_id,
                     Observation.id.label("observation_id"),
                     Observation.pressure_canonical.label("pressure"),
                     Observation.uptake_mol_kg.label("uptake"),
                     Observation.uptake_stddev_mol_kg.label("uptake_stddev"),
+                    Observation.gas_mole_fraction,
                 )
-                .where(Observation.component_id.in_(component_ids))
-                .order_by(Observation.component_id, Observation.sequence_index)
+                .where(Observation.isotherm_id.in_({key[0] for key in wanted}))
+                .order_by(
+                    Observation.isotherm_id, Observation.source_row, Observation.id
+                )
             ):
-                grouped.setdefault(int(row.component_id), []).append(
+                key = (int(row.isotherm_id), int(row.adsorbate_id))
+                if key not in wanted:
+                    continue
+                grouped.setdefault(key, []).append(
                     {
                         "observation_id": int(row.observation_id),
                         "pressure": float(row.pressure),
                         "uptake": float(row.uptake),
                         "uptake_stddev": row.uptake_stddev,
+                        "gas_mole_fraction": row.gas_mole_fraction,
                     }
                 )
         return grouped
 
     # -------------------------------------------------------------------------
-    def distribution_values(self, filters: dict[str, Any], variable: str) -> list[float]:
+    def distribution_values(
+        self, filters: dict[str, Any], variable: str
+    ) -> list[float]:
         """Raw values of one variable over the matching isotherms."""
         matching = select(self._matching_isotherms(filters).subquery().c.id)
         if variable == "temperature_k":
-            query: Select[Any] = select(Isotherm.temperature_k).where(Isotherm.id.in_(matching))
+            query: Select[Any] = select(Isotherm.temperature_k).where(
+                Isotherm.id.in_(matching)
+            )
         elif variable == "points_per_isotherm":
             query = (
                 select(func.count(Observation.id))
@@ -320,9 +363,9 @@ class AnalyticsRepository:
             )
             query = select(column).where(Observation.isotherm_id.in_(matching))
             if filters.get("adsorbate_ids"):
-                query = query.join(
-                    IsothermComponent, IsothermComponent.id == Observation.component_id
-                ).where(IsothermComponent.adsorbate_id.in_(filters["adsorbate_ids"]))
+                query = query.where(
+                    Observation.adsorbate_id.in_(filters["adsorbate_ids"])
+                )
         with self.database.session_factory() as session:
             return [float(value) for value in session.scalars(query)]
 
@@ -332,8 +375,12 @@ class AnalyticsRepository:
             counts = session.execute(
                 select(
                     select(func.count(Dataset.id)).scalar_subquery().label("datasets"),
-                    select(func.count(Isotherm.id)).scalar_subquery().label("isotherms"),
-                    select(func.count(Observation.id)).scalar_subquery().label("observations"),
+                    select(func.count(Isotherm.id))
+                    .scalar_subquery()
+                    .label("isotherms"),
+                    select(func.count(Observation.id))
+                    .scalar_subquery()
+                    .label("observations"),
                     select(func.count(func.distinct(Isotherm.adsorbent_id)))
                     .scalar_subquery()
                     .label("materials"),
@@ -344,11 +391,11 @@ class AnalyticsRepository:
                     .select_from(
                         select(IsothermComponent.isotherm_id)
                         .group_by(IsothermComponent.isotherm_id)
-                        .having(func.count(IsothermComponent.id) > 1)
+                        .having(func.count(IsothermComponent.adsorbate_id) > 1)
                         .subquery()
                     )
                     .scalar_subquery()
-                    .label("mixture_isotherms"),
+                    .label("multi_species_isotherms"),
                 )
             ).one()
             by_source = dict(
@@ -385,7 +432,9 @@ class AnalyticsRepository:
                 )
             }
             top_materials = session.execute(
-                select(Adsorbent.id, Adsorbent.name, func.count(Isotherm.id).label("count"))
+                select(
+                    Adsorbent.id, Adsorbent.name, func.count(Isotherm.id).label("count")
+                )
                 .join(Isotherm, Isotherm.adsorbent_id == Adsorbent.id)
                 .group_by(Adsorbent.id, Adsorbent.name)
                 .order_by(func.count(Isotherm.id).desc(), Adsorbent.name)
@@ -395,7 +444,9 @@ class AnalyticsRepository:
                 select(
                     Adsorbate.id,
                     Adsorbate.name,
-                    func.count(func.distinct(IsothermComponent.isotherm_id)).label("count"),
+                    func.count(func.distinct(IsothermComponent.isotherm_id)).label(
+                        "count"
+                    ),
                 )
                 .join(IsothermComponent, IsothermComponent.adsorbate_id == Adsorbate.id)
                 .group_by(Adsorbate.id, Adsorbate.name)
@@ -415,9 +466,15 @@ class AnalyticsRepository:
                     "isotherms": int(isotherm_row.isotherms),
                     "temperature_min_k": isotherm_row.temperature_min_k,
                     "temperature_max_k": isotherm_row.temperature_max_k,
-                    "observations": int(observation_row.observations) if observation_row else 0,
-                    "pressure_min": observation_row.pressure_min if observation_row else None,
-                    "pressure_max": observation_row.pressure_max if observation_row else None,
+                    "observations": int(observation_row.observations)
+                    if observation_row
+                    else 0,
+                    "pressure_min": observation_row.pressure_min
+                    if observation_row
+                    else None,
+                    "pressure_max": observation_row.pressure_max
+                    if observation_row
+                    else None,
                     "uptake_min_mol_kg": (
                         observation_row.uptake_min_mol_kg if observation_row else None
                     ),
@@ -428,7 +485,9 @@ class AnalyticsRepository:
             )
         return {
             **{key: int(value or 0) for key, value in counts._asdict().items()},
-            "isotherms_by_source": {str(key): int(value) for key, value in by_source.items()},
+            "isotherms_by_source": {
+                str(key): int(value) for key, value in by_source.items()
+            },
             "pressure_bases": sorted(spans, key=lambda span: span["pressure_basis"]),
             "top_materials": [row._asdict() for row in top_materials],
             "top_adsorbates": [row._asdict() for row in top_adsorbates],

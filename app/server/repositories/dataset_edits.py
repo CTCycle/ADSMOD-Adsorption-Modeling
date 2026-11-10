@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from sqlalchemy import delete, func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from server.repositories.database.manager import DatabaseManager
@@ -32,7 +33,6 @@ from server.repositories.schemas.types import normalize_identity
 
 ###############################################################################
 class DatasetEditRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -73,7 +73,9 @@ class DatasetEditRepository:
                 list(
                     session.scalars(
                         select(Isotherm)
-                        .where(Isotherm.id.in_(touched), Isotherm.dataset_id == dataset_id)
+                        .where(
+                            Isotherm.id.in_(touched), Isotherm.dataset_id == dataset_id
+                        )
                         .options(
                             selectinload(Isotherm.components).selectinload(
                                 IsothermComponent.adsorbate
@@ -97,14 +99,11 @@ class DatasetEditRepository:
                         "temperature_original_unit": isotherm.temperature_original_unit,
                         "temperature_k": isotherm.temperature_k,
                         "pressure_basis": isotherm.pressure_basis,
-                        "duplicate_policy": isotherm.duplicate_policy,
                         "saturation_pressure_pa": isotherm.saturation_pressure_pa,
                         "components": [
                             {
-                                "id": component.id,
                                 "position": component.position,
                                 "adsorbate_id": component.adsorbate_id,
-                                "mole_fraction": component.mole_fraction,
                             }
                             for component in sorted(
                                 isotherm.components, key=lambda item: item.position
@@ -113,11 +112,12 @@ class DatasetEditRepository:
                         "observations": [
                             {
                                 "id": item.id,
-                                "component_id": item.component_id,
-                                "sequence_index": item.sequence_index,
+                                "adsorbate_id": item.adsorbate_id,
                                 "pressure_original": item.pressure_original,
                                 "pressure_original_unit": item.pressure_original_unit,
                                 "pressure_canonical": item.pressure_canonical,
+                                "pressure_canonical_unit": item.pressure_canonical_unit,
+                                "gas_mole_fraction": item.gas_mole_fraction,
                                 "uptake_original": item.uptake_original,
                                 "uptake_original_unit": item.uptake_original_unit,
                                 "uptake_stddev_mol_kg": item.uptake_stddev_mol_kg,
@@ -169,7 +169,7 @@ class DatasetEditRepository:
     def apply(self, dataset_id: int, plan: dict[str, Any]) -> None:
         """Write a validated edit plan atomically; any failure rolls back all rows."""
         experiment_rows: dict[int, dict[str, Any]] = plan["experiments"]
-        component_rows: dict[int, dict[str, Any]] = plan["components"]
+        component_rows: dict[tuple[int, int], int] = plan["components"]
         observation_rows: dict[int, dict[str, Any]] = plan["observations"]
         edited_ids: set[int] = set(plan["edited_experiment_ids"])
         now = utc_now()
@@ -186,20 +186,31 @@ class DatasetEditRepository:
                 )
             )
             if owned != edited_ids:
-                raise LookupError("Edited experiments no longer belong to this dataset.")
+                raise LookupError(
+                    "Edited experiments no longer belong to this dataset."
+                )
             if experiment_rows or edited_ids:
                 session.execute(
                     update(Isotherm),
                     [
-                        {"id": isotherm_id, **experiment_rows.get(isotherm_id, {}),
-                         "edited_at": now}
+                        {
+                            "id": isotherm_id,
+                            **experiment_rows.get(isotherm_id, {}),
+                            "edited_at": now,
+                        }
                         for isotherm_id in sorted(edited_ids)
                     ],
                 )
-            if component_rows:
+            # Measurements follow a species change through the ON UPDATE
+            # CASCADE of their (isotherm_id, adsorbate_id) foreign key.
+            for (isotherm_id, position), adsorbate_id in sorted(component_rows.items()):
                 session.execute(
-                    update(IsothermComponent),
-                    [{"id": key, **values} for key, values in component_rows.items()],
+                    update(IsothermComponent)
+                    .where(
+                        IsothermComponent.isotherm_id == isotherm_id,
+                        IsothermComponent.position == position,
+                    )
+                    .values(adsorbate_id=adsorbate_id)
                 )
             if observation_rows:
                 session.execute(
@@ -207,7 +218,13 @@ class DatasetEditRepository:
                     [{"id": key, **values} for key, values in observation_rows.items()],
                 )
             dataset.updated_at = now
-            session.flush()
+            try:
+                session.flush()
+            except IntegrityError as exc:
+                raise ValueError(
+                    "The edit would give a species two measurements at the same "
+                    "pressure or list a species twice; nothing was saved."
+                ) from exc
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -228,7 +245,9 @@ class DatasetEditRepository:
         if "description" in values:
             dataset.description = values["description"].strip()
         if "tags" in values:
-            dataset.tags = sorted({tag.strip() for tag in values["tags"] if tag.strip()})
+            dataset.tags = sorted(
+                {tag.strip() for tag in values["tags"] if tag.strip()}
+            )
 
     # -------------------------------------------------------------------------
     def edited_external_keys(self, dataset_id: int) -> set[str]:
@@ -273,7 +292,9 @@ class DatasetEditRepository:
             )
             if isotherm is None:
                 return False
-            session.execute(delete(Observation).where(Observation.isotherm_id == isotherm.id))
+            session.execute(
+                delete(Observation).where(Observation.isotherm_id == isotherm.id)
+            )
             session.execute(
                 delete(IsothermComponent).where(
                     IsothermComponent.isotherm_id == isotherm.id

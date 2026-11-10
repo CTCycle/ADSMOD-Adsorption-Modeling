@@ -30,6 +30,7 @@ ColumnRole = Literal[
     "ignore",
 ]
 
+
 ###############################################################################
 class ImportIssue(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -41,6 +42,7 @@ class ImportIssue(BaseModel):
     source_row: int | None = None
     experiment: str | None = None
     remediation: str | None = None
+
 
 ###############################################################################
 class ColumnDetection(BaseModel):
@@ -55,12 +57,14 @@ class ColumnDetection(BaseModel):
     detected_unit: str | None = None
     array_like: bool = False
 
+
 ###############################################################################
 class WidePair(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pressure_column: str
     uptake_column: str
+
 
 ###############################################################################
 class SpeciesColumn(BaseModel):
@@ -72,6 +76,7 @@ class SpeciesColumn(BaseModel):
     adsorbate: str = Field(min_length=1, max_length=255)
     mole_fraction_column: str | None = None
 
+
 ###############################################################################
 class CustomUnitDefinition(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -79,6 +84,7 @@ class CustomUnitDefinition(BaseModel):
     quantity: UnitQuantity
     symbol: str = Field(min_length=1, max_length=64)
     factor_to_canonical: float | None = Field(default=None, gt=0, allow_inf_nan=False)
+
 
 ###############################################################################
 class ImportMapping(BaseModel):
@@ -135,9 +141,13 @@ class ImportMapping(BaseModel):
     # -------------------------------------------------------------------------
     def _validate_species_columns(self) -> None:
         if len(self.species_columns) < 2:
-            raise ValueError("Wide species columns require at least two uptake columns.")
+            raise ValueError(
+                "Wide species columns require at least two uptake columns."
+            )
         if self.wide_pairs:
-            raise ValueError("Species columns cannot be combined with wide pressure pairs.")
+            raise ValueError(
+                "Species columns cannot be combined with wide pressure pairs."
+            )
         clashing = {"uptake", "adsorbate"} & (
             set(self.column_roles.values()) | set(self.constants)
         )
@@ -150,6 +160,7 @@ class ImportMapping(BaseModel):
         species = [item.adsorbate.strip().casefold() for item in self.species_columns]
         if len(set(columns)) != len(columns) or len(set(species)) != len(species):
             raise ValueError("Species columns must use distinct columns and species.")
+
 
 ###############################################################################
 class ImportPreviewResponse(BaseModel):
@@ -168,6 +179,7 @@ class ImportPreviewResponse(BaseModel):
     issues: list[ImportIssue] = Field(default_factory=list)
     guidance: list[str] = Field(default_factory=list)
 
+
 ###############################################################################
 class NormalizedObservationPreview(BaseModel):
     adsorbate: str
@@ -180,6 +192,7 @@ class NormalizedObservationPreview(BaseModel):
     uptake_original_unit: str
     uptake_mol_kg: float
     gas_mole_fraction: float | None = None
+
 
 ###############################################################################
 class NormalizedExperimentPreview(BaseModel):
@@ -194,6 +207,7 @@ class NormalizedExperimentPreview(BaseModel):
     observation_count: int
     observations: list[NormalizedObservationPreview]
 
+
 ###############################################################################
 class ImportIdentityPreview(BaseModel):
     kind: Literal["adsorbate", "adsorbent"]
@@ -202,6 +216,7 @@ class ImportIdentityPreview(BaseModel):
     method: str
     identity_status: str
     needs_review: bool = False
+
 
 ###############################################################################
 class ImportValidationResponse(BaseModel):
@@ -213,6 +228,7 @@ class ImportValidationResponse(BaseModel):
     experiments: list[NormalizedExperimentPreview]
     issues: list[ImportIssue]
     identities: list[ImportIdentityPreview] = Field(default_factory=list)
+
 
 ###############################################################################
 class DatasetSummary(BaseModel):
@@ -231,10 +247,12 @@ class DatasetSummary(BaseModel):
     tags: list[str] = Field(default_factory=list)
     description: str = ""
 
+
 ###############################################################################
 class DatasetListResponse(BaseModel):
     status: Literal["success"] = "success"
     datasets: list[DatasetSummary] = Field(default_factory=list)
+
 
 ###############################################################################
 class UnitOption(BaseModel):
@@ -250,6 +268,7 @@ class UnitOption(BaseModel):
     factor_to_canonical: float | None = None
     id: int | None = None
 
+
 ###############################################################################
 class SupportedUnitsResponse(BaseModel):
     pressure: list[UnitOption]
@@ -257,20 +276,24 @@ class SupportedUnitsResponse(BaseModel):
     temperature: list[UnitOption]
     allowed_extensions: list[str]
 
+
 ###############################################################################
 class CustomUnitRequest(CustomUnitDefinition):
     pass
+
 
 ###############################################################################
 class CustomUnitResponse(BaseModel):
     status: Literal["success"] = "success"
     unit: UnitOption
 
+
 ###############################################################################
 class DatasetImportResponse(BaseModel):
     status: Literal["success"] = "success"
     dataset: DatasetSummary
     validation: ImportValidationResponse
+
 
 ###############################################################################
 class DatasetImportInspectionResponse(BaseModel):
@@ -284,13 +307,12 @@ class DatasetImportInspectionResponse(BaseModel):
     validation: ImportValidationResponse
     warnings: list[ImportIssue] = Field(default_factory=list)
 
+
 ###############################################################################
 class ExperimentComponent(BaseModel):
-    id: int
     position: int
     adsorbate_id: int
     name: str
-    mole_fraction: float | None = None
 
 
 ###############################################################################
@@ -308,7 +330,6 @@ class ExperimentSummary(BaseModel):
     temperature_original_unit: str | None = None
     pressure_basis: PressureBasis
     saturation_pressure_pa: float | None = None
-    duplicate_policy: Literal["reject", "keep", "average"] = "reject"
     observation_count: int
     pressure_min: float | None = None
     pressure_max: float | None = None
@@ -374,19 +395,20 @@ class DatasetDeleteImpact(BaseModel):
 
 ###############################################################################
 class ComponentUpdate(BaseModel):
+    """Replace the species at one position of an experiment."""
+
     model_config = ConfigDict(extra="forbid")
 
-    id: int = Field(ge=1)
-    adsorbate_id: int | None = Field(default=None, ge=1)
-    mole_fraction: float | None = None
+    position: int = Field(ge=1)
+    adsorbate_id: int = Field(ge=1)
 
 
 ###############################################################################
 class ExperimentUpdate(BaseModel):
     """Experiment-level changes; omitted fields stay unchanged.
 
-    Nullable fields (`saturation_pressure_pa`, component `mole_fraction`) are
-    cleared only when sent explicitly as null.
+    The nullable `saturation_pressure_pa` is cleared only when sent explicitly
+    as null.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -411,6 +433,7 @@ class ObservationUpdate(BaseModel):
     pressure_original: float | None = None
     uptake_original: float | None = None
     uptake_stddev_mol_kg: float | None = None
+    gas_mole_fraction: float | None = None
 
 
 ###############################################################################
@@ -446,11 +469,11 @@ class DatasetMutationResponse(BaseModel):
     status: Literal["success"] = "success"
     dataset: DatasetSummary
 
+
 ###############################################################################
 class ObservationRow(BaseModel):
     id: int
-    component_id: int
-    sequence_index: int
+    adsorbate_id: int
     source_row: int | None = None
     pressure_original: float
     pressure_original_unit: str
@@ -460,6 +483,8 @@ class ObservationRow(BaseModel):
     uptake_original_unit: str
     uptake_mol_kg: float
     uptake_stddev_mol_kg: float | None = None
+    gas_mole_fraction: float | None = None
+
 
 ###############################################################################
 class ObservationPage(BaseModel):

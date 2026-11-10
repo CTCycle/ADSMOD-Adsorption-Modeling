@@ -22,6 +22,7 @@ from server.common.units import (
     UnitCatalog,
     UnitConversionError,
 )
+from server.domain.canonical import FRACTION_TOLERANCE, pressure_key
 from server.domain.datasets import (
     DatasetEditIssue,
     DatasetUpdateRequest,
@@ -30,8 +31,6 @@ from server.domain.datasets import (
 )
 from server.repositories.dataset_edits import DatasetEditRepository
 from server.repositories.units import UnitRepository
-
-MOLE_FRACTION_TOLERANCE = 0.01
 
 
 ###############################################################################
@@ -49,7 +48,8 @@ class DatasetEditValidationError(ValueError):
 class EditPlan:
     dataset: dict[str, Any] = field(default_factory=dict)
     experiments: dict[int, dict[str, Any]] = field(default_factory=dict)
-    components: dict[int, dict[str, Any]] = field(default_factory=dict)
+    # (experiment id, species position) -> new adsorbate id
+    components: dict[tuple[int, int], int] = field(default_factory=dict)
     observations: dict[int, dict[str, Any]] = field(default_factory=dict)
     edited_experiment_ids: set[int] = field(default_factory=set)
     issues: list[DatasetEditIssue] = field(default_factory=list)
@@ -93,7 +93,8 @@ class ExperimentContext:
     pressure_basis: str
     pressure_unit: str | None
     uptake_unit: str | None
-    species_by_component: dict[int, int]
+    # current adsorbate id -> adsorbate id after the edit
+    species_map: dict[int, int]
     recompute_all: bool
 
 
@@ -104,7 +105,6 @@ def is_finite(value: float | None) -> bool:
 
 ###############################################################################
 class DatasetEditService:
-
     # -------------------------------------------------------------------------
     def __init__(self, edits: DatasetEditRepository, units: UnitRepository) -> None:
         self.edits = edits
@@ -130,11 +130,18 @@ class DatasetEditService:
         owners: dict[int, int] = snapshot["observation_owners"]
         for item in request.experiments:
             if item.id not in experiments:
-                plan.issue("experiment", "id", "This experiment is not part of the dataset.", item.id)
+                plan.issue(
+                    "experiment",
+                    "id",
+                    "This experiment is not part of the dataset.",
+                    item.id,
+                )
         for item in request.observations:
             if item.id not in owners:
                 plan.issue(
-                    "observation", "id", "This measurement is not part of the dataset.",
+                    "observation",
+                    "id",
+                    "This measurement is not part of the dataset.",
                     observation_id=item.id,
                 )
         materials, species = self.edits.reference_entities(
@@ -204,7 +211,7 @@ class DatasetEditService:
         experiment_id = int(current["id"])
         issue_count = len(plan.issues)
         row: dict[str, Any] = {}
-        components: dict[int, dict[str, Any]] = {}
+        components: dict[int, int] = {}
         if update is not None:
             row = self._experiment_fields(plan, current, update, materials, catalog)
             components = self._component_changes(plan, current, update, species)
@@ -212,12 +219,17 @@ class DatasetEditService:
         observations = self._observations(
             plan, context, observation_updates, species, catalog
         )
-        self._check_duplicates(plan, context, observations)
+        self._check_measurements(plan, context, observations)
         if len(plan.issues) > issue_count:
             return
         if row or components or observations:
             plan.experiments[experiment_id] = row
-            plan.components.update(components)
+            plan.components.update(
+                {
+                    (experiment_id, position): value
+                    for position, value in components.items()
+                }
+            )
             plan.observations.update(observations)
             plan.edited_experiment_ids.add(experiment_id)
 
@@ -237,7 +249,9 @@ class DatasetEditService:
                 row["name"] = update.name.strip()
             else:
                 plan.issue(
-                    "experiment", "name", "The experiment name cannot be empty.",
+                    "experiment",
+                    "name",
+                    "The experiment name cannot be empty.",
                     experiment_id,
                 )
         if update.adsorbent_id is not None:
@@ -245,19 +259,24 @@ class DatasetEditService:
                 row["adsorbent_id"] = update.adsorbent_id
             else:
                 plan.issue(
-                    "experiment", "adsorbent_id", "Select an existing material.",
+                    "experiment",
+                    "adsorbent_id",
+                    "Select an existing material.",
                     experiment_id,
                 )
         if update.pressure_basis is not None:
             row["pressure_basis"] = update.pressure_basis
-        row.update(DatasetEditService._temperature_fields(plan, current, update, catalog))
+        row.update(
+            DatasetEditService._temperature_fields(plan, current, update, catalog)
+        )
         if "saturation_pressure_pa" in update.model_fields_set:
             value = update.saturation_pressure_pa
             if value is None or (is_finite(value) and value > 0):
                 row["saturation_pressure_pa"] = value
             else:
                 plan.issue(
-                    "experiment", "saturation_pressure_pa",
+                    "experiment",
+                    "saturation_pressure_pa",
                     "Saturation pressure must be a positive number or empty.",
                     experiment_id,
                 )
@@ -287,7 +306,9 @@ class DatasetEditService:
             if temperature.canonical_value <= 0:
                 raise UnitConversionError("Temperature must be above absolute zero.")
         except UnitConversionError as exc:
-            plan.issue("experiment", "temperature_original", str(exc), int(current["id"]))
+            plan.issue(
+                "experiment", "temperature_original", str(exc), int(current["id"])
+            )
             return {}
         return {
             "temperature_original": temperature.original_value,
@@ -321,53 +342,37 @@ class DatasetEditService:
         current: dict[str, Any],
         update: ExperimentUpdate,
         species: dict[int, tuple[str, float | None]],
-    ) -> dict[int, dict[str, Any]]:
+    ) -> dict[int, int]:
+        """Return position -> new adsorbate id for each requested species change."""
         experiment_id = int(current["id"])
-        existing = {item["id"]: item for item in current["components"]}
-        changes: dict[int, dict[str, Any]] = {}
+        existing = {
+            item["position"]: item["adsorbate_id"] for item in current["components"]
+        }
+        changes: dict[int, int] = {}
         for component in update.components:
-            if component.id not in existing:
+            if component.position not in existing:
                 plan.issue(
-                    "experiment", "components",
-                    "Species components cannot be added or removed while editing.",
+                    "experiment",
+                    "components",
+                    "Species cannot be added or removed while editing.",
                     experiment_id,
                 )
-                continue
-            values: dict[str, Any] = {}
-            if component.adsorbate_id is not None:
-                if component.adsorbate_id in species:
-                    values["adsorbate_id"] = component.adsorbate_id
-                else:
-                    plan.issue("experiment", "components", "Select an existing species.", experiment_id)
-            if "mole_fraction" in component.model_fields_set:
-                fraction = component.mole_fraction
-                if fraction is None or (is_finite(fraction) and 0 <= fraction <= 1):
-                    values["mole_fraction"] = fraction
-                else:
-                    plan.issue(
-                        "experiment", "components",
-                        "Mole fractions must be between 0 and 1.", experiment_id,
-                    )
-            if values:
-                changes[component.id] = values
-        merged = [
-            {**item, **changes.get(item["id"], {})} for item in current["components"]
-        ]
-        if len({item["adsorbate_id"] for item in merged}) != len(merged):
+            elif component.adsorbate_id not in species:
+                plan.issue(
+                    "experiment",
+                    "components",
+                    "Select an existing species.",
+                    experiment_id,
+                )
+            elif component.adsorbate_id != existing[component.position]:
+                changes[component.position] = component.adsorbate_id
+        merged = [changes.get(position, value) for position, value in existing.items()]
+        if len(set(merged)) != len(merged):
             plan.issue(
-                "experiment", "components",
-                "Each species can appear only once in an experiment.", experiment_id,
-            )
-        fractions = [item["mole_fraction"] for item in merged]
-        if (
-            changes
-            and len(merged) > 1
-            and all(value is not None for value in fractions)
-            and abs(sum(fractions) - 1.0) > MOLE_FRACTION_TOLERANCE
-        ):
-            plan.issue(
-                "experiment", "components",
-                "Mixture mole fractions must add up to 1.", experiment_id,
+                "experiment",
+                "components",
+                "Each species can appear only once in an experiment.",
+                experiment_id,
             )
         return changes
 
@@ -377,15 +382,13 @@ class DatasetEditService:
         current: dict[str, Any],
         update: ExperimentUpdate | None,
         row: dict[str, Any],
-        components: dict[int, dict[str, Any]],
+        components: dict[int, int],
     ) -> ExperimentContext:
-        species_by_component = {
-            item["id"]: components.get(item["id"], {}).get(
-                "adsorbate_id", item["adsorbate_id"]
-            )
+        species_map = {
+            item["adsorbate_id"]: components.get(item["position"], item["adsorbate_id"])
             for item in current["components"]
         }
-        species_changed = any("adsorbate_id" in values for values in components.values())
+        species_changed = bool(components)
         pressure_unit = update.pressure_unit if update else None
         uptake_unit = update.uptake_unit if update else None
         return ExperimentContext(
@@ -393,9 +396,12 @@ class DatasetEditService:
             pressure_basis=row.get("pressure_basis", current["pressure_basis"]),
             pressure_unit=pressure_unit,
             uptake_unit=uptake_unit,
-            species_by_component=species_by_component,
+            species_map=species_map,
             recompute_all=bool(
-                pressure_unit or uptake_unit or species_changed or "pressure_basis" in row
+                pressure_unit
+                or uptake_unit
+                or species_changed
+                or "pressure_basis" in row
             ),
         )
 
@@ -436,8 +442,11 @@ class DatasetEditService:
             value = getattr(update, name) if name in sent else current[name]
             if not is_finite(value) or value < 0:
                 plan.issue(
-                    "observation", name, "Enter a finite value of zero or more.",
-                    experiment_id, observation_id,
+                    "observation",
+                    name,
+                    "Enter a finite value of zero or more.",
+                    experiment_id,
+                    observation_id,
                 )
             else:
                 values[name] = float(value)
@@ -448,19 +457,36 @@ class DatasetEditService:
                 row["uptake_stddev_mol_kg"] = sigma
             else:
                 plan.issue(
-                    "observation", "uptake_stddev_mol_kg",
+                    "observation",
+                    "uptake_stddev_mol_kg",
                     "Uncertainty must be a positive number or empty.",
-                    experiment_id, observation_id,
+                    experiment_id,
+                    observation_id,
+                )
+        if "gas_mole_fraction" in sent:
+            fraction = update.gas_mole_fraction if update else None
+            if fraction is None or (is_finite(fraction) and 0 <= fraction <= 1):
+                row["gas_mole_fraction"] = fraction
+            else:
+                plan.issue(
+                    "observation",
+                    "gas_mole_fraction",
+                    "Gas mole fraction must be between 0 and 1 or empty.",
+                    experiment_id,
+                    observation_id,
                 )
         if len(values) < 2:
             return None
         name, molar_mass = species.get(
-            context.species_by_component[current["component_id"]], ("", None)
+            context.species_map[current["adsorbate_id"]], ("", None)
         )
         if molar_mass is None:
             molar_mass = KNOWN_MOLAR_MASSES_G_MOL.get(name.casefold())
         pressure = DatasetEditService._convert(
-            plan, "pressure_original", experiment_id, observation_id,
+            plan,
+            "pressure_original",
+            experiment_id,
+            observation_id,
             lambda: catalog.convert_pressure(
                 values["pressure_original"],
                 context.pressure_unit or current["pressure_original_unit"],
@@ -468,7 +494,10 @@ class DatasetEditService:
             ),
         )
         uptake = DatasetEditService._convert(
-            plan, "uptake_original", experiment_id, observation_id,
+            plan,
+            "uptake_original",
+            experiment_id,
+            observation_id,
             lambda: catalog.convert_uptake(
                 values["uptake_original"],
                 context.uptake_unit or current["uptake_original_unit"],
@@ -483,6 +512,9 @@ class DatasetEditService:
             "pressure_original_unit": pressure.original_unit,
             "pressure_canonical": pressure.canonical_value,
             "pressure_canonical_unit": pressure.canonical_unit,
+            "pressure_key": pressure_key(
+                pressure.canonical_value, pressure.canonical_unit
+            ),
             "uptake_original": uptake.original_value,
             "uptake_original_unit": uptake.original_unit,
             "uptake_mol_kg": uptake.canonical_value,
@@ -505,26 +537,65 @@ class DatasetEditService:
         try:
             return conversion()
         except UnitConversionError as exc:
-            plan.issue("observation", field_name, str(exc), experiment_id, observation_id)
+            plan.issue(
+                "observation", field_name, str(exc), experiment_id, observation_id
+            )
             return None
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _check_duplicates(
+    def _check_measurements(
         plan: EditPlan,
         context: ExperimentContext,
         changed: dict[int, dict[str, Any]],
     ) -> None:
-        if not changed or context.current["duplicate_policy"] != "reject":
+        """Apply the canonical identity and composition rules to the edited state."""
+        experiment_id = int(context.current["id"])
+        multi_species = len(context.species_map) > 1
+        if context.pressure_basis == "relative" and multi_species:
+            plan.issue(
+                "experiment",
+                "pressure_basis",
+                "Relative pressure (p/p0) applies to single-species experiments only.",
+                experiment_id,
+            )
+        if not changed:
             return
-        seen: set[tuple[int, float]] = set()
+        seen: set[tuple[int, int]] = set()
+        totals: dict[int, float] = {}
         for current in context.current["observations"]:
-            pressure = changed.get(current["id"], current)["pressure_canonical"]
-            key = (current["component_id"], float(pressure))
-            if key in seen:
+            state = {**current, **changed.get(current["id"], {})}
+            key = pressure_key(
+                state["pressure_canonical"], state["pressure_canonical_unit"]
+            )
+            identity = (context.species_map[current["adsorbate_id"]], key)
+            if identity in seen:
                 plan.issue(
-                    "observation", "pressure_original",
-                    "Another measurement of this experiment already uses this pressure.",
-                    int(context.current["id"]), int(current["id"]),
+                    "observation",
+                    "pressure_original",
+                    "This species already has a measurement at this pressure.",
+                    experiment_id,
+                    int(current["id"]),
                 )
-            seen.add(key)
+            seen.add(identity)
+            fraction = state.get("gas_mole_fraction")
+            if fraction is None:
+                continue
+            if not multi_species and fraction != 1:
+                plan.issue(
+                    "observation",
+                    "gas_mole_fraction",
+                    "A single-species experiment has a gas mole fraction of 1 or none.",
+                    experiment_id,
+                    int(current["id"]),
+                )
+            totals[key] = totals.get(key, 0.0) + fraction
+        if multi_species and any(
+            total > 1 + FRACTION_TOLERANCE for total in totals.values()
+        ):
+            plan.issue(
+                "experiment",
+                "gas_mole_fraction",
+                "Gas mole fractions at one pressure add up to more than 1.",
+                experiment_id,
+            )

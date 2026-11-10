@@ -29,20 +29,24 @@ CONDITION_WARNING = 1e12
 CURVE_POINT_COUNT = 200
 MODEL_VERSION = "2.0"
 
+
 ###############################################################################
 class FittingCancelledError(RuntimeError):
     """Raised when a fitting job receives a cooperative cancellation request."""
+
 
 ###############################################################################
 def raise_if_cancelled(stop_event: Any | None) -> None:
     if stop_event is not None and stop_event.is_set():
         raise FittingCancelledError("Fitting cancelled.")
 
+
 ###############################################################################
 @dataclass
 class MetricResult:
     values: dict[str, float | None]
     warnings: list[str] = field(default_factory=list)
+
 
 ###############################################################################
 @dataclass
@@ -64,9 +68,11 @@ class FitComputation:
     warnings: list[str] = field(default_factory=list)
     rank: int | None = None
 
+
 ###############################################################################
 def finite_or_none(value: float) -> float | None:
     return float(value) if math.isfinite(float(value)) else None
+
 
 ###############################################################################
 def information_criteria(
@@ -86,6 +92,7 @@ def information_criteria(
             "AICc is undefined because the sample size is too small for the likelihood parameter count."
         )
     return aic, aicc, bic
+
 
 ###############################################################################
 def compute_metrics(
@@ -179,6 +186,7 @@ def compute_metrics(
         warnings=warnings,
     )
 
+
 ###############################################################################
 def pressure_factor(unit: str, pressure_basis: str) -> float:
     resolved = UnitRegistry.pressure_unit(unit)
@@ -193,6 +201,7 @@ def pressure_factor(unit: str, pressure_basis: str) -> float:
     if resolved not in UnitRegistry.PRESSURE_TO_PA:
         raise UnitConversionError("A dimensional pressure display unit is required.")
     return UnitRegistry.PRESSURE_TO_PA[resolved]
+
 
 ###############################################################################
 def parameter_unit(
@@ -229,6 +238,7 @@ def parameter_unit(
         )
     return "1"
 
+
 ###############################################################################
 def parameter_to_display(
     parameter: ParameterSpec,
@@ -257,6 +267,7 @@ def parameter_to_display(
         )
     return value
 
+
 ###############################################################################
 def display_parameter_value(
     value: float | None,
@@ -275,6 +286,7 @@ def display_parameter_value(
         uptake_factor_value=uptake_factor_value,
         related_value=related_value,
     )
+
 
 ###############################################################################
 def _fit_residual(
@@ -298,6 +310,7 @@ def _fit_residual(
     )
     return _fit_residual_values(uptake, predicted, sigma)
 
+
 ###############################################################################
 def _fit_residual_values(
     uptake: np.ndarray, predicted: np.ndarray, sigma: np.ndarray | None
@@ -305,9 +318,9 @@ def _fit_residual_values(
     values = uptake - predicted
     return values / sigma if sigma is not None else values
 
+
 ###############################################################################
 class ModelSolver:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.models = AdsorptionModels()
@@ -707,9 +720,9 @@ class ModelSolver:
             warnings=[message],
         )
 
+
 ###############################################################################
 class FittingPipeline:
-
     # -------------------------------------------------------------------------
     def __init__(self) -> None:
         self.solver = ModelSolver()
@@ -722,7 +735,7 @@ class FittingPipeline:
             for key in (
                 "dataset_id",
                 "isotherm_id",
-                "component_id",
+                "adsorbate_id",
                 "observation_ids",
                 "pressure",
                 "uptake",
@@ -730,7 +743,6 @@ class FittingPipeline:
                 "pressure_basis",
                 "saturation_pressure_pa",
                 "uptake_stddev",
-                "duplicate_policy",
             )
         }
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"))
@@ -870,7 +882,11 @@ def with_bounds(spec: ModelSpec, bounds: dict[str, ParameterBounds]) -> ModelSpe
     return replace(
         spec,
         parameters=tuple(
-            replace(parameter, lower=bounds[parameter.name].lower, upper=bounds[parameter.name].upper)
+            replace(
+                parameter,
+                lower=bounds[parameter.name].lower,
+                upper=bounds[parameter.name].upper,
+            )
             if parameter.name in bounds
             else parameter
             for parameter in spec.parameters

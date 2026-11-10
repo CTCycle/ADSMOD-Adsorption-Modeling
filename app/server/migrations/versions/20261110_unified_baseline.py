@@ -965,6 +965,7 @@ def upgrade() -> None:  # noqa: PLR0915
             ["isotherm_id", "adsorbate_id"],
             ["isotherm_components.isotherm_id", "isotherm_components.adsorbate_id"],
             name="fk_observations_component",
+            onupdate="CASCADE",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(["isotherm_id"], ["isotherms.id"], ondelete="CASCADE"),
