@@ -1,6 +1,6 @@
 # ADSMOD local deployment
 
-Last updated: 2026-11-05
+Last updated: 2026-11-10
 
 The supported deployment is the Windows local web launcher. Use start_on_windows.bat to launch; it invokes setup_and_maintenance.ps1 -Launch through PowerShell 7. Run setup_and_maintenance.ps1 directly for maintenance actions:
 
@@ -13,10 +13,11 @@ synchronizes `app/server` into `app/server/.venv`, builds the Angular client,
 starts one FastAPI backend that also serves the production frontend on the
 backend port, and supervises that process until Ctrl+C.
 
-During installation the user can choose the base backend or include the
-optional machine learning dependency extra. Both profiles run the same backend
-entry point. The ML-enabled profile adds training routes in-process; it does
-not start another server.
+The launcher always installs the core dependencies only. Optional deep learning
+packages (PyTorch, Keras, scikit-learn) are installed, repaired and removed
+from Settings, into the same virtual environment, by a detached installer that
+runs while ADSMOD is closed and then restarts it. Windows x64 and Python 3.14
+only. The same backend entry point runs either way; no second server exists.
 
 The browser uses same-origin `/api/v1` requests. The unified backend exposes
 `/health/live`, `/health/ready`, and `/api/v1/system/capabilities`. The frontend

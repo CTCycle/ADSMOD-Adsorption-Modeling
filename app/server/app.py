@@ -7,9 +7,7 @@ import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from importlib import import_module
-from importlib.util import find_spec
-from typing import Any, get_args
+from typing import get_args
 
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import JSONResponse, Response
@@ -32,7 +30,7 @@ from server.domain.system import SystemStatusResponse
 from server.api.entrypoint import health_router, register_root_routes
 from server.api.frontend import register_frontend_routes
 from server.api.database import create_database_router
-from server.api.routes import register_core_routes
+from server.api.routes import register_core_routes, register_ml_routes
 from server.common.constants import FASTAPI_DESCRIPTION, FASTAPI_TITLE
 from server.common.path import resolve_storage_root
 from server.repositories.database.initializer import prepare_database_for_startup
@@ -40,8 +38,10 @@ from server.services.container import CoreServiceContainer
 from server.services.system_status import SystemStatusSampler
 from server.services.training_data import TrainingDataService
 from server.api.settings import create_settings_router
-
-ML_REQUIREMENTS = ("torch", "keras", "sklearn")
+from server.api.deep_learning import create_deep_learning_router
+from server.services.deep_learning import DeepLearningManager
+from server.services.ml_bootstrap import configure_environment
+from server.services.ml_lazy import LazyMlContainer
 
 
 ###############################################################################
@@ -91,6 +91,7 @@ class DatabaseRequestGate:
 
 DATABASE_INDEPENDENT_PREFIXES = (
     "/api/v1/database",
+    "/api/v1/deep-learning",
     "/api/v1/settings",
     "/api/v1/system",
 )
@@ -104,16 +105,15 @@ class ApplicationRuntime:
     training_data: TrainingDataService
     settings_store: ApplicationSettingsStore
     startup_settings: UserSettings
+    deep_learning: DeepLearningManager
     database_ready: bool = False
-    machine_learning_available: bool = False
-    machine_learning_reason: str | None = None
-    ml_container: Any | None = None
+    ml_container: LazyMlContainer | None = None
 
 
 ###############################################################################
 def capabilities(request: Request) -> CapabilitiesResponse:
     runtime: ApplicationRuntime = request.app.state.runtime
-    available = runtime.machine_learning_available
+    available, _ = runtime.deep_learning.availability()
     return CapabilitiesResponse(
         version=__version__,
         features=FeatureCapabilities(
@@ -195,53 +195,13 @@ def _build_system_router() -> APIRouter:
 
 
 ###############################################################################
-def _register_optional_ml(application: FastAPI, runtime: ApplicationRuntime) -> None:
-    # The ML stack (torch, keras, sklearn) is only located here, never imported:
-    # LazyMlContainer imports it on the first training request.
-    missing = next((name for name in ML_REQUIREMENTS if find_spec(name) is None), None)
-    if missing is not None:
-        runtime.machine_learning_available = False
-        runtime.machine_learning_reason = f"No module named {missing!r}"
-        logger.info(
-            "Optional machine learning support is unavailable because the ML profile is not installed."
-        )
-        return
-    try:
-        bootstrap = import_module("server.services.ml_bootstrap")
-        bootstrap.configure_environment()
-        lazy_module = import_module("server.services.ml_lazy")
-        routes_module = import_module("server.api.routes")
-        ml_container = lazy_module.LazyMlContainer(
-            runtime.config,
-            snapshot_access=runtime.training_data,
-        )
-        routes_module.register_ml_routes(application, ml_container, prefix="/api/v1")
-    except ModuleNotFoundError as exc:
-        runtime.machine_learning_available = False
-        runtime.machine_learning_reason = str(exc)
-        if exc.name in {
-            "server.services.ml_container",
-            "server.models",
-            "torch",
-            "keras",
-            "sklearn",
-        }:
-            logger.info(
-                "Optional machine learning support is unavailable because the ML profile is not installed."
-            )
-        else:
-            logger.exception(
-                "Optional machine learning initialization failed while importing an installed package."
-            )
-        return
-    except Exception as exc:  # noqa: BLE001
-        runtime.machine_learning_available = False
-        runtime.machine_learning_reason = str(exc)
-        logger.exception("Optional machine learning initialization failed: %s", exc)
-        return
+def _register_ml(application: FastAPI, runtime: ApplicationRuntime) -> None:
+    # Routes are always mounted but gated per request on the verified deep
+    # learning installation; the ML packages load on the first training call.
+    configure_environment()
+    ml_container = LazyMlContainer(runtime.config, snapshot_access=runtime.training_data)
+    register_ml_routes(application, ml_container, prefix="/api/v1")
     runtime.ml_container = ml_container
-    runtime.machine_learning_available = True
-    runtime.machine_learning_reason = None
     application.state.ml_container = ml_container
 
 
@@ -278,6 +238,7 @@ async def app_lifespan(application: FastAPI) -> AsyncIterator[None]:
             "Configured database is unavailable during startup (%s); database-dependent services are paused.",
             type(exc).__name__,
         )
+    application.state.deep_learning.start()
     application.state.ready = True
     try:
         yield
@@ -331,12 +292,19 @@ def create_app(
     database_manager = settings_store.database if settings_store is not None else None
     container = CoreServiceContainer(config, database_manager=database_manager)
     store = settings_store or ApplicationSettingsStore(container.database)
+    def is_busy() -> bool:
+        if container.job_manager.is_job_running():
+            return True
+        ml_jobs = runtime.ml_container.job_manager if runtime.ml_container is not None else None
+        return ml_jobs is not None and ml_jobs.is_job_running()
+
     runtime = ApplicationRuntime(
         config=config,
         container=container,
         training_data=TrainingDataService(container),
         settings_store=store,
         startup_settings=config.user_settings(),
+        deep_learning=DeepLearningManager(config, is_busy=is_busy),
     )
     application = FastAPI(
         title=FASTAPI_TITLE,
@@ -348,6 +316,8 @@ def create_app(
     application.state.ready = False
     application.state.core_container = container
     application.state.runtime = runtime
+    application.state.deep_learning = runtime.deep_learning
+    application.state.request_shutdown = None
     application.state.system_sampler = SystemStatusSampler()
     application.state.settings_store = store
     application.state.settings_update_lock = asyncio.Lock()
@@ -368,8 +338,9 @@ def create_app(
     application.include_router(_build_system_router(), prefix="/api/v1")
     application.include_router(create_settings_router(), prefix="/api/v1")
     application.include_router(create_database_router(), prefix="/api/v1")
+    application.include_router(create_deep_learning_router(), prefix="/api/v1")
     register_core_routes(application, container, prefix="/api/v1")
-    _register_optional_ml(application, runtime)
+    _register_ml(application, runtime)
     if not register_frontend_routes(application):
         register_root_routes(application)
     return application

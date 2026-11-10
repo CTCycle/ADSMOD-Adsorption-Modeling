@@ -1,6 +1,6 @@
 # API surface
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
 `/health/live` and `/health/ready`; there are no service-specific health
@@ -62,12 +62,17 @@ The unified backend serves all versioned routes under `/api/v1`:
   fitting sessions by status; species and materials are stored entity rows,
   the same population the Datasets page lists, whereas `/public-data/overview`
   counts provider-backed entities only)
-- `/training/configuration` and the training lifecycle under `/training/*`
-  when the optional machine learning dependencies are installed
+- `/training/configuration` and the training lifecycle under `/training/*`;
+  always mounted, but each request returns 503 unless deep learning is verified
+- `/deep-learning/status`, `/deep-learning/plan`, `/deep-learning/operations`
+  (POST, requires `confirm: true`; closes ADSMOD, runs a detached installer and
+  restarts it) and `/deep-learning/log` for the optional dependency lifecycle
 
 `/system/capabilities` is the authoritative runtime feature-discovery endpoint.
-The frontend uses its `features.machine_learning` value to expose or hide
-machine learning navigation and routes.
+`features.machine_learning` is derived from the verified deep learning status
+(real package metadata plus an import probe, cached by package fingerprint),
+never from persisted state alone. The frontend uses it to expose or hide
+machine learning navigation, routes and the Training settings tab.
 
 Analytics responses are computed per request from canonical observations and
 are never persisted. A response that shares a pressure axis never mixes

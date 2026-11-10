@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 
 from server.services.container import CoreServiceContainer
 from server.api.analytics import create_analytics_router
@@ -44,20 +44,28 @@ def register_ml_routes(
     prefix: str = "/api/v1",
     include_schema: bool = True,
 ) -> None:
-    """Register ML routes only after the optional ML profile is imported."""
+    """Register ML routes; each request is gated on a verified deep learning install.
 
+    The routers only import ML packages lazily, so registering them is safe on
+    the lightweight profile.
+    """
+
+    from server.api.deep_learning import require_deep_learning
     from server.api.training import create_training_router
     from server.api.training_configuration import create_configuration_router
 
+    guard = [Depends(require_deep_learning)]
     app.include_router(
         create_configuration_router(),
         prefix=prefix,
         include_in_schema=include_schema,
+        dependencies=guard,
     )
     app.include_router(
         create_training_router(container),
         prefix=prefix,
         include_in_schema=include_schema,
+        dependencies=guard,
     )
 
 

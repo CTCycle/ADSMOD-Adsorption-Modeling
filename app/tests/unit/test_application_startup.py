@@ -3,7 +3,8 @@
 
 import time
 import server.app as app_module
-from types import SimpleNamespace
+import server.services.deep_learning as deep_learning_module
+from server.services.deep_learning import DeepLearningManager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -32,15 +33,16 @@ def _temporary_config(directory: str):
 
 
 ###############################################################################
-def test_unified_runtime_contracts(tmp_path: Path) -> None:
+def test_unified_runtime_contracts(tmp_path: Path, wait_for_deep_learning) -> None:
     with TemporaryDirectory(dir=tmp_path) as directory:
         with TestClient(create_app(_temporary_config(directory))) as client:
+            wait_for_deep_learning(client)
             assert client.get("/health/live").json()["service"] == "backend"
             assert client.get("/health/ready").json()["state"] == "ready"
             capabilities = client.get("/api/v1/system/capabilities").json()
             assert capabilities["features"]["datasets"] is True
             assert capabilities["features"]["machine_learning"] is True, (
-                client.app.state.runtime.machine_learning_reason
+                client.get("/api/v1/deep-learning/status").json()["reason"]
             )
             assert client.get("/api/v1/system/configuration").status_code == 200
             assert client.get("/api/v1/training/configuration").status_code == 200
@@ -68,51 +70,38 @@ def test_factory_uses_single_backend_port(tmp_path: Path) -> None:
 
 
 ###############################################################################
-def test_optional_ml_missing_package_is_reported_as_unavailable(
-    monkeypatch,
-    caplog,
-    tmp_path: Path,  # type: ignore[no-untyped-def]
-) -> None:
-    def missing_package(name: str):
-        raise ModuleNotFoundError(
-            f"No module named {name!r}", name="server.services.ml_container"
-        )
-
-    monkeypatch.setattr(app_module, "import_module", missing_package)
-    runtime = SimpleNamespace(
-        config=_temporary_config(str(tmp_path)),
-        training_data=None,
-        machine_learning_available=True,
-        machine_learning_reason=None,
-    )
-
-    app_module._register_optional_ml(object(), runtime)
-
-    assert runtime.machine_learning_available is False
-    assert "not installed" in caplog.text
+def test_missing_deep_learning_packages_gate_training_but_keep_core(
+    monkeypatch, tmp_path: Path
+) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(DeepLearningManager, "_read_fingerprint", staticmethod(dict))
+    with TestClient(create_app(_temporary_config(str(tmp_path)))) as client:
+        assert client.get("/api/v1/deep-learning/status").json()["status"] == "not_installed"
+        features = client.get("/api/v1/system/capabilities").json()["features"]
+        assert features["machine_learning"] is False
+        assert features["training"] is False
+        gated = client.get("/api/v1/training/configuration")
+        assert gated.status_code == 503
+        assert "Settings" in gated.json()["detail"]
+        assert client.get("/api/v1/datasets").status_code == 200
 
 
 ###############################################################################
-def test_optional_ml_bootstrap_failure_is_logged_as_initialization_error(
-    monkeypatch,
-    caplog,
-    tmp_path: Path,  # type: ignore[no-untyped-def]
-) -> None:
-    def broken_package(name: str):
-        raise RuntimeError(f"broken optional package at {name}")
-
-    monkeypatch.setattr(app_module, "import_module", broken_package)
-    runtime = SimpleNamespace(
-        config=_temporary_config(str(tmp_path)),
-        training_data=None,
-        machine_learning_available=True,
-        machine_learning_reason=None,
+def test_broken_deep_learning_install_is_reported_as_failed(
+    monkeypatch, tmp_path: Path, wait_for_deep_learning
+) -> None:  # type: ignore[no-untyped-def]
+    installed = {name: ("1.0", 1) for name in deep_learning_module.DEEP_LEARNING_PACKAGES}
+    monkeypatch.setattr(DeepLearningManager, "_read_fingerprint", staticmethod(lambda: installed))
+    monkeypatch.setattr(
+        deep_learning_module.runner,
+        "run_probe",
+        lambda *args, **kwargs: {"ok": False, "error": "ImportError: DLL load failed"},
     )
-
-    app_module._register_optional_ml(object(), runtime)
-
-    assert runtime.machine_learning_available is False
-    assert "initialization failed" in caplog.text
+    with TestClient(create_app(_temporary_config(str(tmp_path)))) as client:
+        status = wait_for_deep_learning(client)
+        assert status["status"] == "failed"
+        assert "DLL load failed" in status["reason"]
+        assert client.get("/api/v1/system/capabilities").json()["features"]["machine_learning"] is False
+        assert client.get("/api/v1/training/status").status_code == 503
 
 
 ###############################################################################

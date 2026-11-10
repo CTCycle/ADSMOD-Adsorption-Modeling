@@ -1,33 +1,35 @@
 # ADSMOD installation profiles
 
-Last updated: 2026-09-30
+Last updated: 2026-11-10
 
 ADSMOD has one runtime architecture and one FastAPI backend process. Optional
-machine learning support is an installation profile, not a separate runtime
-service.
+deep learning support is a dependency set managed from Settings, not a separate
+runtime service.
 
-## Base installation
+## Lightweight (default) installation
 
-The launcher installs the core backend dependencies and Angular client. The
+The launcher installs the core backend dependencies and Angular client only. The
 backend provides health, capabilities, dataset import, public data access,
 fitting, database initialization, and all non-ML application functions.
 `/api/v1/system/capabilities` reports machine learning as unavailable, and the
 frontend does not expose training navigation or routes.
 
-## ML-enabled installation
+## Deep learning installed from Settings
 
-The launcher installs the backend with the `ml` dependency extra. The same
-FastAPI application loads the ML extension in-process and registers training
-configuration, jobs, checkpoints, and related routes. Training data is obtained
+**Settings > Deep learning** installs the `ml` dependency extra into the
+existing virtual environment (see `operations/troubleshooting.md` for states
+and recovery). Training routes are always registered but gated per request on
+the verified status; the ML stack is imported lazily on the first training
+call. Uninstall removes only packages exclusive to the extra, computed from
+`uv.lock`. Training data is obtained
 through the shared in-process contract, while checkpoints and other artifacts
 use the configured storage root.
 
 ## Test execution
 
-Automated validation covers both installation profiles independently. Base
-validation asserts that the ML package is absent and the normal application is
-ready. ML-enabled validation asserts that capability discovery enables machine
-learning and that training endpoints are registered.
+Automated validation covers both states. Gating tests simulate missing and
+broken packages; tests that need the real stack wait for the background
+verification and assume the development environment has it installed.
 
 The bounded live ML lifecycle is validated separately from these deterministic
 automated gates. It does not establish representative-data quality, convergence,

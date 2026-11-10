@@ -1,6 +1,6 @@
 # ADSMOD operational commands
 
-Last updated: 2026-11-05
+Last updated: 2026-11-10
 
 ## Launch and maintenance
 
@@ -71,15 +71,13 @@ empty. Database files stamped with historical revisions are not upgraded; create
 a fresh database and select it through the Database settings page. Startup does
 not remove or recreate existing database files.
 
-The canonical OpenAPI snapshot includes the optional training and checkpoint
-routes, so generate it from the ML-enabled development profile:
+Training and deep-learning management routes are mounted on every profile, so
+the canonical OpenAPI snapshot can be generated from any development
+environment:
 
 ```powershell
-& .\runtimes\uv\uv.exe run --project .\app\server --extra ml --group dev python app\scripts\generate_openapi.py --output app\server\openapi\backend.json
+& .\runtimes\uv\uv.exe run --project .\app\server --group dev python app\scripts\generate_openapi.py --output app\server\openapi\backend.json
 ```
-
-The generator fails closed under the Base profile rather than overwriting the
-canonical snapshot with a reduced contract.
 
 ## Frontend
 

@@ -15,12 +15,21 @@ def main() -> None:
     runtime = load_runtime_configuration()
     application = create_app(runtime.config, settings_store=runtime.settings_store)
     configuration = runtime.config.runtime
-    uvicorn.run(
-        application,
-        host=configuration.host,
-        port=configuration.backend_port,
-        log_config=uvicorn_logging_config(),
+    server = uvicorn.Server(
+        uvicorn.Config(
+            application,
+            host=configuration.host,
+            port=configuration.backend_port,
+            log_config=uvicorn_logging_config(),
+        )
     )
+
+    def request_shutdown() -> None:
+        # Same graceful path as Ctrl+C: the lifespan stops jobs and the database.
+        server.should_exit = True
+
+    application.state.request_shutdown = request_shutdown
+    server.run()
 
 
 if __name__ == "__main__":

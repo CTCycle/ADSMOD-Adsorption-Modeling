@@ -41,6 +41,37 @@ const defaults: UserSettings = {
 };
 
 const fetchMock = vi.fn<typeof fetch>();
+let machineLearning = true;
+
+function json(body: unknown, status = 200): Response {
+    return { ok: status < 400, status, json: async () => body } as Response;
+}
+
+function capabilitiesResponse(): Response {
+    return json({
+        version: '3.0.0',
+        features: { datasets: true, nist: true, fitting: true, machine_learning: machineLearning, training: machineLearning, checkpoints: machineLearning },
+    });
+}
+
+function deepLearningStatusResponse(): Response {
+    return json({
+        status: machineLearning ? 'installed' : 'not_installed',
+        available: machineLearning,
+        reason: null,
+        warnings: [],
+        environment: {
+            python_version: '3.14.7', platform: 'win32/AMD64',
+            torch_version: machineLearning ? '2.10.0+cu130' : null, keras_version: machineLearning ? '3.13.1' : null,
+            scikit_learn_version: machineLearning ? '1.8.0' : null, cuda_runtime: machineLearning ? '13.0' : null,
+            cuda_available: machineLearning ? true : null, devices: [], gpu_names: ['NVIDIA Test GPU'],
+            driver_version: '610.88', driver_cuda_level: '13.2',
+        },
+        operation: null,
+        last_validated_at: null,
+        log_path: 'C:/data/deep_learning/install.log',
+    });
+}
 
 function apiResponse(current: UserSettings = defaults, pendingRestartFields: string[] = []): Response {
     const body: SettingsResponse = {
@@ -78,8 +109,21 @@ describe('SettingsPageComponent automatic persistence', () => {
 
     beforeEach(async () => {
         persistedSettings = structuredClone(defaults);
+        machineLearning = true;
         fetchMock.mockReset().mockImplementation(async (input, init) => {
             const url = String(input);
+            if (url.endsWith('/system/capabilities')) return capabilitiesResponse();
+            // The restart poll waits forever, like a backend that is shutting down.
+            if (url.endsWith('/health/live')) return new Promise<Response>(() => undefined);
+            if (url.includes('/deep-learning/status')) return deepLearningStatusResponse();
+            if (url.includes('/deep-learning/plan')) {
+                return json({
+                    action: 'install', allowed: true, requires_restart: true,
+                    checks: [{ name: 'Disk space', status: 'ok', detail: '400.0 GB free' }],
+                    packages: ['torch', 'keras'], download_bytes: 3_000_000_000, download_estimated: true,
+                });
+            }
+            if (url.includes('/deep-learning/operations')) return json({ operation_id: 'abc', action: 'install' }, 202);
             if (url.endsWith('/database/switch')) {
                 return { ok: false, status: 503, json: async () => ({ detail: 'Database switch failed.' }) } as Response;
             }
@@ -166,6 +210,10 @@ describe('SettingsPageComponent automatic persistence', () => {
 
     it('autosaves controls across all four application-settings tabs', async () => {
         const fixture = await createPage();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(fixture.nativeElement.querySelector('#settings-tab-training')).not.toBeNull();
+        });
         vi.useFakeTimers();
 
         const edits: Array<{
@@ -384,6 +432,42 @@ describe('SettingsPageComponent automatic persistence', () => {
         expect(fixture.nativeElement.textContent).toContain('Database');
         expect(fixture.nativeElement.querySelector('#database-backend')).not.toBeNull();
         expect(fixture.nativeElement.textContent).toContain('SQLite');
+    });
+
+    it('hides the Training tab until deep learning is verified', async () => {
+        machineLearning = false;
+        const fixture = await createPage();
+        await vi.waitFor(() => fixture.detectChanges());
+        expect(fixture.nativeElement.querySelector('#settings-tab-training')).toBeNull();
+        expect(fixture.nativeElement.querySelector('#settings-tab-deep-learning')).not.toBeNull();
+    });
+
+    it('requires an explicit confirmation before closing ADSMOD to install deep learning', async () => {
+        machineLearning = false;
+        const fixture = await createPage();
+        (fixture.nativeElement.querySelector('#settings-tab-deep-learning') as HTMLButtonElement).click();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(fixture.nativeElement.textContent).toContain('Not installed');
+        });
+        const button = (label: string) =>
+            Array.from((fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button')).find((item) => item.textContent?.trim().startsWith(label));
+        button('Install')?.click();
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(button('Close ADSMOD and install')).toBeDefined();
+        });
+        const operationCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).includes('/deep-learning/operations'));
+        expect(operationCalls()).toHaveLength(0);
+        expect(fixture.nativeElement.textContent).toContain('restart automatically');
+
+        button('Close ADSMOD and install')?.click();
+        await vi.waitFor(() => expect(operationCalls()).toHaveLength(1));
+        expect(JSON.parse(String(operationCalls()[0][1]?.body))).toEqual({ action: 'install', confirm: true });
+        await vi.waitFor(() => {
+            fixture.detectChanges();
+            expect(fixture.nativeElement.textContent).toContain('ADSMOD is closing');
+        });
     });
 
     it('shows the restart marker only when the active database has pending startup settings', async () => {

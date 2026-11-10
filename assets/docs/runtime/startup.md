@@ -1,6 +1,6 @@
 # ADSMOD startup procedures
 
-Last updated: 2026-11-05
+Last updated: 2026-11-10
 
 ## Recommended startup
 
@@ -24,7 +24,8 @@ no longer matches the preflight identity.
 The backend and frontend installations carry generated dependency-state
 manifests inside `.venv` and `node_modules`. They fingerprint the locked
 dependency inputs and pinned Python/Node runtimes, and record the selected
-Standard/Development and Base/ML profiles. A matching manifest skips
+Standard/Development profile and whether the optional deep learning packages
+were installed (`featureSet`, written by Settings, never chosen in the launcher). A matching manifest skips
 installation; a stale manifest repairs only that environment while preserving
 the previously recorded profile. The frontend build carries
 `dist/.adsmod-build-state.json`, whose SHA-256 fingerprint covers the exact

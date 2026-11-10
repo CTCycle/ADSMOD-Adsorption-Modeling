@@ -295,6 +295,182 @@
         }
       }
     },
+    "/api/v1/deep-learning/status": {
+      "get": {
+        "tags": [
+          "deep-learning"
+        ],
+        "summary": "Get Status",
+        "operationId": "get_status_api_v1_deep_learning_status_get",
+        "parameters": [
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeepLearningStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deep-learning/plan": {
+      "get": {
+        "tags": [
+          "deep-learning"
+        ],
+        "summary": "Get Plan",
+        "operationId": "get_plan_api_v1_deep_learning_plan_get",
+        "parameters": [
+          {
+            "name": "action",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "install",
+                "uninstall",
+                "repair"
+              ],
+              "type": "string",
+              "title": "Action"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeepLearningPlanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deep-learning/operations": {
+      "post": {
+        "tags": [
+          "deep-learning"
+        ],
+        "summary": "Start Operation",
+        "operationId": "start_operation_api_v1_deep_learning_operations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeepLearningOperationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeepLearningOperationAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deep-learning/log": {
+      "get": {
+        "tags": [
+          "deep-learning"
+        ],
+        "summary": "Get Log",
+        "operationId": "get_log_api_v1_deep_learning_log_get",
+        "parameters": [
+          {
+            "name": "lines",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 80,
+              "title": "Lines"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeepLearningLogResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/datasets/supported-units": {
       "get": {
         "tags": [
@@ -6137,6 +6313,450 @@
           "experiment_count"
         ],
         "title": "DatasetUsage"
+      },
+      "DeepLearningCheck": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "warning",
+              "blocked"
+            ],
+            "title": "Status"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "detail"
+        ],
+        "title": "DeepLearningCheck"
+      },
+      "DeepLearningEnvironment": {
+        "properties": {
+          "python_version": {
+            "type": "string",
+            "title": "Python Version"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "torch_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Torch Version"
+          },
+          "keras_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keras Version"
+          },
+          "scikit_learn_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scikit Learn Version"
+          },
+          "cuda_runtime": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuda Runtime"
+          },
+          "cuda_available": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cuda Available"
+          },
+          "devices": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Devices"
+          },
+          "gpu_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Gpu Names"
+          },
+          "driver_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Version"
+          },
+          "driver_cuda_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Driver Cuda Level"
+          }
+        },
+        "type": "object",
+        "required": [
+          "python_version",
+          "platform"
+        ],
+        "title": "DeepLearningEnvironment"
+      },
+      "DeepLearningError": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "summary",
+          "hint"
+        ],
+        "title": "DeepLearningError"
+      },
+      "DeepLearningLogResponse": {
+        "properties": {
+          "lines": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lines"
+        ],
+        "title": "DeepLearningLogResponse"
+      },
+      "DeepLearningOperation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "install",
+              "uninstall",
+              "repair"
+            ],
+            "title": "Kind"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "started_at": {
+            "type": "string",
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeepLearningError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "restart_healthy": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restart Healthy"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "started_at"
+        ],
+        "title": "DeepLearningOperation"
+      },
+      "DeepLearningOperationAccepted": {
+        "properties": {
+          "operation_id": {
+            "type": "string",
+            "title": "Operation Id"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "install",
+              "uninstall",
+              "repair"
+            ],
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operation_id",
+          "action"
+        ],
+        "title": "DeepLearningOperationAccepted"
+      },
+      "DeepLearningOperationRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "install",
+              "uninstall",
+              "repair"
+            ],
+            "title": "Action"
+          },
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "DeepLearningOperationRequest"
+      },
+      "DeepLearningPlanResponse": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "install",
+              "uninstall",
+              "repair"
+            ],
+            "title": "Action"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/DeepLearningCheck"
+            },
+            "type": "array",
+            "title": "Checks"
+          },
+          "packages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Packages"
+          },
+          "download_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Download Bytes"
+          },
+          "download_estimated": {
+            "type": "boolean",
+            "title": "Download Estimated",
+            "default": false
+          },
+          "requires_restart": {
+            "type": "boolean",
+            "title": "Requires Restart",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "allowed",
+          "checks",
+          "packages"
+        ],
+        "title": "DeepLearningPlanResponse"
+      },
+      "DeepLearningStatusResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "not_installed",
+              "installing",
+              "verifying",
+              "installed",
+              "failed",
+              "incompatible"
+            ],
+            "title": "Status"
+          },
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          },
+          "environment": {
+            "$ref": "#/components/schemas/DeepLearningEnvironment"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeepLearningOperation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_validated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Validated At"
+          },
+          "log_path": {
+            "type": "string",
+            "title": "Log Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "available",
+          "environment",
+          "log_path"
+        ],
+        "title": "DeepLearningStatusResponse"
       },
       "DisplayUnitCapabilities": {
         "properties": {

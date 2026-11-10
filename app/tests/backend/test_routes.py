@@ -22,15 +22,16 @@ def _config(tmp_path: Path):  # type: ignore[no-untyped-def]
 
 ###############################################################################
 def test_unified_routes_expose_core_optional_ml_and_public_data_surface(
-    tmp_path: Path,
+    tmp_path: Path, wait_for_deep_learning
 ) -> None:
     with TestClient(create_app(_config(tmp_path))) as client:
+        wait_for_deep_learning(client)
         assert client.get("/health/live").json()["service"] == "backend"
         assert client.get("/health/ready").json()["state"] == "ready"
         capabilities = client.get("/api/v1/system/capabilities").json()
         assert capabilities["features"]["datasets"] is True
         assert capabilities["features"]["machine_learning"] is True, (
-            client.app.state.runtime.machine_learning_reason
+            client.get("/api/v1/deep-learning/status").json()["reason"]
         )
         assert client.get("/api/v1/datasets").status_code == 200
         dataset_configuration = client.get("/api/v1/datasets/supported-units")

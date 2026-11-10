@@ -40,7 +40,7 @@ ADSMOD is a local web application for organizing adsorption measurements, fittin
 | **Public data** | Work with NIST, PubChem, and COD records. |
 | **Fitting** | Select from nine built-in isotherm models. |
 | **Dashboards** | Filter and visualize stored measurements. |
-| **Training** *(optional ML profile)* | Prepare data and manage training runs and checkpoints. |
+| **Training** *(optional deep learning install)* | Prepare data and manage training runs and checkpoints. |
 
 ## Start ADSMOD
 
@@ -54,7 +54,7 @@ Set-Location ADSMOD-Adsorption-Modeling
 
 The batch launcher invokes PowerShell 7 in -Launch mode. On first use, it downloads the pinned Python, uv, and Node.js runtimes, installs the selected dependency profile, and builds the web client. This setup can take several minutes. Keep the console open while using ADSMOD; press Ctrl+C there to stop it.
 
-The base profile includes the dataset, public data, fitting, and dashboard workspaces. Choose the optional ML profile during setup to enable training and checkpoint workflows. Initial setup and public-provider requests require network access.
+The default lightweight install includes the dataset, public data, fitting, and dashboard workspaces. To enable training and checkpoint workflows, install the optional deep learning packages from Settings > Deep learning; ADSMOD closes, installs them (a download of about 2 GB, with a CUDA-enabled PyTorch build) and restarts automatically. Initial setup and public-provider requests require network access.
 
 ## Workflows
 
@@ -84,7 +84,7 @@ The Public Data workspace can acquire adsorption records from NIST, resolve chem
 
 ### Train models (optional)
 
-The ML profile adds data processing, training datasets, training jobs, checkpoints, and a training dashboard. Training is not required for dataset import, fitting, or dashboards.
+Installing deep learning adds data processing, training datasets, training jobs, checkpoints, and a training dashboard. Training is not required for dataset import, fitting, or dashboards.
 
 ## Configuration
 

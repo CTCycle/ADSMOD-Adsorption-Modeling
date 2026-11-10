@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 [CmdletBinding()]
-param([switch]$DryRun, [switch]$Launch)
+param([switch]$DryRun, [switch]$Launch, [switch]$NoBrowser)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -386,6 +386,8 @@ function Set-RuntimeEnvironment {
     $env:npm_config_cache = $NpmCacheDir
     $env:XDG_CACHE_HOME = $RuntimeCacheDir
     $env:UV_PROJECT_ENVIRONMENT = $VenvDir
+    # Lets the backend restart ADSMOD after Settings changes optional dependencies.
+    $env:ADSMOD_LAUNCHER = $PSCommandPath
     $env:PYTHONPYCACHEPREFIX = $PythonCacheDir
     $env:PYTEST_CACHE_DIR = $PytestCacheDir
     $env:PYTEST_ADDOPTS = "--basetemp=`"$PytestTempDir`""
@@ -731,8 +733,7 @@ function Test-FrontendBuildCurrent {
 function Sync-BackendDependencies {
     param(
         [switch]$RuntimesReady,
-        [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard',
-        [ValidateSet('Base', 'ML')][string]$FeatureSet = 'Base'
+        [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard'
     )
     if (-not $RuntimesReady) {
         Initialize-Runtimes
@@ -751,6 +752,10 @@ function Sync-BackendDependencies {
         & $UvExe venv --clear --python $PythonExe $VenvDir
         Assert-LastExitCode "backend virtual-environment recreation"
     }
+    # Deep learning is managed from the application's Settings, never by this
+    # launcher. The profile it recorded is preserved so a sync cannot silently
+    # remove it. Recreating the environment above clears that record.
+    $FeatureSet = (Get-RecordedBackendProfile).FeatureSet
     Write-Step "Syncing Python dependencies ($FeatureSet)"
     Push-Location $BackendDir
     try {
@@ -823,13 +828,12 @@ function Sync-Dependencies {
     param(
         [switch]$BuildFrontend,
         [switch]$RuntimesReady,
-        [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard',
-        [ValidateSet('Base', 'ML')][string]$FeatureSet = 'Base'
+        [ValidateSet('Standard', 'Development')][string]$InstallationType = 'Standard'
     )
     Import-Settings | Out-Null
     if (-not $RuntimesReady) { Initialize-Runtimes }
     Set-RuntimeEnvironment
-    Sync-BackendDependencies -RuntimesReady -InstallationType $InstallationType -FeatureSet $FeatureSet
+    Sync-BackendDependencies -RuntimesReady -InstallationType $InstallationType
     Install-FrontendDependencies
     if ($BuildFrontend) { Build-Frontend }
 }
@@ -1206,8 +1210,8 @@ function Start-Application {
     try {
         if (-not (Test-BackendDependenciesCurrent)) {
             $profile = Get-RecordedBackendProfile
-            Write-Step "Backend dependency state is missing or stale; repairing the recorded $($profile.InstallationType) / $($profile.FeatureSet) profile."
-            Sync-BackendDependencies -RuntimesReady -InstallationType $profile.InstallationType -FeatureSet $profile.FeatureSet
+            Write-Step "Backend dependency state is missing or stale; repairing the recorded $($profile.InstallationType) profile."
+            Sync-BackendDependencies -RuntimesReady -InstallationType $profile.InstallationType
         }
     } finally {
         Write-LaunchTiming -Phase 'Backend dependency check and setup' -ElapsedMilliseconds ($launchStopwatch.ElapsedMilliseconds - $phaseStarted)
@@ -1251,7 +1255,7 @@ function Start-Application {
         }
         $launchStopwatch.Stop()
         Write-LaunchTiming -Phase 'Total time to application readiness' -ElapsedMilliseconds $launchStopwatch.ElapsedMilliseconds
-        Start-Process -FilePath 'explorer.exe' -ArgumentList $settings.BackendUrl
+        if (-not $NoBrowser) { Start-Process -FilePath 'explorer.exe' -ArgumentList $settings.BackendUrl }
         Write-Host ""
         Write-Ok "ADSMOD is running at $($settings.BackendUrl) (backend PID $($script:BackendProcess.Id))."
         Write-Host "Press Ctrl+C in this console to stop ADSMOD." -ForegroundColor Cyan
@@ -1274,8 +1278,7 @@ function Install-UpdateDependencies {
     Initialize-Runtimes
     Write-Ok "Portable runtimes ready."
     $installationType = Read-InstallationType
-    $featureSet = Read-FeatureSet
-    Sync-Dependencies -BuildFrontend -RuntimesReady -InstallationType $installationType -FeatureSet $featureSet
+    Sync-Dependencies -BuildFrontend -RuntimesReady -InstallationType $installationType
     Remove-UvCache
     Write-Ok "Dependencies installed and frontend built successfully."
 }
@@ -1296,13 +1299,6 @@ function Read-InstallationType {
         '2' { return 'Standard' }
         default { throw "Invalid installation profile. Enter 1 for Development or 2 for Standard." }
     }
-}
-
-function Read-FeatureSet {
-    Write-Host "  [1] Base - core ADSMOD functionality only"
-    Write-Host "  [2] ML   - base application plus optional machine learning dependencies"
-    $selection = (Read-Host "  Select feature set [1-2]").Trim()
-    switch ($selection) { '1' { return 'Base' }; '2' { return 'ML' }; default { throw "Invalid feature set. Enter 1 for Base or 2 for ML." } }
 }
 
 function Initialize-Database {

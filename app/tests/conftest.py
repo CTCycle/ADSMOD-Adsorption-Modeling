@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 from playwright.sync_api import APIRequestContext, Page, Playwright
@@ -21,6 +23,22 @@ def resolve_backend_url() -> str:
 
 
 BACKEND_URL = resolve_backend_url()
+
+
+###############################################################################
+@pytest.fixture
+def wait_for_deep_learning():  # type: ignore[no-untyped-def]
+    """Block until the background deep learning verification has settled."""
+
+    def wait(client: Any, timeout: float = 180.0) -> dict[str, Any]:
+        deadline = time.monotonic() + timeout
+        while True:
+            payload = client.get("/api/v1/deep-learning/status").json()
+            if payload["status"] != "verifying" or time.monotonic() > deadline:
+                return payload
+            time.sleep(0.5)
+
+    return wait
 
 
 ###############################################################################

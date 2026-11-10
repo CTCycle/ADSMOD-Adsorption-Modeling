@@ -15,7 +15,7 @@ The application uses one Angular frontend with these primary routes:
 - `dashboards/overview` and `dashboards/explore` for cross-dataset data exploration
 - `modeling/fitting` for fitting sessions, `modeling/fitting/new` for the new-session wizard, and `modeling/fitting/:id` for one session
 - `modeling/models` for the adsorption model catalog and global parameter defaults
-- `modeling/deep-learning/:view` for processing, training datasets, checkpoints, and the dashboard (ML profile only)
+- `modeling/deep-learning/:view` for processing, training datasets, checkpoints, and the dashboard (only when deep learning is installed)
 
 Datasets manages local data (uploaded and acquired); Sources discovers and
 acquires external data. The former `public-data` routes are not supported.
@@ -106,8 +106,9 @@ Scheduled NIST refresh is disabled by default. To enable it, configure `applicat
 2. In `Data Processing`, build processed datasets.
 3. In `Train datasets`, start a new training run.
 4. Use `modeling/deep-learning/dashboard` to monitor progress, metrics, and logs.
-5. Training is available only when the optional ML profile is installed and
-   capability discovery reports it available.
+5. Training is available only when deep learning is installed and verified in
+   **Settings > Deep learning**; otherwise the tab is hidden and the training
+   API returns 503.
 
 ## Resume From A Checkpoint
 

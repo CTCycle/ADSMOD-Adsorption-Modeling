@@ -1,6 +1,6 @@
 # ADSMOD Components And Patterns
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ## Layout Patterns
 
@@ -10,7 +10,7 @@ Last updated: 2026-11-09
 - `public-data/:view` is the single public-data workspace for NIST retrieval, normalized records, PubChem enrichment, and COD structures
 - `dashboards` uses Overview and Explore & compare tabs; Explore pairs a faceted query sidebar with a results table, an ECharts analysis panel, and a fixed inspector drawer that closes on Escape
 - Charts render through the shared `adsmod-chart` ECharts wrapper; filled markers are measurements and hollow markers are calculated values, and every chart offers its data as a table
-- `modeling` uses Curve Fitting, Deep Learning (ML profile only), and Adsorption Models tabs. Curve Fitting lists sessions with search, status/dataset/model/date filters, sorting, and server-side pagination, and starts a four-step wizard (Dataset, Models, Settings, Review); the session view shows status, log, per-experiment results, and the configuration snapshot. Adsorption Models is a catalog of model cards with enable toggles and canonical-unit bound editors. Deep Learning keeps the former Training left toolbar with a right active-workspace panel
+- `modeling` uses Curve Fitting, Deep Learning (only when deep learning is installed), and Adsorption Models tabs. Curve Fitting lists sessions with search, status/dataset/model/date filters, sorting, and server-side pagination, and starts a four-step wizard (Dataset, Models, Settings, Review); the session view shows status, log, per-experiment results, and the configuration snapshot. Adsorption Models is a catalog of model cards with enable toggles and canonical-unit bound editors. Deep Learning keeps the former Training left toolbar with a right active-workspace panel
 - `home` shows the Data, Sources and Modeling summary cards, then a "From source to model" strip linking Acquire, Curate and Model beside an inline SVG schematic (original artwork drawn with theme tokens, so no third-party asset or licence applies)
 - Sources Catalog groups providers into collapsible categories (state persisted in `localStorage` key `adsmod.sources.collapsed`) under a compact summary card; providers show official logos from `public/sources/*.svg`
 

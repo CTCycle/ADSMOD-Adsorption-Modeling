@@ -1,16 +1,27 @@
 import { CommonModule } from '@angular/common';
 import { ChangeDetectorRef, Component, DestroyRef, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import type { DeepLearningAction, DeepLearningPlan, DeepLearningStatus, DeepLearningStatusName } from '../../models/deep-learning.model';
 import type { DatabaseSettings, DatabaseSettingsRequest, SettingsModelMetric, SettingsResponse, UserSettings } from '../../models/settings.model';
 import { fetchDatabaseSettings, fetchSettings, saveSettings, switchDatabase, testDatabaseConnection } from '../../services/settings.service';
+import { fetchDeepLearningLog, fetchDeepLearningPlan, fetchDeepLearningStatus, startDeepLearningOperation, waitForBackendRestart } from '../../services/deep-learning.service';
+import { fetchApplicationCapabilities } from '../../services/system.service';
 import { toErrorMessage } from '../../shared/utils/error-message';
 
-type SettingsTab = 'import' | 'public-data' | 'fitting' | 'training' | 'database';
+type SettingsTab = 'import' | 'public-data' | 'fitting' | 'training' | 'database' | 'deep-learning';
 type SettingExtension = '.csv' | '.xls' | '.xlsx';
 type SyncCategory = 'experiments' | 'guest' | 'host';
 type DatabaseForm = DatabaseSettingsRequest & { password_configured: boolean };
 
-const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', 'training', 'database'];
+const DEEP_LEARNING_LABELS: Record<DeepLearningStatusName, string> = {
+    not_installed: 'Not installed',
+    installing: 'Installing',
+    verifying: 'Verifying',
+    installed: 'Installed',
+    failed: 'Failed',
+    incompatible: 'Incompatible',
+};
+const DEEP_LEARNING_POLL_MS = 3000;
 
 @Component({
     selector: 'adsmod-settings-page',
@@ -18,7 +29,7 @@ const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', '
     imports: [CommonModule, FormsModule],
     template: `
         <section class="settings-page" aria-label="Application settings">
-            @if (activeTab === 'database') {
+            @if (activeTab === 'database' || activeTab === 'deep-learning') {
                 <div class="settings-workspace">
                     <div class="settings-tabs" role="tablist" aria-label="Settings categories" (keydown)="handleTabKeydown($event)">
                         @for (tab of tabs; track tab.id) {
@@ -27,7 +38,69 @@ const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', '
                             </button>
                         }
                     </div>
-                    <div class="settings-panel" role="tabpanel" id="settings-panel" aria-labelledby="settings-tab-database" tabindex="0">
+                    <div class="settings-panel" role="tabpanel" id="settings-panel" [attr.aria-labelledby]="'settings-tab-' + activeTab" tabindex="0">
+                        @if (activeTab === 'deep-learning') {
+                        <div class="settings-section-heading">
+                            <div><h3>Deep learning</h3><p>Optional PyTorch, Keras and scikit-learn packages for neural-network training.</p></div>
+                            @if (deepLearning; as dl) { <span class="restart-tag" [class.connected-tag]="dl.status === 'installed'">{{ deepLearningLabel(dl.status) }}</span> }
+                        </div>
+                        @if (deepLearningError) { <div class="settings-message error" role="alert">{{ deepLearningError }} <button class="button secondary" type="button" (click)="loadDeepLearning(true)">Retry</button></div> }
+                        @if (deepLearning; as dl) {
+                            @if (deepLearningWaiting || dl.status === 'installing') {
+                                <div class="settings-state-card" role="status">
+                                    <span><strong>{{ deepLearningWaiting ? 'ADSMOD is closing while dependencies change.' : 'A deep learning operation is running.' }}</strong>
+                                    This page reloads when ADSMOD is back, usually within a few minutes (a first install downloads about 3 GB). Progress is written to <code>{{ dl.log_path }}</code>.</span>
+                                </div>
+                                @if (deepLearningLog.length) { <pre class="settings-help" aria-label="Installer log">{{ deepLearningLog.join('\\n') }}</pre> }
+                            } @else {
+                                @if (dl.status === 'verifying') { <div class="settings-state-card" role="status">Verifying the installed packages by importing them…</div> }
+                                @if (dl.status === 'failed' || dl.status === 'incompatible') {
+                                    <div class="settings-message error" role="alert">
+                                        <strong>{{ dl.operation?.error?.summary ?? dl.reason }}</strong>
+                                        @if (dl.operation?.error?.hint; as hint) { <span> {{ hint }}</span> }
+                                        <span> Details: <code>{{ dl.log_path }}</code></span>
+                                    </div>
+                                }
+                                @for (warning of dl.warnings; track warning) { <div class="settings-message restart" role="status">{{ warning }}</div> }
+                                @if (dl.status === 'not_installed') { <div class="settings-callout"><strong>Lightweight mode</strong><span>Everything except deep-learning training works without these packages.</span></div> }
+                                <div class="settings-grid">
+                                    <div class="settings-field"><span class="settings-label">Python</span><span class="settings-help">{{ dl.environment.python_version }} · {{ dl.environment.platform }}</span></div>
+                                    <div class="settings-field"><span class="settings-label">PyTorch / Keras / scikit-learn</span><span class="settings-help">{{ dl.environment.torch_version ?? '—' }} / {{ dl.environment.keras_version ?? '—' }} / {{ dl.environment.scikit_learn_version ?? '—' }}</span></div>
+                                    <div class="settings-field"><span class="settings-label">CUDA runtime (PyTorch)</span><span class="settings-help">{{ dl.environment.cuda_runtime ?? '—' }} · {{ dl.environment.cuda_available === null ? 'not verified' : dl.environment.cuda_available ? 'GPU usable' : 'CPU only' }}</span></div>
+                                    <div class="settings-field"><span class="settings-label">GPU / driver</span><span class="settings-help">{{ dl.environment.gpu_names.length ? dl.environment.gpu_names.join(', ') : 'No NVIDIA GPU detected' }}@if (dl.environment.driver_version) { · driver {{ dl.environment.driver_version }} (CUDA {{ dl.environment.driver_cuda_level ?? '?' }}) }</span></div>
+                                </div>
+                                @if (deepLearningMessage) { <div class="settings-message error" role="alert">{{ deepLearningMessage }}</div> }
+                                @if (deepLearningPlan; as plan) {
+                                    <div class="settings-callout" role="group" aria-label="Confirm deep learning operation">
+                                        <strong>{{ deepLearningActionTitle(plan.action) }}</strong>
+                                        <ul>@for (check of plan.checks; track check.name) { <li [class.error]="check.status === 'blocked'"><strong>{{ check.name }}:</strong> {{ check.detail }}</li> }</ul>
+                                        @if (plan.packages.length) { <span>{{ plan.packages.length }} packages: {{ plan.packages.join(', ') }}.</span> }
+                                        @if (plan.download_bytes !== null) { <span>Download: {{ plan.download_estimated ? 'about ' : '' }}{{ formatBytes(plan.download_bytes) }}{{ plan.download_estimated ? ' (estimate)' : '' }}.</span> }
+                                        <span>ADSMOD will close, change its environment in the background and restart automatically. NVIDIA drivers are never modified.</span>
+                                    </div>
+                                }
+                                <div class="database-actions">
+                                    <span class="settings-actions-note">Managed here only; the launcher does not install these packages.</span>
+                                    <div class="settings-action-buttons">
+                                        @if (deepLearningPlan; as plan) {
+                                            <button class="button secondary" type="button" [disabled]="deepLearningBusy" (click)="cancelDeepLearningPlan()">Cancel</button>
+                                            <button class="button primary" type="button" [disabled]="deepLearningBusy || !plan.allowed" (click)="confirmDeepLearning(plan.action)">{{ deepLearningBusy ? 'Starting…' : 'Close ADSMOD and ' + plan.action }}</button>
+                                        } @else {
+                                            <button class="button secondary" type="button" [disabled]="deepLearningBusy" (click)="loadDeepLearning(true)">Re-check</button>
+                                            @if (deepLearningHasPackages(dl)) {
+                                                <button class="button secondary" type="button" [disabled]="deepLearningBusy || dl.status === 'verifying'" (click)="reviewDeepLearning('uninstall')">Uninstall</button>
+                                                <button class="button secondary" type="button" [disabled]="deepLearningBusy || dl.status === 'verifying'" (click)="reviewDeepLearning('repair')">Repair / reinstall</button>
+                                            } @else if (dl.status !== 'incompatible') {
+                                                <button class="button primary" type="button" [disabled]="deepLearningBusy" (click)="reviewDeepLearning('install')">{{ deepLearningBusy ? 'Checking…' : 'Install' }}</button>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        } @else if (!deepLearningError) {
+                            <div class="settings-state-card" role="status">Checking deep learning status…</div>
+                        }
+                        } @else {
                         <div class="settings-section-heading">
                             <div><h3>Database</h3><p>Where ADSMOD stores its data and settings.</p></div>
                             @if (databaseSettings) { <span class="restart-tag" [class.connected-tag]="databaseSettings.connected">{{ databaseSettings.connected ? 'Connected' : 'Unavailable' }}</span> }
@@ -63,6 +136,7 @@ const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', '
                                     <button class="button primary" type="button" [disabled]="databaseTesting || databaseSwitching || databaseValidationErrors.length > 0" (click)="activateDatabase()">{{ databaseSwitching ? 'Switching…' : 'Switch database' }}</button>
                                 </div>
                             </div>
+                        }
                         }
                     </div>
                 </div>
@@ -184,13 +258,28 @@ const TAB_ORDER: readonly SettingsTab[] = ['import', 'public-data', 'fitting', '
 })
 export class SettingsPageComponent {
     private readonly changeDetector = inject(ChangeDetectorRef);
-    protected readonly tabs = [
+    private readonly allTabs = [
         { id: 'import' as const, label: 'Data import', mark: '↥' },
         { id: 'public-data' as const, label: 'Public data', mark: '⇩' },
         { id: 'fitting' as const, label: 'Fitting & jobs', mark: '⌁' },
         { id: 'training' as const, label: 'Training', mark: '✺' },
         { id: 'database' as const, label: 'Database', mark: '▤' },
+        { id: 'deep-learning' as const, label: 'Deep learning', mark: '◈' },
     ];
+    protected deepLearning: DeepLearningStatus | null = null;
+    protected deepLearningPlan: DeepLearningPlan | null = null;
+    protected deepLearningError = '';
+    protected deepLearningMessage = '';
+    protected deepLearningBusy = false;
+    protected deepLearningWaiting = false;
+    protected deepLearningLog: string[] = [];
+    private machineLearningAvailable = false;
+    private deepLearningTimer: ReturnType<typeof setTimeout> | null = null;
+
+    /** Training defaults only exist when deep learning is verified. */
+    protected get tabs(): ReadonlyArray<{ id: SettingsTab; label: string; mark: string }> {
+        return this.allTabs.filter((tab) => tab.id !== 'training' || this.machineLearningAvailable);
+    }
     protected readonly extensions: SettingExtension[] = ['.csv', '.xls', '.xlsx'];
     protected readonly syncCategories: SyncCategory[] = ['experiments', 'guest', 'host'];
     protected readonly categoryLabels: Record<SyncCategory, string> = {
@@ -299,14 +388,104 @@ export class SettingsPageComponent {
     }
 
     constructor() {
-        this.destroyRef.onDestroy(() => this.clearAutosaveTimer());
+        this.destroyRef.onDestroy(() => {
+            this.clearAutosaveTimer();
+            this.clearDeepLearningTimer();
+        });
         void this.load();
         void this.loadDatabase();
+        void this.refreshCapabilities();
     }
 
     protected selectTab(tab: SettingsTab): void {
         this.activeTab = tab;
         if (tab === 'database' && !this.databaseForm && !this.databaseLoading) void this.loadDatabase();
+        if (tab === 'deep-learning') void this.loadDeepLearning(true);
+    }
+
+    private async refreshCapabilities(): Promise<void> {
+        const capabilities = (await fetchApplicationCapabilities(true)).data;
+        this.machineLearningAvailable = capabilities?.features?.machine_learning === true;
+        if (!this.machineLearningAvailable && this.activeTab === 'training') this.activeTab = 'import';
+        this.changeDetector.markForCheck();
+    }
+
+    protected deepLearningLabel(status: DeepLearningStatusName): string {
+        return DEEP_LEARNING_LABELS[status];
+    }
+
+    protected deepLearningActionTitle(action: DeepLearningAction): string {
+        return { install: 'Install deep learning packages', uninstall: 'Uninstall deep learning packages', repair: 'Repair / reinstall deep learning packages' }[action];
+    }
+
+    protected deepLearningHasPackages(status: DeepLearningStatus): boolean {
+        const environment = status.environment;
+        return Boolean(environment.torch_version || environment.keras_version || environment.scikit_learn_version);
+    }
+
+    protected formatBytes(value: number): string {
+        return value >= 1024 ** 3 ? `${(value / 1024 ** 3).toFixed(1)} GB` : `${Math.max(1, Math.round(value / 1024 ** 2))} MB`;
+    }
+
+    private clearDeepLearningTimer(): void {
+        if (this.deepLearningTimer !== null) clearTimeout(this.deepLearningTimer);
+        this.deepLearningTimer = null;
+    }
+
+    protected async loadDeepLearning(refresh = false): Promise<void> {
+        this.clearDeepLearningTimer();
+        this.deepLearningError = '';
+        try {
+            this.deepLearning = await fetchDeepLearningStatus(refresh);
+            if (this.deepLearning.status === 'installing') this.deepLearningLog = await fetchDeepLearningLog().catch(() => []);
+        } catch (error) {
+            this.deepLearningError = toErrorMessage(error, 'Deep learning status could not be loaded.');
+        }
+        const status = this.deepLearning?.status;
+        if (status === 'verifying' || status === 'installing') {
+            this.deepLearningTimer = setTimeout(() => void this.loadDeepLearning(), DEEP_LEARNING_POLL_MS);
+        } else {
+            void this.refreshCapabilities();
+        }
+        this.changeDetector.markForCheck();
+    }
+
+    protected async reviewDeepLearning(action: DeepLearningAction): Promise<void> {
+        this.deepLearningBusy = true;
+        this.deepLearningMessage = '';
+        try {
+            this.deepLearningPlan = await fetchDeepLearningPlan(action);
+        } catch (error) {
+            this.deepLearningMessage = toErrorMessage(error, 'The preflight checks could not be run.');
+        } finally {
+            this.deepLearningBusy = false;
+            this.changeDetector.markForCheck();
+        }
+    }
+
+    protected cancelDeepLearningPlan(): void {
+        this.deepLearningPlan = null;
+        this.deepLearningMessage = '';
+    }
+
+    protected async confirmDeepLearning(action: DeepLearningAction): Promise<void> {
+        this.deepLearningBusy = true;
+        this.deepLearningMessage = '';
+        try {
+            await this.flushPendingChanges();
+            await startDeepLearningOperation(action);
+        } catch (error) {
+            this.deepLearningMessage = toErrorMessage(error, 'The operation could not be started.');
+            this.deepLearningBusy = false;
+            this.changeDetector.markForCheck();
+            return;
+        }
+        this.deepLearningPlan = null;
+        this.deepLearningBusy = false;
+        this.deepLearningWaiting = true;
+        this.changeDetector.markForCheck();
+        await waitForBackendRestart();
+        window.location.reload();
     }
 
     protected async loadDatabase(): Promise<void> {
@@ -446,15 +625,16 @@ export class SettingsPageComponent {
     }
 
     protected handleTabKeydown(event: KeyboardEvent): void {
-        const current = TAB_ORDER.indexOf(this.activeTab);
+        const order = this.tabs.map((tab) => tab.id);
+        const current = order.indexOf(this.activeTab);
         let next = current;
-        if (event.key === 'ArrowRight') next = (current + 1) % TAB_ORDER.length;
-        else if (event.key === 'ArrowLeft') next = (current - 1 + TAB_ORDER.length) % TAB_ORDER.length;
+        if (event.key === 'ArrowRight') next = (current + 1) % order.length;
+        else if (event.key === 'ArrowLeft') next = (current - 1 + order.length) % order.length;
         else if (event.key === 'Home') next = 0;
-        else if (event.key === 'End') next = TAB_ORDER.length - 1;
+        else if (event.key === 'End') next = order.length - 1;
         else return;
         event.preventDefault();
-        this.activeTab = TAB_ORDER[next];
+        this.selectTab(order[next]);
         queueMicrotask(() => document.getElementById(`settings-tab-${this.activeTab}`)?.focus());
     }
 

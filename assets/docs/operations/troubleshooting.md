@@ -1,6 +1,6 @@
 # ADSMOD troubleshooting
 
-Last updated: 2026-11-05
+Last updated: 2026-11-10
 
 ## Backend or UI unreachable
 
@@ -48,8 +48,9 @@ remain untouched.
 Run **Install / update dependencies** in `setup_and_maintenance.ps1`. The installer
 uses the locked backend workspace and `npm ci`, and writes the dependency-state
 manifest only after the installation succeeds. Automatic repair preserves the
-recorded Standard/Development and Base/ML profile; choose the ML-enabled
-install option when training functionality is required. Resolve filesystem or
+recorded Standard/Development profile and keeps any deep learning packages
+that Settings installed. The launcher does not install them; use
+**Settings > Deep learning**. Resolve filesystem or
 network errors and rerun the action rather than reusing a partial environment.
 
 If a state manifest is missing or stale, the first normal launch may perform
@@ -58,16 +59,26 @@ dependency repair; a current dependency/build state skips both operations.
 
 ## Training unavailable
 
-Query `/api/v1/system/capabilities`. If `features.machine_learning` is false,
-the backend is running correctly without the optional ML extension. Re-run the
-installer with machine learning dependencies enabled, then relaunch ADSMOD.
-The frontend intentionally hides or blocks training routes while that
-capability is unavailable.
+Open **Settings > Deep learning** (or query `/api/v1/deep-learning/status`).
+`features.machine_learning` in `/api/v1/system/capabilities` is true only when
+the status is `installed`, meaning the packages exist **and** an import probe
+succeeded. Training endpoints return 503 otherwise and the UI hides training.
 
-If ML dependencies are installed but the capability remains false, inspect the
-backend startup log for the recorded optional-extension load reason and verify
-that the local Python and compute environment can import the installed ML
-stack.
+- `not_installed`: lightweight mode; use **Install**.
+- `failed`: read the recorded error code and hint. Typical causes are `network`
+  (retry), `disk_full` (free about 8 GB), `file_locked` (close programs using
+  the environment), `validation` (import failed; use **Repair / reinstall**),
+  and `interrupted` (the installer was killed; use **Repair / reinstall**).
+  Packages removed or changed outside ADSMOD are detected within about 30 s.
+- `incompatible`: only Windows x64 is supported.
+- A GPU warning means PyTorch cannot use CUDA (the locked build needs a driver
+  supporting CUDA 13). Training still works on the CPU. ADSMOD never changes
+  drivers.
+
+The installer log is `<storage root>\deep_learning\install.log`. If ADSMOD
+does not come back after an operation, start it with `start_on_windows.bat`;
+if the environment is damaged, run **Install / update dependencies** in the
+launcher menu.
 
 ## Database startup failure
 
