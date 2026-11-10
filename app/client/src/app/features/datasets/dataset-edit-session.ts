@@ -15,20 +15,27 @@ import type {
 
 export type DatasetField = 'name' | 'description' | 'tags';
 export type ExperimentField = Exclude<keyof ExperimentUpdate, 'id' | 'components'>;
-export type ComponentField = Exclude<keyof ComponentUpdate, 'id'>;
 export type ObservationField = Exclude<keyof ObservationUpdate, 'id'>;
 
 type Value = string | number | null | string[];
 
+/** Where an edited measurement sits in the worksheet view it was edited in. */
+export interface WorksheetLocation {
+    order: 'source' | 'pressure';
+    adsorbateId: number | null;
+    index: number;
+}
+
 interface ExperimentDraft {
     label: string;
     fields: Partial<Record<ExperimentField, Value>>;
-    components: Map<number, Partial<Record<ComponentField, Value>>>;
+    /** Species position -> replacement adsorbate id. */
+    species: Map<number, ComponentUpdate['adsorbate_id']>;
 }
 
 interface ObservationDraft {
     experimentId: number;
-    sequenceIndex: number;
+    location: WorksheetLocation;
     fields: Partial<Record<ObservationField, number | null>>;
 }
 
@@ -36,6 +43,17 @@ const NONNEGATIVE_FIELDS: readonly ObservationField[] = ['pressure_original', 'u
 
 function sameValue(left: Value | undefined, right: Value | undefined): boolean {
     return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+}
+
+function observationProblem(field: ObservationField, value: number | null): string | null {
+    if (NONNEGATIVE_FIELDS.includes(field)) {
+        return value === null || !Number.isFinite(value) || value < 0 ? 'Enter a finite value of zero or more.' : null;
+    }
+    if (value === null) return null;
+    if (field === 'gas_mole_fraction') {
+        return Number.isFinite(value) && value >= 0 && value <= 1 ? null : 'Gas mole fraction must be between 0 and 1 or empty.';
+    }
+    return Number.isFinite(value) && value > 0 ? null : 'Uncertainty must be a positive number or empty.';
 }
 
 /**
@@ -57,8 +75,7 @@ export class DatasetEditSession {
     readonly changeCount = computed(() => {
         let count = Object.keys(this.dataset()).length;
         for (const draft of this.experiments().values()) {
-            count += Object.keys(draft.fields).length;
-            for (const fields of draft.components.values()) count += Object.keys(fields).length;
+            count += Object.keys(draft.fields).length + draft.species.size;
         }
         for (const draft of this.observations().values()) count += Object.keys(draft.fields).length;
         return count;
@@ -122,18 +139,14 @@ export class DatasetEditSession {
         this.clearIssue('experiment', experiment.id, field);
     }
 
-    componentValue<T extends Value>(experiment: ExperimentSummary, componentId: number, field: ComponentField, stored: Value): T {
-        const pending = this.experiments().get(experiment.id)?.components.get(componentId)?.[field];
-        return (pending !== undefined ? pending : stored) as T;
+    speciesValue(experiment: ExperimentSummary, position: number, stored: number): number {
+        return this.experiments().get(experiment.id)?.species.get(position) ?? stored;
     }
 
-    setComponentValue(experiment: ExperimentSummary, componentId: number, field: ComponentField, value: Value, stored: Value): void {
+    setSpeciesValue(experiment: ExperimentSummary, position: number, adsorbateId: number, stored: number): void {
         this.updateExperiment(experiment, (draft) => {
-            const fields = { ...(draft.components.get(componentId) ?? {}) };
-            if (sameValue(value, stored)) delete fields[field];
-            else fields[field] = value;
-            if (Object.keys(fields).length) draft.components.set(componentId, fields);
-            else draft.components.delete(componentId);
+            if (adsorbateId === stored) draft.species.delete(position);
+            else draft.species.set(position, adsorbateId);
         });
         this.clearIssue('experiment', experiment.id, 'components');
     }
@@ -145,10 +158,10 @@ export class DatasetEditSession {
             const draft: ExperimentDraft = {
                 label: experiment.name,
                 fields: { ...(previous?.fields ?? {}) },
-                components: new Map(previous?.components ?? []),
+                species: new Map(previous?.species ?? []),
             };
             change(draft);
-            if (Object.keys(draft.fields).length || draft.components.size) next.set(experiment.id, draft);
+            if (Object.keys(draft.fields).length || draft.species.size) next.set(experiment.id, draft);
             else next.delete(experiment.id);
             return next;
         });
@@ -164,14 +177,20 @@ export class DatasetEditSession {
         return this.observations().get(rowId)?.fields[field] !== undefined;
     }
 
-    setObservationValue(experimentId: number, row: ObservationRow, field: ObservationField, value: number | null): void {
+    setObservationValue(
+        experimentId: number,
+        row: ObservationRow,
+        field: ObservationField,
+        value: number | null,
+        location: WorksheetLocation,
+    ): void {
         this.observations.update((current) => {
             const next = new Map(current);
             const fields = { ...(next.get(row.id)?.fields ?? {}) };
             if (sameValue(value, row[field])) delete fields[field];
             else fields[field] = value;
             if (Object.keys(fields).length) {
-                next.set(row.id, { experimentId, sequenceIndex: row.sequence_index, fields });
+                next.set(row.id, { experimentId, location, fields });
             } else {
                 next.delete(row.id);
             }
@@ -180,10 +199,10 @@ export class DatasetEditSession {
         this.clearIssue('observation', row.id, field);
     }
 
-    /** Sequence index of an edited measurement, used to locate it in the worksheet. */
-    observationLocation(observationId: number): { experimentId: number; sequenceIndex: number } | null {
+    /** Worksheet position of an edited measurement, used to bring it back into view. */
+    observationLocation(observationId: number): { experimentId: number; location: WorksheetLocation } | null {
         const draft = this.observations().get(observationId);
-        return draft ? { experimentId: draft.experimentId, sequenceIndex: draft.sequenceIndex } : null;
+        return draft ? { experimentId: draft.experimentId, location: draft.location } : null;
     }
 
     experimentLabel(experimentId: number): string | null {
@@ -225,18 +244,9 @@ export class DatasetEditSession {
         }
         for (const [observationId, draft] of this.observations()) {
             for (const [field, value] of Object.entries(draft.fields) as [ObservationField, number | null][]) {
-                const required = NONNEGATIVE_FIELDS.includes(field);
-                const invalid = required
-                    ? value === null || !Number.isFinite(value) || value < 0
-                    : value !== null && (!Number.isFinite(value) || value <= 0);
-                if (invalid) {
-                    issues.push({
-                        scope: 'observation',
-                        field,
-                        message: required ? 'Enter a finite value of zero or more.' : 'Uncertainty must be a positive number or empty.',
-                        experiment_id: draft.experimentId,
-                        observation_id: observationId,
-                    });
+                const message = observationProblem(field, value);
+                if (message) {
+                    issues.push({ scope: 'observation', field, message, experiment_id: draft.experimentId, observation_id: observationId });
                 }
             }
         }
@@ -251,8 +261,8 @@ export class DatasetEditSession {
         if (dataset.tags !== undefined) request.tags = dataset.tags as string[];
         const experiments: ExperimentUpdate[] = [...this.experiments()].map(([id, draft]) => {
             const update = { id, ...draft.fields } as ExperimentUpdate;
-            if (draft.components.size) {
-                update.components = [...draft.components].map(([componentId, fields]) => ({ id: componentId, ...fields }) as ComponentUpdate);
+            if (draft.species.size) {
+                update.components = [...draft.species].map(([position, adsorbate_id]): ComponentUpdate => ({ position, adsorbate_id }));
             }
             return update;
         });

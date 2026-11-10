@@ -161,10 +161,12 @@ export function fetchObservations(
     isothermId: number,
     offset = 0,
     limit = 100,
-    order: 'pressure' | 'sequence' = 'pressure',
+    order: 'pressure' | 'source' = 'pressure',
+    adsorbateId: number | null = null,
 ): Promise<ApiResult<ObservationPage>> {
+    const species = adsorbateId === null ? '' : `&adsorbate_id=${adsorbateId}`;
     return request(
-        `/${datasetId}/experiments/${isothermId}/observations?offset=${offset}&limit=${limit}&order=${order}`,
+        `/${datasetId}/experiments/${isothermId}/observations?offset=${offset}&limit=${limit}&order=${order}${species}`,
         { method: 'GET' },
     );
 }

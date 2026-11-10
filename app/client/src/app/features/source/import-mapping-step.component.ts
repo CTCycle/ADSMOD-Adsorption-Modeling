@@ -34,6 +34,7 @@ const COLUMN_ROLES: readonly { value: ColumnRole; label: string }[] = [
     { value: 'uptake_unit', label: 'Uptake unit' },
     { value: 'temperature_unit', label: 'Temperature unit' },
     { value: 'uptake_stddev', label: 'Uptake uncertainty' },
+    { value: 'gas_mole_fraction', label: 'Gas mole fraction (y)' },
     { value: 'saturation_pressure', label: 'Saturation pressure p₀' },
     { value: 'metadata', label: 'Additional metadata' },
 ];
@@ -55,18 +56,18 @@ const STRUCTURE_HINTS: Record<ImportableStructure, string> = {
 };
 
 const PRESSURE_HINTS: Record<PressureBasis, string> = {
-    absolute: 'Total pressure of the gas phase, converted to Pa.',
+    absolute:
+        'Total pressure of the gas phase in Pa, shared by every species at a point. Map a gas mole fraction to keep partial pressures (y × P).',
     partial:
-        'Partial pressure of the adsorbate in a mixture, converted to Pa.',
+        'Each species’ own partial pressure, converted to Pa. Use only when the file reports partial pressures.',
     relative:
-        'Fraction of the saturation pressure p/p₀ (0 to 1). Requires p/p₀, dimensionless or % units.',
+        'Fraction of the saturation pressure p/p₀ (0 to 1), single-species experiments only. Requires p/p₀, dimensionless or % units.',
 };
 
 const DUPLICATE_HINTS: Record<ImportMapping['duplicate_policy'], string> = {
-    reject: 'Repeated pressures in an experiment must be reviewed before saving.',
+    reject: 'A species may have one uptake per pressure; repeated pressures block the import.',
     average:
-        'All observations are stored; repeated pressures are averaged when fitting.',
-    keep: 'Repeated pressures are kept as replicates and weight the fit.',
+        'Repeated pressures of a species are averaged into one stored measurement; the replicate values are kept in its metadata.',
 };
 
 @Component({
@@ -199,8 +200,8 @@ const DUPLICATE_HINTS: Record<ImportMapping['duplicate_policy'], string> = {
                         [value]="mapping().pressure_basis"
                         (change)="setPressureBasis($event)"
                     >
-                        <option value="absolute">Absolute</option>
-                        <option value="partial">Partial</option>
+                        <option value="absolute">Total pressure</option>
+                        <option value="partial">Partial pressure</option>
                         <option value="relative">Relative p/p₀</option>
                     </select>
                     <small class="hint">{{
@@ -214,11 +215,8 @@ const DUPLICATE_HINTS: Record<ImportMapping['duplicate_policy'], string> = {
                         [value]="mapping().duplicate_policy"
                         (change)="setDuplicatePolicy($event)"
                     >
-                        <option value="reject">Reject until reviewed</option>
-                        <option value="average">
-                            Average within experiment
-                        </option>
-                        <option value="keep">Keep all</option>
+                        <option value="reject">Reject</option>
+                        <option value="average">Average replicates</option>
                     </select>
                     <small class="hint">{{
                         duplicateHints[mapping().duplicate_policy]
@@ -233,10 +231,11 @@ const DUPLICATE_HINTS: Record<ImportMapping['duplicate_policy'], string> = {
             <small class="hint"
                 >Use when each adsorbate has its own uptake column. Each row is
                 converted to one measurement per species within a single
-                experiment.</small
+                experiment; an optional column gives that species' gas mole
+                fraction.</small
             >
             @for (item of mapping().species_columns; track item.uptake_column) {
-                <div class="wide-pair-row">
+                <div class="wide-pair-row species-row">
                     <span>{{ item.uptake_column }}</span>
                     <input
                         class="select-input"
@@ -244,6 +243,17 @@ const DUPLICATE_HINTS: Record<ImportMapping['duplicate_policy'], string> = {
                         [value]="item.adsorbate"
                         (change)="renameSpeciesColumn($index, $event)"
                     />
+                    <select
+                        class="select-input"
+                        [attr.aria-label]="'Gas mole fraction column for ' + item.adsorbate"
+                        [value]="item.mole_fraction_column ?? ''"
+                        (change)="setSpeciesFraction($index, $event)"
+                    >
+                        <option value="">No mole fraction</option>
+                        @for (column of preview().columns; track column.name) {
+                            <option [value]="column.name">{{ column.name }}</option>
+                        }
+                    </select>
                     <button
                         class="button quiet"
                         type="button"
@@ -536,6 +546,9 @@ const DUPLICATE_HINTS: Record<ImportMapping['duplicate_policy'], string> = {
                 grid-template-columns: 1fr 1fr auto;
                 gap: 0.5rem;
                 margin-top: 0.8rem;
+            }
+            .wide-pair-row.species-row {
+                grid-template-columns: 1fr 1fr 1fr auto;
             }
             .pair {
                 margin: 0.4rem 0 0;
@@ -897,6 +910,16 @@ export class ImportMappingStepComponent {
             ...current,
             species_columns: current.species_columns.map((item, itemIndex) =>
                 itemIndex === index ? { ...item, adsorbate } : item,
+            ),
+        }));
+    }
+
+    protected setSpeciesFraction(index: number, event: Event): void {
+        const column = (event.target as HTMLSelectElement).value || null;
+        this.mapping.update((current) => ({
+            ...current,
+            species_columns: current.species_columns.map((item, itemIndex) =>
+                itemIndex === index ? { ...item, mole_fraction_column: column } : item,
             ),
         }));
     }

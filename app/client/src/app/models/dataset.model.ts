@@ -18,6 +18,7 @@ export type ColumnRole =
     | 'uptake_unit'
     | 'temperature_unit'
     | 'uptake_stddev'
+    | 'gas_mole_fraction'
     | 'saturation_pressure'
     | 'metadata'
     | 'ignore';
@@ -135,7 +136,11 @@ export interface WidePair {
 export interface SpeciesColumn {
     uptake_column: string;
     adsorbate: string;
+    mole_fraction_column?: string | null;
 }
+
+/** Repeated (species, pressure) measurements are rejected or averaged into one row. */
+export type DuplicatePolicy = 'reject' | 'average';
 
 export interface ImportMapping {
     dataset_name: string;
@@ -156,14 +161,13 @@ export interface ImportMapping {
     header_row?: number;
     thousands_separator?: string | null;
     encoding?: string;
-    duplicate_policy: 'keep' | 'average' | 'reject';
+    duplicate_policy: DuplicatePolicy;
     confirmed_issue_codes: string[];
 }
 
 export interface NormalizedObservationPreview {
     adsorbate: string;
     source_row: number | null;
-    sequence_index: number;
     pressure_original: number;
     pressure_original_unit: string;
     pressure_canonical: number;
@@ -171,6 +175,7 @@ export interface NormalizedObservationPreview {
     uptake_original: number;
     uptake_original_unit: string;
     uptake_mol_kg: number;
+    gas_mole_fraction: number | null;
 }
 
 export interface NormalizedExperimentPreview {
@@ -224,12 +229,11 @@ export interface DatasetImportInspection {
     warnings: ImportIssue[];
 }
 
+/** One species of an experiment; an experiment has one or more. */
 export interface ExperimentComponent {
-    id: number;
     position: number;
     adsorbate_id: number;
     name: string;
-    mole_fraction: number | null;
 }
 
 export interface ExperimentSummary {
@@ -246,7 +250,6 @@ export interface ExperimentSummary {
     temperature_original_unit: string | null;
     pressure_basis: PressureBasis;
     saturation_pressure_pa: number | null;
-    duplicate_policy: 'reject' | 'keep' | 'average';
     observation_count: number;
     pressure_min: number | null;
     pressure_max: number | null;
@@ -289,10 +292,10 @@ export interface ExperimentDetail {
     provenance: ExperimentProvenance[];
 }
 
+/** Replace the species at one position of an experiment. */
 export interface ComponentUpdate {
-    id: number;
-    adsorbate_id?: number;
-    mole_fraction?: number | null;
+    position: number;
+    adsorbate_id: number;
 }
 
 export interface ExperimentUpdate {
@@ -313,6 +316,7 @@ export interface ObservationUpdate {
     pressure_original?: number | null;
     uptake_original?: number | null;
     uptake_stddev_mol_kg?: number | null;
+    gas_mole_fraction?: number | null;
 }
 
 export interface DatasetUpdateRequest {
@@ -331,10 +335,10 @@ export interface DatasetEditIssue {
     observation_id: number | null;
 }
 
+/** One uptake of one species at one canonical pressure. */
 export interface ObservationRow {
     id: number;
-    component_id: number;
-    sequence_index: number;
+    adsorbate_id: number;
     source_row: number | null;
     pressure_original: number;
     pressure_original_unit: string;
@@ -344,6 +348,7 @@ export interface ObservationRow {
     uptake_original_unit: string;
     uptake_mol_kg: number;
     uptake_stddev_mol_kg: number | null;
+    gas_mole_fraction: number | null;
 }
 
 export interface ObservationPage {

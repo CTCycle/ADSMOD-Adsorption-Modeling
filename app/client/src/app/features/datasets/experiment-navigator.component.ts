@@ -10,9 +10,7 @@ const SEARCH_DELAY_MS = 250;
 
 export function speciesLabel(experiment: ExperimentSummary): string {
     if (experiment.components.length <= 1) return experiment.adsorbates.join(', ') || 'Unknown species';
-    return experiment.components
-        .map((component) => (component.mole_fraction === null ? component.name : `${component.name} (${component.mole_fraction})`))
-        .join(' + ');
+    return experiment.components.map((component) => component.name).join(' + ');
 }
 
 /** Searchable, paginated list of a dataset's experiments. */

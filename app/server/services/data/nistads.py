@@ -125,12 +125,17 @@ class NISTDatasetBuilder:
         ]
         for point_index, point in enumerate(points):
             for position, item in enumerate(species):
+                datum = self._species_entry(
+                    point.get("species_data") or [], item, position
+                )
                 if len(species) == 1:
-                    uptake, fraction = point.get("total_adsorption"), None
-                else:
-                    datum = self._species_entry(
-                        point.get("species_data") or [], item, position
+                    # A pure-gas uptake is the total; the species datum is a fallback.
+                    uptake = point.get("total_adsorption")
+                    uptake, fraction = (
+                        (datum.get("adsorption") if uptake is None else uptake),
+                        None,
                     )
+                else:
                     uptake, fraction = datum.get("adsorption"), datum.get("composition")
                 rows.append(
                     {

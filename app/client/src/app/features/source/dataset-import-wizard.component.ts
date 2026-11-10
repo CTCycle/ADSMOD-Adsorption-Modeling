@@ -803,7 +803,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
         const unit = formatPressureUnit(
             observations[0]?.pressure_canonical_unit ?? '',
         );
-        const rows: ExplorerRow[] = observations.map((item) => {
+        const rows: ExplorerRow[] = observations.map((item, index) => {
             const rowIssues = issues.filter(
                 (issue) =>
                     issue.source_row !== null &&
@@ -814,7 +814,7 @@ export class DatasetImportWizardComponent implements OnInit, AfterViewInit {
             const pressure = `${formatNumber(item.pressure_canonical)} ${unit}`;
             const uptake = `${formatNumber(item.uptake_mol_kg)} mol/kg`;
             return {
-                point: item.sequence_index + 1,
+                point: index + 1,
                 species: experiment.adsorbates.length > 1 ? item.adsorbate : undefined,
                 pressure,
                 pressureSource: pressureSource === pressure ? null : pressureSource,

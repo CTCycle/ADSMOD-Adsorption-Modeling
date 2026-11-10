@@ -232,11 +232,12 @@ class DatasetEndpoint:
         isotherm_id: int = Path(..., ge=1),
         offset: int = Query(0, ge=0),
         limit: int = Query(100, ge=1, le=500),
-        order: Literal["pressure", "sequence"] = "pressure",
+        order: Literal["pressure", "source"] = "pressure",
+        adsorbate_id: int | None = Query(None, ge=1),
     ) -> ObservationPage:
         try:
             return self.service.get_observations(
-                dataset_id, isotherm_id, offset, limit, order
+                dataset_id, isotherm_id, offset, limit, order, adsorbate_id
             )
         except LookupError as exc:
             raise self.not_found(exc) from exc

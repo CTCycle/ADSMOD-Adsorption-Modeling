@@ -282,10 +282,16 @@ class DatasetService:
 
     # -------------------------------------------------------------------------
     def get_observations(
-        self, dataset_id: int, isotherm_id: int, offset: int, limit: int, order: str
+        self,
+        dataset_id: int,
+        isotherm_id: int,
+        offset: int,
+        limit: int,
+        order: str,
+        adsorbate_id: int | None = None,
     ) -> ObservationPage:
         rows, total = self.repository.observations(
-            dataset_id, isotherm_id, offset, limit, order
+            dataset_id, isotherm_id, offset, limit, order, adsorbate_id
         )
         return ObservationPage(
             dataset_id=dataset_id,

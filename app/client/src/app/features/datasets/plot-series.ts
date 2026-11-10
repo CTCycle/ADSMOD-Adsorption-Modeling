@@ -10,14 +10,14 @@ export interface PlotSeries {
 
 /** One series per species so multi-species experiments are not drawn as a single line. */
 export function buildPlotSeries(rows: readonly ObservationRow[], components: readonly ExperimentComponent[]): PlotSeries[] {
-    const byComponent = new Map<number, [number, number][]>();
+    const bySpecies = new Map<number, [number, number][]>();
     for (const row of rows) {
-        const points = byComponent.get(row.component_id) ?? [];
+        const points = bySpecies.get(row.adsorbate_id) ?? [];
         points.push([row.pressure_canonical, row.uptake_mol_kg]);
-        byComponent.set(row.component_id, points);
+        bySpecies.set(row.adsorbate_id, points);
     }
-    return [...byComponent].map(([id, points]) => ({
-        name: components.find((component) => component.id === id)?.name ?? 'Measurements',
+    return [...bySpecies].map(([id, points]) => ({
+        name: components.find((component) => component.adsorbate_id === id)?.name ?? 'Measurements',
         points,
     }));
 }

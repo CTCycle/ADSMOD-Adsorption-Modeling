@@ -44,7 +44,7 @@ export const DEFAULT_FILTER: AnalyticsFilter = {
     temperature_min_k: null,
     temperature_max_k: null,
     pressure_basis: 'absolute',
-    include_mixtures: false,
+    include_multi_species: false,
 };
 
 export const DEFAULT_EXPLORE_STATE: ExploreState = {
@@ -93,7 +93,7 @@ export function stateFromQueryParams(params: Params): ExploreState {
             temperature_min_k: positive(params['tmin'], null),
             temperature_max_k: positive(params['tmax'], null),
             pressure_basis: oneOf<PressureBasis>(params['basis'], ['absolute', 'partial', 'relative'], 'absolute'),
-            include_mixtures: params['mixtures'] === '1',
+            include_multi_species: params['species'] === 'multi',
         },
         selectedIds: ids(params['selected']),
         mode: oneOf<ExploreMode>(params['mode'], ['isotherms', 'uptake', 'distribution'], defaults.mode),
@@ -122,7 +122,7 @@ export function stateToQueryParams(state: ExploreState): Params {
         tmin: state.filter.temperature_min_k,
         tmax: state.filter.temperature_max_k,
         basis: unlessDefault(state.filter.pressure_basis, DEFAULT_FILTER.pressure_basis),
-        mixtures: state.filter.include_mixtures ? '1' : null,
+        species: state.filter.include_multi_species ? 'multi' : null,
         selected: list(state.selectedIds),
         mode: unlessDefault(state.mode, defaults.mode),
         color: unlessDefault(state.colorBy, defaults.colorBy),

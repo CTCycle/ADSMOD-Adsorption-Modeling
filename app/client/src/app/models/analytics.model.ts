@@ -20,7 +20,7 @@ export interface AnalyticsFilter {
     temperature_min_k: number | null;
     temperature_max_k: number | null;
     pressure_basis: PressureBasis | null;
-    include_mixtures: boolean;
+    include_multi_species: boolean;
 }
 
 export interface FacetCount {
@@ -73,9 +73,9 @@ export interface SeriesRequest {
     uptake_unit: string;
 }
 
+/** One species of one experiment; series are keyed by (isotherm_id, adsorbate_id). */
 export interface SeriesMetadata {
     isotherm_id: number;
-    component_id: number;
     isotherm: string;
     dataset_id: number;
     dataset: string;
@@ -84,7 +84,7 @@ export interface SeriesMetadata {
     material: string;
     adsorbate_id: number;
     adsorbate: string;
-    mole_fraction: number | null;
+    species_count: number;
     temperature_k: number;
     uptake_unit: string;
 }
@@ -94,6 +94,7 @@ export interface SeriesPoint {
     pressure: number;
     uptake: number;
     uptake_stddev: number | null;
+    gas_mole_fraction: number | null;
 }
 
 export interface IsothermSeries extends SeriesMetadata {
@@ -183,7 +184,7 @@ export interface AnalyticsOverviewResponse {
     observations: number;
     materials: number;
     adsorbates: number;
-    mixture_isotherms: number;
+    multi_species_isotherms: number;
     isotherms_by_source: Record<string, number>;
     pressure_bases: BasisSpan[];
     top_materials: FacetCount[];

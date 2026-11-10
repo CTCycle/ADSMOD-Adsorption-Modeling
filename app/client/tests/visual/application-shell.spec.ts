@@ -190,7 +190,7 @@ const experimentRecord = {
     adsorbent_id: 4,
     adsorbent: 'Hierarchical activated carbon framework',
     adsorbates: ['carbon dioxide'],
-    components: [{ id: 51, position: 1, adsorbate_id: 7, name: 'carbon dioxide', mole_fraction: null }],
+    components: [{ position: 1, adsorbate_id: 7, name: 'carbon dioxide' }],
     temperature_k: 298.15,
     temperature_original: 298.15,
     temperature_original_unit: 'K',
@@ -239,8 +239,8 @@ test('datasets, materials, and species stay contained; edits save and deletion i
             await route.fulfill(json({
                 status: 'success', dataset_id: 17, isotherm_id: 31, offset: 0, limit: 100, total: 2,
                 rows: [
-                    { id: 1, component_id: 51, sequence_index: 0, uptake_stddev_mol_kg: null, source_row: 2, pressure_original: 1, pressure_original_unit: 'bar', pressure_canonical: 100000, pressure_canonical_unit: 'Pa', uptake_original: uptake, uptake_original_unit: 'mmol/g', uptake_mol_kg: uptake },
-                    { id: 2, component_id: 51, sequence_index: 1, uptake_stddev_mol_kg: null, source_row: 3, pressure_original: 2, pressure_original_unit: 'bar', pressure_canonical: 200000, pressure_canonical_unit: 'Pa', uptake_original: 0.2, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.2 },
+                    { id: 1, adsorbate_id: 7, gas_mole_fraction: null, uptake_stddev_mol_kg: null, source_row: 2, pressure_original: 1, pressure_original_unit: 'bar', pressure_canonical: 100000, pressure_canonical_unit: 'Pa', uptake_original: uptake, uptake_original_unit: 'mmol/g', uptake_mol_kg: uptake },
+                    { id: 2, adsorbate_id: 7, gas_mole_fraction: null, uptake_stddev_mol_kg: null, source_row: 3, pressure_original: 2, pressure_original_unit: 'bar', pressure_canonical: 200000, pressure_canonical_unit: 'Pa', uptake_original: 0.2, uptake_original_unit: 'mmol/g', uptake_mol_kg: 0.2 },
                 ],
             }));
         } else if (request.method() === 'PATCH' && pathname.endsWith('/datasets/17')) {

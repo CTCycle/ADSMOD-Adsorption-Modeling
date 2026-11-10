@@ -39,7 +39,7 @@ import { buildHistogramOption, buildRankingOption, CATEGORICAL_PALETTE, formatVa
                     <adsmod-metric-card label="Materials" [value]="count(data.materials)" />
                     <adsmod-metric-card label="Adsorbates" [value]="count(data.adsorbates)" />
                     <adsmod-metric-card label="Datasets" [value]="count(data.datasets)" />
-                    <adsmod-metric-card label="Mixture isotherms" [value]="count(data.mixture_isotherms)" />
+                    <adsmod-metric-card label="Multi-species experiments" [value]="count(data.multi_species_isotherms)" />
                 </div>
 
                 <div class="overview-grid">

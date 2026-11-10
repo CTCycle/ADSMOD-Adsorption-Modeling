@@ -10,9 +10,16 @@ import type { DatasetEditSession, ExperimentField } from './dataset-edit-session
 import { exact, pressureUnitLabel } from './measurement-worksheet.component';
 
 const BASIS_LABELS: Record<PressureBasis, string> = {
-    absolute: 'Absolute',
-    partial: 'Partial',
+    absolute: 'Total pressure',
+    partial: 'Partial pressure',
     relative: 'Relative (p/p₀)',
+};
+
+/** What the single canonical pressure column means for each basis. */
+const BASIS_HINTS: Record<PressureBasis, string> = {
+    absolute: 'System total pressure, shared by every species at a point; partial pressure is y × P.',
+    partial: 'Each species’ own partial pressure, as reported by the source.',
+    relative: 'p/p₀ of a single species.',
 };
 
 /** Experiment conditions: read-only facts, or edit controls in edit mode. */
@@ -27,7 +34,7 @@ const BASIS_LABELS: Record<PressureBasis, string> = {
                 <div class="wide"><dt>Material</dt><dd>{{ experiment().adsorbent }}</dd></div>
                 <div class="wide"><dt>Species</dt><dd>{{ speciesText() }}</dd></div>
                 <div><dt>Temperature</dt><dd>{{ temperatureText() }}</dd></div>
-                <div><dt>Pressure basis</dt><dd>{{ basisLabel(experiment().pressure_basis) }}</dd></div>
+                <div><dt>Pressure basis</dt><dd [title]="basisHint(experiment().pressure_basis)">{{ basisLabel(experiment().pressure_basis) }}</dd></div>
                 <div><dt>Units</dt><dd>{{ unitLabel(experiment().pressure_original_unit) }} · {{ experiment().uptake_original_unit }}</dd></div>
                 @if (experiment().saturation_pressure_pa !== null) {
                     <div><dt>p₀</dt><dd>{{ exact(experiment().saturation_pressure_pa) }} Pa</dd></div>
@@ -56,16 +63,11 @@ const BASIS_LABELS: Record<PressureBasis, string> = {
                     <adsmod-entity-picker kind="material" label="Replace with" [compact]="true" (selected)="pickMaterial($event)" />
                     @if (issue('adsorbent_id'); as problem) { <small role="alert">{{ problem.message }}</small> }
                 </div>
-                @for (component of experiment().components; track component.id) {
+                @for (component of experiment().components; track component.position) {
                     <div class="field" [class.invalid]="issue('components')">
                         <span>Species{{ experiment().components.length > 1 ? ' ' + component.position : '' }}</span>
                         <div class="entity-current">
                             <strong>{{ speciesName(component) }}</strong>
-                            @if (experiment().components.length > 1) {
-                                <label class="inline">x
-                                    <input type="text" inputmode="decimal" class="fraction" [value]="exact(fraction(component))" (change)="setFraction(component, $any($event.target).value)" aria-label="Mole fraction" />
-                                </label>
-                            }
                         </div>
                         <adsmod-entity-picker kind="species" label="Replace with" [compact]="true" (selected)="pickSpecies(component, $event)" />
                     </div>
@@ -91,6 +93,7 @@ const BASIS_LABELS: Record<PressureBasis, string> = {
                         <select class="select-input" [value]="value('pressure_basis', experiment().pressure_basis)" (change)="set('pressure_basis', $any($event.target).value, experiment().pressure_basis)">
                             @for (basis of bases; track basis) { <option [value]="basis">{{ basisLabel(basis) }}</option> }
                         </select>
+                        <small class="hint">{{ basisHint(value('pressure_basis', experiment().pressure_basis)) }}</small>
                     </label>
                     <label class="field" [class.invalid]="issue('saturation_pressure_pa')">
                         <span>Saturation pressure p₀ [Pa]</span>
@@ -130,8 +133,7 @@ const BASIS_LABELS: Record<PressureBasis, string> = {
             .field small, .group-error { color: var(--danger-text); font-size: 0.72rem; font-weight: 500; }
             .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; align-items: start; }
             .entity-current { display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); font-size: 0.82rem; }
-            .inline { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 600; }
-            .fraction { width: 5rem !important; }
+            .hint { color: var(--text-tertiary); font-size: 0.72rem; font-weight: 500; }
             .unit-note { margin: 0; color: var(--text-tertiary); font-size: 0.72rem; }
             @media (max-width: 640px) {
                 .field-row { grid-template-columns: 1fr; }
@@ -154,7 +156,7 @@ export class ExperimentMetaComponent {
 
     protected readonly speciesText = computed(() =>
         this.experiment()
-            .components.map((component) => (component.mole_fraction === null ? component.name : `${component.name} (x = ${component.mole_fraction})`))
+            .components.map((component) => component.name)
             .join(' + '),
     );
     protected readonly temperatureText = computed(() => {
@@ -167,6 +169,10 @@ export class ExperimentMetaComponent {
 
     protected basisLabel(basis: PressureBasis): string {
         return BASIS_LABELS[basis];
+    }
+
+    protected basisHint(basis: PressureBasis): string {
+        return BASIS_HINTS[basis];
     }
 
     protected value<T extends string | number | null>(field: ExperimentField, stored: T): T {
@@ -202,22 +208,13 @@ export class ExperimentMetaComponent {
     }
 
     protected speciesName(component: ExperimentComponent): string {
-        const id = this.session().componentValue<number>(this.experiment(), component.id, 'adsorbate_id', component.adsorbate_id);
+        const id = this.session().speciesValue(this.experiment(), component.position, component.adsorbate_id);
         return id === component.adsorbate_id ? component.name : (this.pickedNames()[`s${id}`] ?? `Species #${id}`);
     }
 
     protected pickSpecies(component: ExperimentComponent, entity: PickedEntity | null): void {
         if (!entity) return;
         this.pickedNames.update((names) => ({ ...names, [`s${entity.id}`]: entity.name }));
-        this.session().setComponentValue(this.experiment(), component.id, 'adsorbate_id', entity.id, component.adsorbate_id);
-    }
-
-    protected fraction(component: ExperimentComponent): number | null {
-        return this.session().componentValue<number | null>(this.experiment(), component.id, 'mole_fraction', component.mole_fraction);
-    }
-
-    protected setFraction(component: ExperimentComponent, raw: string): void {
-        const text = raw.trim().replace(',', '.');
-        this.session().setComponentValue(this.experiment(), component.id, 'mole_fraction', text === '' ? null : Number(text), component.mole_fraction);
+        this.session().setSpeciesValue(this.experiment(), component.position, entity.id, component.adsorbate_id);
     }
 }

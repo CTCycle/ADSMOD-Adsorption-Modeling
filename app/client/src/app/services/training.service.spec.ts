@@ -84,7 +84,7 @@ describe('training.service', () => {
             ok: true,
             json: async () => ({
                 datasets: [
-                    { source: 'nist', dataset_name: 'NIST ISODB', display_name: 'NIST Single Component', row_count: 12 },
+                    { source: 'nist', dataset_name: 'NIST ISODB', display_name: 'NIST ISODB', row_count: 12 },
                     { source: 'uploaded', dataset_name: 'uploaded-a', display_name: 'uploaded-a', row_count: 4, dataset_id: 17 },
                 ],
             }),
@@ -92,7 +92,7 @@ describe('training.service', () => {
 
         await expect(fetchDatasetSources()).resolves.toEqual({
             datasets: [
-                { source: 'nist', dataset_name: 'NIST ISODB', display_name: 'NIST Single Component', row_count: 12, dataset_id: null },
+                { source: 'nist', dataset_name: 'NIST ISODB', display_name: 'NIST ISODB', row_count: 12, dataset_id: null },
                 { source: 'uploaded', dataset_name: 'uploaded-a', display_name: 'uploaded-a', row_count: 4, dataset_id: 17 },
             ],
             error: null,

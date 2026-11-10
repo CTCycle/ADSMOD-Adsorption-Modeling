@@ -5,10 +5,17 @@ import { Component, ElementRef, computed, effect, inject, input, signal, untrack
 import type { ExperimentSummary, ObservationRow } from '../../models/dataset.model';
 import { fetchObservations } from '../../services/dataset.service';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
-import type { DatasetEditSession, ObservationField } from './dataset-edit-session';
+import type { DatasetEditSession, ObservationField, WorksheetLocation } from './dataset-edit-session';
 
 export const WORKSHEET_PAGE_SIZE = 100;
 const EDITABLE: readonly ObservationField[] = ['pressure_original', 'uptake_original'];
+/** Multi-species experiments also edit each measurement's gas mole fraction. */
+const MULTI_SPECIES_EDITABLE: readonly ObservationField[] = [...EDITABLE, 'gas_mole_fraction'];
+const COLUMN_LABELS: Partial<Record<ObservationField, string>> = {
+    pressure_original: 'Pressure',
+    uptake_original: 'Uptake',
+    gas_mole_fraction: 'Gas mole fraction',
+};
 
 export function pressureUnitLabel(unit: string | null): string {
     return unit === '1' ? 'p/p₀' : (unit ?? '');
@@ -26,32 +33,47 @@ export function exact(value: number | null): string {
     template: `
         <div class="worksheet-toolbar">
             <span class="worksheet-summary" aria-live="polite">{{ total() }} measurements</span>
-            <label>Order
-                <select class="select-input" [value]="order()" (change)="setOrder($any($event.target).value)">
-                    <option value="sequence">As measured</option>
-                    <option value="pressure">By pressure</option>
-                </select>
-            </label>
+            <div class="worksheet-controls">
+                @if (multiSpecies()) {
+                    <label>Species
+                        <select class="select-input" [value]="speciesFilter() ?? ''" (change)="setSpecies($any($event.target).value)">
+                            <option value="">All species</option>
+                            @for (component of experiment().components; track component.position) {
+                                <option [value]="component.adsorbate_id">{{ component.name }}</option>
+                            }
+                        </select>
+                    </label>
+                }
+                <label>Order
+                    <select class="select-input" [value]="order()" (change)="setOrder($any($event.target).value)">
+                        <option value="source">As imported</option>
+                        <option value="pressure">By pressure</option>
+                    </select>
+                </label>
+            </div>
         </div>
         @if (error()) {
             <p class="dataset-status error" role="alert">{{ error() }}</p>
         }
         <div class="data-table-frame worksheet-frame" [class.editing]="editing()" [attr.aria-busy]="loading()">
-            <table class="data-table worksheet" [style.--data-table-min-width]="mixture() ? '760px' : '640px'">
+            <table class="data-table worksheet" [style.--data-table-min-width]="multiSpecies() ? '860px' : '640px'">
                 <caption class="sr-only">Measurements of {{ experiment().name }}{{ editing() ? ' (editing)' : '' }}</caption>
                 <colgroup>
                     <col class="col-index" />
                     <col class="col-row" />
-                    @if (mixture()) { <col class="col-component" /> }
-                    <col /><col /><col class="col-derived" /><col class="col-derived" />
+                    @if (multiSpecies()) { <col class="col-component" /> }
+                    <col /><col />
+                    @if (multiSpecies()) { <col class="col-fraction" /> }
+                    <col class="col-derived" /><col class="col-derived" />
                 </colgroup>
                 <thead>
                     <tr>
                         <th scope="col" class="num">#</th>
                         <th scope="col" class="num" title="Row in the imported file">Src row</th>
-                        @if (mixture()) { <th scope="col">Species</th> }
+                        @if (multiSpecies()) { <th scope="col">Species</th> }
                         <th scope="col" class="num">Pressure <span class="unit">[{{ pressureUnit() }}]</span></th>
                         <th scope="col" class="num">Uptake <span class="unit">[{{ uptakeUnit() }}]</span></th>
+                        @if (multiSpecies()) { <th scope="col" class="num" title="Gas-phase mole fraction; partial pressure is y × total pressure">y</th> }
                         <th scope="col" class="num derived">Pressure <span class="unit">[{{ canonicalPressureUnit() }}]</span></th>
                         <th scope="col" class="num derived">Uptake <span class="unit">[mol/kg]</span></th>
                     </tr>
@@ -59,10 +81,10 @@ export function exact(value: number | null): string {
                 <tbody>
                     @for (row of rows(); track row.id; let rowIndex = $index) {
                         <tr>
-                            <th scope="row" class="num index">{{ row.sequence_index + 1 }}</th>
+                            <th scope="row" class="num index">{{ rowNumber(rowIndex) }}</th>
                             <td class="num muted">{{ row.source_row ?? '—' }}</td>
-                            @if (mixture()) { <td class="truncate-cell">{{ componentName(row) }}</td> }
-                            @for (field of editable; track field; let column = $index) {
+                            @if (multiSpecies()) { <td class="truncate-cell">{{ speciesName(row) }}</td> }
+                            @for (field of editable(); track field; let column = $index) {
                                 <td class="num" [class.changed]="session().isObservationChanged(row.id, field)" [class.invalid]="!!session().issueFor('observation', row.id, field)">
                                     @if (editing()) {
                                         <input
@@ -72,12 +94,12 @@ export function exact(value: number | null): string {
                                             autocomplete="off"
                                             [attr.data-row]="rowIndex"
                                             [attr.data-col]="column"
-                                            [attr.aria-label]="columnLabel(field) + ' for measurement ' + (row.sequence_index + 1)"
+                                            [attr.aria-label]="columnLabel(field) + ' for measurement ' + rowNumber(rowIndex)"
                                             [attr.aria-invalid]="!!session().issueFor('observation', row.id, field)"
                                             [title]="session().issueFor('observation', row.id, field)?.message ?? ''"
                                             [value]="exact(session().observationValue(row, field))"
                                             (focus)="$any($event.target).select()"
-                                            (change)="commit(row, field, $any($event.target).value)"
+                                            (change)="commit(row, field, $any($event.target).value, rowIndex)"
                                             (keydown)="navigate($event, row, field, rowIndex, column)"
                                         />
                                     } @else {
@@ -90,7 +112,7 @@ export function exact(value: number | null): string {
                         </tr>
                     } @empty {
                         @if (!loading()) {
-                            <tr><td [attr.colspan]="mixture() ? 7 : 6" class="data-table-empty">No measurements in this experiment.</td></tr>
+                            <tr><td [attr.colspan]="multiSpecies() ? 8 : 6" class="data-table-empty">No measurements in this experiment.</td></tr>
                         }
                     }
                 </tbody>
@@ -115,6 +137,7 @@ export function exact(value: number | null): string {
         `
             :host { display: grid; gap: 0.5rem; min-width: 0; }
             .worksheet-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+            .worksheet-controls { display: inline-flex; flex-wrap: wrap; gap: 0.75rem; }
             .worksheet-toolbar label { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; }
             .worksheet-toolbar .select-input { width: auto; }
             .worksheet-summary { color: var(--text-secondary); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
@@ -123,6 +146,7 @@ export function exact(value: number | null): string {
             .worksheet .col-index { width: 3.5rem; }
             .worksheet .col-row { width: 4.5rem; }
             .worksheet .col-component { width: 8rem; }
+            .worksheet .col-fraction { width: 6rem; }
             .worksheet .col-derived { width: 9rem; }
             .worksheet .num { text-align: right; font-variant-numeric: tabular-nums; }
             .worksheet th.index { position: sticky; left: 0; z-index: 1; background: var(--surface-subtle); color: var(--text-secondary); font-weight: 600; }
@@ -159,19 +183,21 @@ export class MeasurementWorksheetComponent {
     readonly editing = input(false);
     /** Bump to reload the current page after a save. */
     readonly refreshKey = input(0);
-    /** Sequence index to bring into view (for "go to" links on validation issues). */
-    readonly focusSequence = input<number | null>(null);
+    /** Worksheet position to bring into view (for "go to" links on validation issues). */
+    readonly focusLocation = input<WorksheetLocation | null>(null);
 
-    protected readonly editable = EDITABLE;
     protected readonly pageSize = WORKSHEET_PAGE_SIZE;
     protected readonly exact = exact;
     protected readonly rows = signal<ObservationRow[]>([]);
     protected readonly total = signal(0);
     protected readonly page = signal(1);
-    protected readonly order = signal<'sequence' | 'pressure'>('sequence');
+    protected readonly order = signal<'source' | 'pressure'>('source');
+    /** Show one species of a multi-species experiment, or all of them (null). */
+    protected readonly speciesFilter = signal<number | null>(null);
     protected readonly loading = signal(false);
     protected readonly error = signal<string | null>(null);
-    protected readonly mixture = computed(() => this.experiment().components.length > 1);
+    protected readonly multiSpecies = computed(() => this.experiment().components.length > 1);
+    protected readonly editable = computed(() => (this.multiSpecies() ? MULTI_SPECIES_EDITABLE : EDITABLE));
     protected readonly pressureUnit = computed(() => {
         const experiment = this.experiment();
         return pressureUnitLabel(this.session().experimentValue<string>(experiment, 'pressure_unit', experiment.pressure_original_unit));
@@ -194,6 +220,7 @@ export class MeasurementWorksheetComponent {
                 if (this.loadedExperiment !== experimentId) {
                     this.loadedExperiment = experimentId;
                     this.page.set(1);
+                    this.speciesFilter.set(null);
                 }
             });
         });
@@ -202,25 +229,35 @@ export class MeasurementWorksheetComponent {
             this.refreshKey();
             this.page();
             this.order();
+            this.speciesFilter();
             untracked(() => void this.load());
         });
         effect(() => {
-            const sequence = this.focusSequence();
-            if (sequence === null) return;
+            const location = this.focusLocation();
+            if (location === null) return;
             untracked(() => {
-                this.order.set('sequence');
-                const components = Math.max(1, this.experiment().components.length);
-                this.page.set(Math.floor((sequence * components) / this.pageSize) + 1);
+                this.order.set(location.order);
+                this.speciesFilter.set(location.adsorbateId);
+                this.page.set(Math.floor(location.index / this.pageSize) + 1);
             });
         });
     }
 
-    protected componentName(row: ObservationRow): string {
-        return this.experiment().components.find((component) => component.id === row.component_id)?.name ?? '';
+    protected speciesName(row: ObservationRow): string {
+        return this.experiment().components.find((component) => component.adsorbate_id === row.adsorbate_id)?.name ?? '';
     }
 
     protected columnLabel(field: ObservationField): string {
-        return field === 'pressure_original' ? 'Pressure' : 'Uptake';
+        return COLUMN_LABELS[field] ?? field;
+    }
+
+    protected rowNumber(rowIndex: number): number {
+        return (this.page() - 1) * this.pageSize + rowIndex + 1;
+    }
+
+    protected setSpecies(value: string): void {
+        this.speciesFilter.set(value === '' ? null : Number(value));
+        this.page.set(1);
     }
 
     protected rowChanged(row: ObservationRow): boolean {
@@ -234,7 +271,7 @@ export class MeasurementWorksheetComponent {
         return session.isExperimentChanged(id, 'pressure_unit') || session.isExperimentChanged(id, 'uptake_unit') || session.isExperimentChanged(id, 'pressure_basis');
     }
 
-    protected setOrder(order: 'sequence' | 'pressure'): void {
+    protected setOrder(order: 'source' | 'pressure'): void {
         this.order.set(order);
         this.page.set(1);
     }
@@ -243,10 +280,14 @@ export class MeasurementWorksheetComponent {
         this.page.set(page);
     }
 
-    protected commit(row: ObservationRow, field: ObservationField, raw: string): void {
+    protected commit(row: ObservationRow, field: ObservationField, raw: string, rowIndex: number): void {
         const text = raw.trim().replace(',', '.');
         const value = text === '' ? null : Number(text);
-        this.session().setObservationValue(this.experiment().id, row, field, value);
+        this.session().setObservationValue(this.experiment().id, row, field, value, this.location(rowIndex));
+    }
+
+    private location(rowIndex: number): WorksheetLocation {
+        return { order: this.order(), adsorbateId: this.speciesFilter(), index: this.rowNumber(rowIndex) - 1 };
     }
 
     protected navigate(event: KeyboardEvent, row: ObservationRow, field: ObservationField, rowIndex: number, column: number): void {
@@ -254,13 +295,13 @@ export class MeasurementWorksheetComponent {
         if (event.key === 'Escape') {
             event.preventDefault();
             target.value = exact(row[field]);
-            this.session().setObservationValue(this.experiment().id, row, field, row[field]);
+            this.session().setObservationValue(this.experiment().id, row, field, row[field], this.location(rowIndex));
             return;
         }
         const step = event.key === 'Enter' || event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
         if (!step) return;
         event.preventDefault();
-        this.commit(row, field, target.value);
+        this.commit(row, field, target.value, rowIndex);
         this.host.nativeElement
             .querySelector<HTMLInputElement>(`input[data-row="${rowIndex + step}"][data-col="${column}"]`)
             ?.focus();
@@ -275,6 +316,7 @@ export class MeasurementWorksheetComponent {
             (this.page() - 1) * this.pageSize,
             this.pageSize,
             this.order(),
+            this.speciesFilter(),
         );
         if (requestId !== this.requestId) return;
         this.loading.set(false);

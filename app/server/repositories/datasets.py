@@ -610,7 +610,9 @@ class DatasetRepository:
         offset: int = 0,
         limit: int = 100,
         order: str = "pressure",
+        adsorbate_id: int | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
+        """One page of an experiment's measurements, optionally of one species."""
         base = (
             select(Observation)
             .join(Isotherm, Isotherm.id == Observation.isotherm_id)
@@ -619,6 +621,8 @@ class DatasetRepository:
                 Observation.isotherm_id == isotherm_id,
             )
         )
+        if adsorbate_id is not None:
+            base = base.where(Observation.adsorbate_id == adsorbate_id)
         ordering = (
             (Observation.source_row, Observation.id)
             if order == "source"

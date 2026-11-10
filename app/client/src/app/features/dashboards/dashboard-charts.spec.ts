@@ -9,7 +9,6 @@ import { type ExploreState, chartFilter, DEFAULT_EXPLORE_STATE, stateFromQueryPa
 // Dashboard chart behavior
 
 const meta = {
-    component_id: 1,
     isotherm: 'iso',
     dataset_id: 1,
     dataset: 'Lab',
@@ -18,7 +17,7 @@ const meta = {
     material: 'Material A',
     adsorbate_id: 1,
     adsorbate: 'carbon dioxide',
-    mole_fraction: null,
+    species_count: 1,
     uptake_unit: 'mol/kg',
 };
 
@@ -26,9 +25,8 @@ function series(isothermId: number, temperature: number, points: [number, number
     return {
         ...meta,
         isotherm_id: isothermId,
-        component_id: isothermId,
         temperature_k: temperature,
-        points: points.map(([pressure, uptake], index) => ({ observation_id: index + 1, pressure, uptake, uptake_stddev: null })),
+        points: points.map(([pressure, uptake], index) => ({ observation_id: index + 1, pressure, uptake, uptake_stddev: null, gas_mole_fraction: null })),
     };
 }
 
@@ -51,7 +49,6 @@ describe('dashboard chart options', () => {
         const row = (id: number, method: UptakeAtPressureRow['method'], status: UptakeAtPressureRow['status']): UptakeAtPressureRow => ({
             ...meta,
             isotherm_id: id,
-            component_id: id,
             temperature_k: 270 + id,
             value: status === 'ok' ? id : null,
             method,
@@ -83,7 +80,7 @@ describe('explore state URL serialisation', () => {
                 adsorbate_ids: [7],
                 temperature_min_k: 273.15,
                 pressure_basis: 'relative',
-                include_mixtures: true,
+                include_multi_species: true,
             },
             selectedIds: [11, 12],
             mode: 'uptake',

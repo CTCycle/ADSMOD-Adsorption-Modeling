@@ -12,14 +12,14 @@ const experiment = {
     id: 7,
     name: 'A',
     adsorbent_id: 3,
-    components: [{ id: 70, position: 1, adsorbate_id: 5, name: 'CO2', mole_fraction: null }],
+    components: [{ position: 1, adsorbate_id: 5, name: 'CO2' }],
 } as unknown as ExperimentSummary;
+const at = { order: 'source', adsorbateId: null, index: 0 } as const;
 
 function row(id: number, pressure: number): ObservationRow {
     return {
         id,
-        component_id: 70,
-        sequence_index: id - 100,
+        adsorbate_id: 5,
         source_row: id,
         pressure_original: pressure,
         pressure_original_unit: 'bar',
@@ -29,6 +29,7 @@ function row(id: number, pressure: number): ObservationRow {
         uptake_original_unit: 'mol/kg',
         uptake_mol_kg: 1.5,
         uptake_stddev_mol_kg: null,
+        gas_mole_fraction: null,
     };
 }
 
@@ -38,17 +39,17 @@ describe('DatasetEditSession', () => {
         session.start();
         const first = row(101, 0.1);
 
-        session.setObservationValue(experiment.id, first, 'pressure_original', 0.2);
-        session.setObservationValue(experiment.id, row(250, 2), 'uptake_stddev_mol_kg', 0.05);
+        session.setObservationValue(experiment.id, first, 'pressure_original', 0.2, at);
+        session.setObservationValue(experiment.id, row(250, 2), 'uptake_stddev_mol_kg', 0.05, at);
         session.setExperimentValue(experiment, 'temperature_original_unit', '°C', 'K');
-        session.setComponentValue(experiment, 70, 'adsorbate_id', 9, 5);
+        session.setSpeciesValue(experiment, 1, 9, 5);
         session.setDatasetValue('name', 'Curated', dataset);
 
         expect(session.observationValue(first, 'pressure_original')).toBe(0.2);
         expect(session.editedExperimentIds()).toEqual(new Set([7]));
         expect(session.toRequest()).toEqual({
             name: 'Curated',
-            experiments: [{ id: 7, temperature_original_unit: '°C', components: [{ id: 70, adsorbate_id: 9 }] }],
+            experiments: [{ id: 7, temperature_original_unit: '°C', components: [{ position: 1, adsorbate_id: 9 }] }],
             observations: [
                 { id: 101, pressure_original: 0.2 },
                 { id: 250, uptake_stddev_mol_kg: 0.05 },
@@ -56,7 +57,7 @@ describe('DatasetEditSession', () => {
         });
 
         // Typing the stored value back drops the change instead of sending a no-op.
-        session.setObservationValue(experiment.id, first, 'pressure_original', 0.1);
+        session.setObservationValue(experiment.id, first, 'pressure_original', 0.1, at);
         session.setDatasetValue('name', 'Screening', dataset);
         expect(session.toRequest().observations).toEqual([{ id: 250, uptake_stddev_mol_kg: 0.05 }]);
         expect(session.toRequest().name).toBeUndefined();
@@ -65,7 +66,7 @@ describe('DatasetEditSession', () => {
     it('cancel discards every pending change and leaves edit mode', () => {
         const session = new DatasetEditSession();
         session.start();
-        session.setObservationValue(experiment.id, row(101, 0.1), 'pressure_original', 3);
+        session.setObservationValue(experiment.id, row(101, 0.1), 'pressure_original', 3, at);
         expect(session.dirty()).toBe(true);
 
         session.cancel();
@@ -79,9 +80,11 @@ describe('DatasetEditSession', () => {
         const session = new DatasetEditSession();
         session.start();
         const first = row(101, 0.1);
-        session.setObservationValue(experiment.id, first, 'pressure_original', -1);
-        session.setObservationValue(experiment.id, row(102, 0.2), 'uptake_original', Number.NaN);
-        session.setObservationValue(experiment.id, row(103, 0.3), 'uptake_stddev_mol_kg', 0);
+        session.setObservationValue(experiment.id, first, 'pressure_original', -1, at);
+        session.setObservationValue(experiment.id, row(102, 0.2), 'uptake_original', Number.NaN, at);
+        session.setObservationValue(experiment.id, row(103, 0.3), 'uptake_stddev_mol_kg', 0, at);
+        session.setObservationValue(experiment.id, row(104, 0.4), 'gas_mole_fraction', 1.2, at);
+        session.setObservationValue(experiment.id, row(105, 0.5), 'gas_mole_fraction', 0, at);
 
         session.issues.set(session.validateLocally());
 
@@ -89,10 +92,11 @@ describe('DatasetEditSession', () => {
             [101, 'pressure_original'],
             [102, 'uptake_original'],
             [103, 'uptake_stddev_mol_kg'],
+            [104, 'gas_mole_fraction'],
         ]);
-        session.setObservationValue(experiment.id, first, 'pressure_original', 0.4);
+        session.setObservationValue(experiment.id, first, 'pressure_original', 0.4, at);
         expect(session.issueFor('observation', 101, 'pressure_original')).toBeUndefined();
-        expect(session.issues()).toHaveLength(2);
+        expect(session.issues()).toHaveLength(3);
     });
 });
 

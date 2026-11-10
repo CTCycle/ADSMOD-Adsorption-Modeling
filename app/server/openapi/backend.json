@@ -1028,11 +1028,28 @@
             "schema": {
               "enum": [
                 "pressure",
-                "sequence"
+                "source"
               ],
               "type": "string",
               "default": "pressure",
               "title": "Order"
+            }
+          },
+          {
+            "name": "adsorbate_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Adsorbate Id"
             }
           }
         ],
@@ -4319,9 +4336,9 @@
             ],
             "title": "Pressure Basis"
           },
-          "include_mixtures": {
+          "include_multi_species": {
             "type": "boolean",
-            "title": "Include Mixtures",
+            "title": "Include Multi Species",
             "default": false
           }
         },
@@ -4357,10 +4374,10 @@
             "minimum": 0.0,
             "title": "Adsorbates"
           },
-          "mixture_isotherms": {
+          "multi_species_isotherms": {
             "type": "integer",
             "minimum": 0.0,
-            "title": "Mixture Isotherms"
+            "title": "Multi Species Isotherms"
           },
           "isotherms_by_source": {
             "additionalProperties": {
@@ -4405,7 +4422,7 @@
           "observations",
           "materials",
           "adsorbates",
-          "mixture_isotherms",
+          "multi_species_isotherms",
           "isotherms_by_source",
           "pressure_bases",
           "top_materials",
@@ -5024,6 +5041,7 @@
               "uptake_unit",
               "temperature_unit",
               "uptake_stddev",
+              "gas_mole_fraction",
               "saturation_pressure",
               "metadata",
               "ignore"
@@ -5072,41 +5090,25 @@
       },
       "ComponentUpdate": {
         "properties": {
-          "id": {
+          "position": {
             "type": "integer",
             "minimum": 1.0,
-            "title": "Id"
+            "title": "Position"
           },
           "adsorbate_id": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "integer",
+            "minimum": 1.0,
             "title": "Adsorbate Id"
-          },
-          "mole_fraction": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mole Fraction"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "id"
+          "position",
+          "adsorbate_id"
         ],
-        "title": "ComponentUpdate"
+        "title": "ComponentUpdate",
+        "description": "Replace the species at one position of an experiment."
       },
       "CustomUnitDefinition": {
         "properties": {
@@ -6984,10 +6986,6 @@
       },
       "ExperimentComponent": {
         "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
           "position": {
             "type": "integer",
             "title": "Position"
@@ -6999,22 +6997,10 @@
           "name": {
             "type": "string",
             "title": "Name"
-          },
-          "mole_fraction": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mole Fraction"
           }
         },
         "type": "object",
         "required": [
-          "id",
           "position",
           "adsorbate_id",
           "name"
@@ -7279,16 +7265,6 @@
             ],
             "title": "Saturation Pressure Pa"
           },
-          "duplicate_policy": {
-            "type": "string",
-            "enum": [
-              "reject",
-              "keep",
-              "average"
-            ],
-            "title": "Duplicate Policy",
-            "default": "reject"
-          },
           "observation_count": {
             "type": "integer",
             "title": "Observation Count"
@@ -7511,7 +7487,7 @@
           "id"
         ],
         "title": "ExperimentUpdate",
-        "description": "Experiment-level changes; omitted fields stay unchanged.\n\nNullable fields (`saturation_pressure_pa`, component `mole_fraction`) are\ncleared only when sent explicitly as null."
+        "description": "Experiment-level changes; omitted fields stay unchanged.\n\nThe nullable `saturation_pressure_pa` is cleared only when sent explicitly\nas null."
       },
       "ExternalIdentifierView": {
         "properties": {
@@ -8919,6 +8895,7 @@
                 "uptake_unit",
                 "temperature_unit",
                 "uptake_stddev",
+                "gas_mole_fraction",
                 "saturation_pressure",
                 "metadata",
                 "ignore"
@@ -9063,9 +9040,8 @@
           "duplicate_policy": {
             "type": "string",
             "enum": [
-              "keep",
-              "average",
-              "reject"
+              "reject",
+              "average"
             ],
             "title": "Duplicate Policy",
             "default": "reject"
@@ -9273,10 +9249,6 @@
             "type": "integer",
             "title": "Isotherm Id"
           },
-          "component_id": {
-            "type": "integer",
-            "title": "Component Id"
-          },
           "isotherm": {
             "type": "string",
             "title": "Isotherm"
@@ -9313,16 +9285,10 @@
             "type": "string",
             "title": "Adsorbate"
           },
-          "mole_fraction": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mole Fraction"
+          "species_count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Species Count"
           },
           "temperature_k": {
             "type": "number",
@@ -9343,7 +9309,6 @@
         "type": "object",
         "required": [
           "isotherm_id",
-          "component_id",
           "isotherm",
           "dataset_id",
           "dataset",
@@ -9352,6 +9317,7 @@
           "material",
           "adsorbate_id",
           "adsorbate",
+          "species_count",
           "temperature_k",
           "uptake_unit",
           "points"
@@ -10200,10 +10166,6 @@
             ],
             "title": "Source Row"
           },
-          "sequence_index": {
-            "type": "integer",
-            "title": "Sequence Index"
-          },
           "pressure_original": {
             "type": "number",
             "title": "Pressure Original"
@@ -10231,13 +10193,23 @@
           "uptake_mol_kg": {
             "type": "number",
             "title": "Uptake Mol Kg"
+          },
+          "gas_mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas Mole Fraction"
           }
         },
         "type": "object",
         "required": [
           "adsorbate",
           "source_row",
-          "sequence_index",
           "pressure_original",
           "pressure_original_unit",
           "pressure_canonical",
@@ -10334,13 +10306,9 @@
             "type": "integer",
             "title": "Id"
           },
-          "component_id": {
+          "adsorbate_id": {
             "type": "integer",
-            "title": "Component Id"
-          },
-          "sequence_index": {
-            "type": "integer",
-            "title": "Sequence Index"
+            "title": "Adsorbate Id"
           },
           "source_row": {
             "anyOf": [
@@ -10391,13 +10359,23 @@
               }
             ],
             "title": "Uptake Stddev Mol Kg"
+          },
+          "gas_mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas Mole Fraction"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "component_id",
-          "sequence_index",
+          "adsorbate_id",
           "pressure_original",
           "pressure_original_unit",
           "pressure_canonical",
@@ -10447,6 +10425,17 @@
               }
             ],
             "title": "Uptake Stddev Mol Kg"
+          },
+          "gas_mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas Mole Fraction"
           }
         },
         "additionalProperties": false,
@@ -11531,6 +11520,17 @@
               }
             ],
             "title": "Uptake Stddev"
+          },
+          "gas_mole_fraction": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas Mole Fraction"
           }
         },
         "type": "object",
@@ -11769,6 +11769,17 @@
             "maxLength": 255,
             "minLength": 1,
             "title": "Adsorbate"
+          },
+          "mole_fraction_column": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mole Fraction Column"
           }
         },
         "additionalProperties": false,
@@ -13561,10 +13572,6 @@
             "type": "integer",
             "title": "Isotherm Id"
           },
-          "component_id": {
-            "type": "integer",
-            "title": "Component Id"
-          },
           "isotherm": {
             "type": "string",
             "title": "Isotherm"
@@ -13601,16 +13608,10 @@
             "type": "string",
             "title": "Adsorbate"
           },
-          "mole_fraction": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mole Fraction"
+          "species_count": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Species Count"
           },
           "temperature_k": {
             "type": "number",
@@ -13667,7 +13668,6 @@
         "type": "object",
         "required": [
           "isotherm_id",
-          "component_id",
           "isotherm",
           "dataset_id",
           "dataset",
@@ -13676,6 +13676,7 @@
           "material",
           "adsorbate_id",
           "adsorbate",
+          "species_count",
           "temperature_k",
           "uptake_unit",
           "status"

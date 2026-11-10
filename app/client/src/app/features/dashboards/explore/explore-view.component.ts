@@ -150,8 +150,8 @@ const SEARCH_DELAY_MS = 300;
                 </fieldset>
 
                 <label class="check-row">
-                    <input type="checkbox" [checked]="state().filter.include_mixtures" (change)="patchFilter({ include_mixtures: !state().filter.include_mixtures })" />
-                    <span class="facet-name">Include mixture isotherms</span>
+                    <input type="checkbox" [checked]="state().filter.include_multi_species" (change)="patchFilter({ include_multi_species: !state().filter.include_multi_species })" />
+                    <span class="facet-name">Include multi-species experiments</span>
                 </label>
             </aside>
 
@@ -326,7 +326,7 @@ const SEARCH_DELAY_MS = 300;
                                 <caption class="sr-only">Uptake at {{ format(result.pressure) }} {{ unitName(result.pressure_unit) }}</caption>
                                 <thead><tr><th scope="col">Series</th><th scope="col">Dataset</th><th scope="col" class="num">Uptake</th><th scope="col">Method</th><th scope="col">From observations</th></tr></thead>
                                 <tbody>
-                                    @for (row of result.rows; track row.component_id) {
+                                    @for (row of result.rows; track row.isotherm_id + ':' + row.adsorbate_id) {
                                         <tr>
                                             <td class="truncate-cell" [title]="label(row)"><button type="button" class="link-button" (click)="inspect({ datasetId: row.dataset_id, experimentId: row.isotherm_id })"><span>{{ label(row) }}</span></button></td>
                                             <td class="truncate-cell">{{ row.dataset }}</td>
@@ -347,7 +347,7 @@ const SEARCH_DELAY_MS = 300;
                                         <caption class="sr-only">Plotted isotherm series</caption>
                                         <thead><tr><th scope="col">Series</th><th scope="col">Dataset</th><th scope="col" class="num">Points</th><th scope="col" class="num">Pressure range ({{ unitName(result.pressure_unit) }})</th><th scope="col" class="num">Uptake range</th></tr></thead>
                                         <tbody>
-                                            @for (item of result.series; track item.component_id) {
+                                            @for (item of result.series; track item.isotherm_id + ':' + item.adsorbate_id) {
                                                 <tr>
                                                     <td class="truncate-cell" [title]="label(item)"><button type="button" class="link-button" (click)="inspect({ datasetId: item.dataset_id, experimentId: item.isotherm_id })"><span>{{ label(item) }}</span></button></td>
                                                     <td class="truncate-cell">{{ item.dataset }}</td>

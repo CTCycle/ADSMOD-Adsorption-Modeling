@@ -28,7 +28,7 @@ import {
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ChartComponent } from '../dashboards/components/chart.component';
 import { DatasetDeleteDialogComponent } from './dataset-delete-dialog.component';
-import { DatasetEditSession } from './dataset-edit-session';
+import { DatasetEditSession, type WorksheetLocation } from './dataset-edit-session';
 import { buildPlotSeries } from './plot-series';
 import { DATASET_SOURCES } from '../../shared/utils/dataset-source';
 import { ExperimentMetaComponent } from './experiment-meta.component';
@@ -210,7 +210,7 @@ const NUMBER_FORMAT = new Intl.NumberFormat('en-US', { maximumSignificantDigits:
                                     [session]="session"
                                     [editing]="session.active()"
                                     [refreshKey]="refreshKey()"
-                                    [focusSequence]="focusSequence()"
+                                    [focusLocation]="focusLocation()"
                                 />
                             } @else if (plotError()) {
                                 <p class="dataset-status error" role="alert">{{ plotError() }}</p>
@@ -314,7 +314,7 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
     protected readonly selected = signal<ExperimentSummary | null>(null);
     protected readonly pane = signal<PaneView>('table');
     protected readonly refreshKey = signal(0);
-    protected readonly focusSequence = signal<number | null>(null);
+    protected readonly focusLocation = signal<WorksheetLocation | null>(null);
     protected readonly pendingDelete = signal<DatasetSummary | null>(null);
     protected readonly cancelConfirmOpen = signal(false);
     protected readonly saveError = signal('');
@@ -425,7 +425,7 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
     }
 
     protected select(experiment: ExperimentSummary): void {
-        this.focusSequence.set(null);
+        this.focusLocation.set(null);
         this.selected.set(experiment);
         void this.router.navigate([], { queryParams: { experiment: experiment.id }, queryParamsHandling: 'merge', replaceUrl: true });
     }
@@ -486,7 +486,7 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
         if (issue.experiment_id === null) return;
         await this.selectById(issue.experiment_id);
         const location = issue.observation_id === null ? null : this.session.observationLocation(issue.observation_id);
-        this.focusSequence.set(location?.sequenceIndex ?? null);
+        this.focusLocation.set(location?.location ?? null);
     }
 
     protected issueLabel(issue: DatasetEditIssue): string {
@@ -494,7 +494,7 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
         const experiment = issue.experiment_id === null ? '' : (this.session.experimentLabel(issue.experiment_id) ?? (issue.experiment_id === this.selected()?.id ? this.selected()?.name : `Experiment #${issue.experiment_id}`));
         if (issue.scope === 'experiment') return experiment ?? 'Experiment';
         const location = issue.observation_id === null ? null : this.session.observationLocation(issue.observation_id);
-        return `${experiment}, measurement ${location ? location.sequenceIndex + 1 : '#' + issue.observation_id}`;
+        return `${experiment}, measurement ${location ? location.location.index + 1 : '#' + issue.observation_id}`;
     }
 
     protected deleted(): void {
