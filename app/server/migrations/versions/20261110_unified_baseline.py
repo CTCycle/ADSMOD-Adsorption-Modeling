@@ -5,8 +5,9 @@
 
 Adsorption data is one long-format measurement table: an experiment
 (`isotherms`) has one adsorbent and 1..N species (`isotherm_components`), and
-each `observations` row is the uptake of one species at one canonical pressure,
-unique on (isotherm_id, adsorbate_id, pressure_key). Databases stamped with any
+each `observations` row is the uptake of one species on one branch
+(adsorption or desorption) at one canonical pressure, unique on
+(isotherm_id, adsorbate_id, branch, pressure_key). Databases stamped with any
 earlier revision must be recreated; startup refuses to infer their schema.
 """
 
@@ -940,6 +941,9 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("pressure_canonical", sa.Float(), nullable=False),
         sa.Column("pressure_canonical_unit", sa.String(length=8), nullable=False),
         sa.Column("pressure_key", sa.BigInteger(), nullable=False),
+        sa.Column(
+            "branch", sa.String(length=16), server_default="adsorption", nullable=False
+        ),
         sa.Column("uptake_original", sa.Float(), nullable=False),
         sa.Column("uptake_original_unit", sa.String(length=32), nullable=False),
         sa.Column("uptake_mol_kg", sa.Float(), nullable=False),
@@ -947,6 +951,9 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("gas_mole_fraction", sa.Float(), nullable=True),
         sa.Column("conversion_metadata", schema_types.JSONMapping(), nullable=False),
         sa.Column("extra_metadata", schema_types.JSONMapping(), nullable=False),
+        sa.CheckConstraint(
+            "branch IN ('adsorption', 'desorption')", name="ck_observations_branch"
+        ),
         sa.CheckConstraint(
             "pressure_canonical_unit IN ('Pa', '1')",
             name="ck_observations_pressure_unit",
@@ -973,6 +980,7 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.UniqueConstraint(
             "isotherm_id",
             "adsorbate_id",
+            "branch",
             "pressure_key",
             name="uq_observations_identity",
         ),
@@ -980,7 +988,7 @@ def upgrade() -> None:  # noqa: PLR0915
     op.create_index(
         "ix_observations_species_pressure",
         "observations",
-        ["isotherm_id", "adsorbate_id", "pressure_canonical"],
+        ["isotherm_id", "adsorbate_id", "branch", "pressure_canonical"],
         unique=False,
     )
 

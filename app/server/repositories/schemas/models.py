@@ -366,11 +366,13 @@ class IsothermComponent(Base):
 
 ###############################################################################
 class Observation(Base):
-    """One uptake of one species in one experiment at one pressure.
+    """One uptake of one species in one experiment on one branch at one pressure.
 
     `pressure_key` is the quantized canonical pressure
     (`domain.canonical.pressure_key`), so the identity
-    (isotherm_id, adsorbate_id, pressure_key) is enforced by the database.
+    (isotherm_id, adsorbate_id, branch, pressure_key) is enforced by the
+    database. `branch` separates the adsorption and desorption branches of a
+    hysteresis loop, so one pressure may hold one uptake per branch.
     """
 
     __tablename__ = "observations"
@@ -386,6 +388,9 @@ class Observation(Base):
     pressure_canonical: Mapped[float] = mapped_column(Float, nullable=False)
     pressure_canonical_unit: Mapped[str] = mapped_column(String(8), nullable=False)
     pressure_key: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    branch: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="adsorption", server_default="adsorption"
+    )
     uptake_original: Mapped[float] = mapped_column(Float, nullable=False)
     uptake_original_unit: Mapped[str] = mapped_column(String(32), nullable=False)
     uptake_mol_kg: Mapped[float] = mapped_column(Float, nullable=False)
@@ -413,8 +418,12 @@ class Observation(Base):
         UniqueConstraint(
             "isotherm_id",
             "adsorbate_id",
+            "branch",
             "pressure_key",
             name="uq_observations_identity",
+        ),
+        CheckConstraint(
+            "branch IN ('adsorption', 'desorption')", name="ck_observations_branch"
         ),
         CheckConstraint("pressure_canonical >= 0", name="ck_observations_pressure"),
         CheckConstraint("uptake_mol_kg >= 0", name="ck_observations_uptake"),
@@ -435,6 +444,7 @@ class Observation(Base):
             "ix_observations_species_pressure",
             "isotherm_id",
             "adsorbate_id",
+            "branch",
             "pressure_canonical",
         ),
     )

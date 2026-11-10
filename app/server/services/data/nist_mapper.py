@@ -9,7 +9,7 @@ from typing import Any
 import pandas as pd
 
 from server.common.units import UnitRegistry, parse_number
-from server.domain.canonical import normalize_experiment
+from server.domain.canonical import assign_branches, normalize_experiment
 from server.common.utils.logger import logger
 from server.common.identity import is_inchi_key, stable_material_key
 
@@ -167,9 +167,13 @@ class NISTCanonicalMapper:
     ) -> tuple[list[dict[str, Any]], dict[str, str]]:
         """Map the long NIST frame to canonical experiments, one per source id.
 
-        Experiments the canonical model cannot represent (unsupported units or
-        composition type, repeated pressures of one species) are skipped with a
-        recorded reason instead of being altered.
+        ISODB isotherms carry no branch field, so `assign_branches` labels the
+        points in source point order: points up to the pressure maximum are
+        adsorption, the falling points after it desorption. Experiments the
+        canonical model cannot represent (unsupported units or composition
+        type, a branch pattern that cannot be classified, two uptakes of one
+        species at one pressure on one branch) are skipped with a recorded
+        reason instead of being altered.
         """
         records: list[dict[str, Any]] = []
         skipped: dict[str, str] = {}
@@ -178,8 +182,11 @@ class NISTCanonicalMapper:
         for name, rows in measurements.groupby("name", sort=False):
             source_id = str(name)
             try:
+                ordered = rows.sort_values("point_index", kind="stable")
                 records.append(
-                    normalize_experiment(self._experiment(source_id, rows)).model_dump()
+                    normalize_experiment(
+                        assign_branches(self._experiment(source_id, ordered))
+                    ).model_dump()
                 )
             except ValueError as exc:
                 logger.warning("Skipping NIST experiment %s: %s", source_id, exc)

@@ -7,8 +7,11 @@ Uploads, NIST acquisition, and dataset edits all build `CanonicalExperiment`
 records and pass them through `normalize_experiment` before persistence. An
 experiment has one adsorbent and one or more species; every measurement is one
 long-format row identified by (experiment, species, pressure) with the
-canonical pressure and uptake columns. The number of species never selects a
-different structure. An experiment has exactly one temperature
+canonical pressure and uptake columns. Every measurement also names its
+branch (``adsorption`` or ``desorption``), so a hysteresis loop is stored in the
+same long format and one pressure may hold one uptake per branch; the identity
+is (experiment, species, branch, pressure). The number of species never
+selects a different structure. An experiment has exactly one temperature
 (`temperature_k`); measurements carry none, so a source whose rows disagree on
 temperature must split them into separate experiments.
 
@@ -35,6 +38,16 @@ from server.common.identity import exact_key
 from server.common.units import PressureBasis
 
 DuplicatePolicy = Literal["reject", "average"]
+ObservationBranch = Literal["adsorption", "desorption"]
+BRANCH_ORDER: dict[str, int] = {"adsorption": 0, "desorption": 1}
+BRANCH_LABELS: dict[str, ObservationBranch] = {
+    "adsorption": "adsorption",
+    "ads": "adsorption",
+    "a": "adsorption",
+    "desorption": "desorption",
+    "des": "desorption",
+    "d": "desorption",
+}
 
 # Quantization used by both duplicate detection and the database identity
 # constraint: 1 µPa for absolute/partial pressures, 1e-9 for p/p0.
@@ -82,6 +95,7 @@ class CanonicalObservation(BaseModel):
     pressure_original_unit: str
     pressure_canonical: float = Field(ge=0, allow_inf_nan=False)
     pressure_canonical_unit: Literal["Pa", "1"]
+    branch: ObservationBranch = "adsorption"
     uptake_original: float = Field(allow_inf_nan=False)
     uptake_original_unit: str
     uptake_mol_kg: float = Field(ge=0, allow_inf_nan=False)
@@ -202,10 +216,10 @@ def _species_positions(experiment: CanonicalExperiment) -> dict[str, int]:
 ###############################################################################
 def _group_by_identity(
     experiment: CanonicalExperiment, positions: dict[str, int]
-) -> dict[tuple[int, int], list[CanonicalObservation]]:
+) -> dict[tuple[int, int, int], list[CanonicalObservation]]:
     name = experiment.name
     expected_unit = "1" if experiment.pressure_basis == "relative" else "Pa"
-    grouped: dict[tuple[int, int], list[CanonicalObservation]] = {}
+    grouped: dict[tuple[int, int, int], list[CanonicalObservation]] = {}
     for observation in experiment.observations:
         position = positions.get(species_key(observation.adsorbate))
         if position is None:
@@ -231,6 +245,7 @@ def _group_by_identity(
             )
         key = (
             position,
+            BRANCH_ORDER[observation.branch],
             pressure_key(
                 observation.pressure_canonical, observation.pressure_canonical_unit
             ),
@@ -242,24 +257,34 @@ def _group_by_identity(
 ###############################################################################
 def _check_coverage(
     experiment: CanonicalExperiment,
-    collapsed: dict[tuple[int, int], CanonicalObservation],
+    collapsed: dict[tuple[int, int, int], CanonicalObservation],
 ) -> None:
     name = experiment.name
-    counts = Counter(position for position, _ in collapsed)
+    adsorption = BRANCH_ORDER["adsorption"]
+    counts = Counter((position, branch) for position, branch, _ in collapsed)
     for position, species in enumerate(experiment.adsorbates):
-        if counts[position] < 2:
+        if counts[(position, adsorption)] < 2:
+            desorption = counts[(position, BRANCH_ORDER["desorption"])]
             raise CanonicalizationError(
                 "insufficient_observations",
                 name,
                 f"Species '{species.name}' in experiment '{name}' needs at least "
-                "two distinct pressures.",
+                "two distinct pressures on its adsorption branch"
+                + (
+                    f" (it has {desorption} desorption point(s), which cannot "
+                    "be stored without an adsorption branch)."
+                    if desorption
+                    else "."
+                ),
             )
     if len(experiment.adsorbates) < 2 or experiment.pressure_basis != "absolute":
         return
-    totals: Counter[int] = Counter()
-    for (_, key), observation in collapsed.items():
+    # Species measured at one equilibrium point share its total pressure and
+    # branch, so their fractions are summed per (branch, pressure).
+    totals: Counter[tuple[int, int]] = Counter()
+    for (_, branch, key), observation in collapsed.items():
         if observation.gas_mole_fraction is not None:
-            totals[key] += observation.gas_mole_fraction
+            totals[(branch, key)] += observation.gas_mole_fraction
     if any(total > 1 + FRACTION_TOLERANCE for total in totals.values()):
         raise CanonicalizationError(
             "gas_fraction_sum",
@@ -276,25 +301,28 @@ def normalize_experiment(
 ) -> CanonicalExperiment:
     """Validate one experiment and return it in canonical, deterministic order.
 
-    Observations are ordered by species position, then pressure. Repeated
-    (species, pressure) identities raise with ``reject`` and are averaged into
-    one observation with ``average``; they are never silently overwritten.
+    Observations are ordered by species position, branch (adsorption first),
+    then pressure. Repeated (species, branch, pressure) identities raise with
+    ``reject`` and are averaged into one observation with ``average``; they are
+    never silently overwritten. Each species needs at least two adsorption
+    pressures; desorption points are optional.
     The function is idempotent, so persistence can re-apply it as a guard.
     """
     experiment = _validated(record)
     grouped = _group_by_identity(experiment, _species_positions(experiment))
     repeated = sorted(key for key, items in grouped.items() if len(items) > 1)
     if repeated and duplicates == "reject":
-        position, _ = repeated[0]
+        position, _, _ = repeated[0]
         first = grouped[repeated[0]][0]
         raise CanonicalizationError(
             "duplicate_measurement",
             experiment.name,
             f"Experiment '{experiment.name}' has {len(repeated)} repeated "
             f"pressure(s) (first: {experiment.adsorbates[position].name} at "
-            f"{first.pressure_canonical:g} {first.pressure_canonical_unit}). "
-            "Each species may have one uptake per pressure; average the "
-            "replicates or correct the source rows.",
+            f"{first.pressure_canonical:g} {first.pressure_canonical_unit} on "
+            f"the {first.branch} branch). Each species may have one uptake per "
+            "branch and pressure; average the replicates or correct the source "
+            "rows.",
         )
     collapsed = {
         key: items[0] if len(items) == 1 else _collapse(items)
@@ -307,3 +335,82 @@ def normalize_experiment(
     return experiment.model_copy(
         update={"observations": list(collapsed.values()), "provenance": provenance}
     )
+
+
+###############################################################################
+def parse_branch(value: object) -> ObservationBranch:
+    """Read a source branch label: adsorption/desorption, ads/des or a/d."""
+    text = str(value if value is not None else "").strip().casefold()
+    if text not in BRANCH_LABELS:
+        raise ValueError(
+            f"Branch '{value}' is not recognized; use adsorption or desorption "
+            "(ads/des or a/d)."
+        )
+    return BRANCH_LABELS[text]
+
+
+###############################################################################
+def assign_branches(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Label the observations of a source that carries no branch marker.
+
+    The rule is applied per species in source order, which must be the order
+    of acquisition:
+
+    - every point up to the first point at the species' highest pressure
+      (inclusive) is ``adsorption``;
+    - no later point may rise in pressure: a point below its predecessor is
+      ``desorption``, and a point at its predecessor's pressure joins that
+      point's branch, so a vertical step stays a repeated measurement that
+      `normalize_experiment` rejects or averages.
+
+    A pressure rise after the desorption branch has started (a second cycle or
+    an unordered source) cannot be classified and raises
+    `CanonicalizationError` with code ``ambiguous_branch`` instead of guessing.
+    Explicit ``branch`` values are replaced, so callers apply this only to
+    unlabelled sources. Provenance records that the branches were inferred.
+    """
+    name = str(record.get("name") or record.get("external_key") or "experiment")
+    observations = [dict(item) for item in record.get("observations") or []]
+    by_species: dict[str, list[dict[str, Any]]] = {}
+    for observation in observations:
+        by_species.setdefault(
+            species_key(str(observation.get("adsorbate", ""))), []
+        ).append(observation)
+    for points in by_species.values():
+        try:
+            keys = [
+                pressure_key(
+                    float(point["pressure_canonical"]),
+                    str(point["pressure_canonical_unit"]),
+                )
+                for point in points
+            ]
+        except (KeyError, TypeError, ValueError):
+            # Invalid points are reported by `normalize_experiment`.
+            continue
+        peak = keys.index(max(keys))
+        branch = "adsorption"
+        for index, point in enumerate(points):
+            if index > peak:
+                if keys[index] > keys[index - 1]:
+                    raise CanonicalizationError(
+                        "ambiguous_branch",
+                        name,
+                        f"Species '{point.get('adsorbate')}' in experiment "
+                        f"'{name}' rises in pressure again after its desorption "
+                        f"branch started (source row {point.get('source_row')}), "
+                        "so the branch of each point cannot be inferred. Label "
+                        "the branch explicitly or split the cycles into "
+                        "separate experiments.",
+                    )
+                if keys[index] < keys[index - 1]:
+                    branch = "desorption"
+            point["branch"] = branch
+    return {
+        **dict(record),
+        "observations": observations,
+        "provenance": {
+            **dict(record.get("provenance") or {}),
+            "branch_assignment": "inferred",
+        },
+    }
