@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
@@ -19,6 +20,17 @@ from server.services.providers.public_data import (
 
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
 _INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
+
+###############################################################################
+@dataclass(frozen=True)
+class CandidateSet:
+    options: list[dict[str, Any]]
+    sampled: int
+    total: int
+
+    @property
+    def complete(self) -> bool:
+        return self.sampled >= self.total
 
 ###############################################################################
 class PubChemProvider(RetryingHttpProvider):
@@ -55,6 +67,7 @@ class PubChemProvider(RetryingHttpProvider):
         "Complexity",
         "ExactMass",
         "MonoisotopicMass",
+        "ConformerCount3D",
     )
 
     # -------------------------------------------------------------------------
@@ -139,10 +152,19 @@ class PubChemProvider(RetryingHttpProvider):
         A name can match several compounds; the leading `limit` CIDs are
         returned with identity fields so the user can choose one.
         """
+        return (await self.candidate_set(query, limit)).options
+
+    # -------------------------------------------------------------------------
+    async def candidate_set(self, query: str, limit: int = 5) -> CandidateSet:
+        """The leading `limit` candidates plus how many CIDs PubChem matched.
+
+        Uniqueness can only be judged on a complete set, so callers that
+        assign identity must check `complete` before trusting the options.
+        """
         namespace, value = self._namespace(query)
         if not value:
             raise ValueError("PubChem query must not be empty.")
-        cids = [value] if namespace == "cid" else await self._candidate_cids(
+        cids, total = ([value], 1) if namespace == "cid" else await self._candidate_cids(
             namespace, value, limit
         )
         response = await self._request(
@@ -154,7 +176,7 @@ class PubChemProvider(RetryingHttpProvider):
             rows = response.json().get("PropertyTable", {}).get("Properties", [])
         except ValueError as exc:
             raise ProviderUnavailableError("PubChem returned malformed JSON.") from exc
-        return [
+        options = [
             {
                 "cid": str(row["CID"]),
                 "name": str(row.get("Title") or row.get("CID")),
@@ -170,11 +192,12 @@ class PubChemProvider(RetryingHttpProvider):
             for row in rows
             if row.get("CID") is not None
         ]
+        return CandidateSet(options, len(cids), total)
 
     # -------------------------------------------------------------------------
     async def _candidate_cids(
         self, namespace: str, value: str, limit: int
-    ) -> list[str]:
+    ) -> tuple[list[str], int]:
         response = await self._request(
             "GET", self._compound_url(namespace, value, "cids/JSON")
         )
@@ -182,10 +205,10 @@ class PubChemProvider(RetryingHttpProvider):
             cids = response.json().get("IdentifierList", {}).get("CID", [])
         except ValueError as exc:
             raise ProviderUnavailableError("PubChem returned malformed JSON.") from exc
-        selected = [str(cid) for cid in cids if int(cid) > 0][:limit]
-        if not selected:
+        matched = [str(cid) for cid in cids if int(cid) > 0]
+        if not matched:
             raise ProviderNotFoundError(f"PubChem could not resolve {value!r}.")
-        return selected
+        return matched[:limit], len(matched)
 
     # -------------------------------------------------------------------------
     async def fetch_conformer(self, cid: str) -> str:
@@ -246,12 +269,9 @@ class PubChemProvider(RetryingHttpProvider):
             synonyms = []
 
         conformer_url = f"{self.base_url}/compound/cid/{cid}/record/SDF?record_type=3d"
-        # The probe already downloads the SDF, so keep it instead of discarding it.
-        try:
-            conformer_sdf: str | None = await self.fetch_conformer(cid)
-        except ProviderError:
-            conformer_sdf = None
-        has_3d = conformer_sdf is not None
+        # Availability comes from the property row; the SDF itself is
+        # downloaded only on demand or by the bulk conformer run.
+        has_3d = (self._number(row.get("ConformerCount3D")) or 0) > 0
 
         formula = str(row.get("MolecularFormula") or "").strip() or None
         descriptor_values = {
@@ -284,7 +304,6 @@ class PubChemProvider(RetryingHttpProvider):
             "elemental_composition": self.elemental_composition(formula),
             "structure_2d_url": f"{self.base_url}/compound/cid/{cid}/PNG?image_size=300x300",
             "conformer_3d_url": conformer_url if has_3d else None,
-            "conformer_3d_sdf": conformer_sdf,
             "source_url": f"https://pubchem.ncbi.nlm.nih.gov/compound/{cid}",
             "raw_metadata": row,
         }

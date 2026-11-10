@@ -37,7 +37,7 @@ from server.repositories.schemas.public_data import (
     Structure,
 )
 from server.services.data.public_data import PublicDataService
-from server.services.providers.pubchem import PubChemProvider
+from server.services.providers.pubchem import CandidateSet, PubChemProvider
 from server.common.identity import (
     clean_name,
     fuzzy_score,
@@ -464,12 +464,13 @@ def test_audit_proposes_only_guard_compatible_pairs(database: DatabaseManager) -
 
 ###############################################################################
 class _FakePubChem(PubChemProvider):
-    def __init__(self, options: list[dict[str, Any]]) -> None:
+    def __init__(self, options: list[dict[str, Any]], total: int | None = None) -> None:
         self.options = options
+        self.total = len(options) if total is None else total
         self.resolved: list[str] = []
 
-    async def candidates(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
-        return self.options
+    async def candidate_set(self, query: str, limit: int = 5) -> CandidateSet:
+        return CandidateSet(self.options, len(self.options), self.total)
 
     async def close(self) -> None:
         return None
@@ -486,10 +487,10 @@ class _FakeRepository:
 
 ###############################################################################
 def _guarded_service(
-    options: list[dict[str, Any]],
+    options: list[dict[str, Any]], total: int | None = None
 ) -> tuple[PublicDataService, _FakeRepository, list[str]]:
     repository = _FakeRepository()
-    provider = _FakePubChem(options)
+    provider = _FakePubChem(options, total)
     provider.key = "pubchem"
     service = PublicDataService(repository=repository, providers=[provider])  # type: ignore[arg-type]
     accepted: list[str] = []
@@ -541,6 +542,18 @@ def test_unsafe_external_matches_go_to_review(
         asyncio.run(service.resolve_stored_species(_stored(name)))
     assert accepted == []
     assert repository.reviews[0]["reason"] == reason
+
+
+###############################################################################
+def test_unique_match_in_a_truncated_candidate_set_goes_to_review() -> None:
+    service, repository, accepted = _guarded_service(
+        [{"cid": "1", "formula": "C3H8"}, {"cid": "2", "formula": "C2H6O"}], total=40
+    )
+    with pytest.raises(ValueError, match="needs review"):
+        asyncio.run(service.resolve_stored_species(_stored("Solvent X", "C3H8")))
+    assert accepted == []
+    assert repository.reviews[0]["reason"] == "incomplete_candidate_set"
+    assert repository.reviews[0]["evidence"]["matched"] == 40
 
 
 ###############################################################################

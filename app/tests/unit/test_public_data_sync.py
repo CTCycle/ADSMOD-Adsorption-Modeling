@@ -1300,6 +1300,7 @@ def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
                 "Gamma-MOF",
                 "Delta-MOF",
                 "Epsilon-MOF (synthetic)",
+                "Zeta-MOF",
             ):
                 session.add(Adsorbent(key=name.lower(), name=name))
         provider = CODProvider(
@@ -1332,6 +1333,18 @@ def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
             ],
             "Epsilon-MOF": [
                 {"cod_id": "1000005", "raw_metadata": {"commonname": "Epsilon-MOF"}}
+            ],
+            "Zeta-MOF": [
+                {
+                    "cod_id": "2000002",
+                    "has_coordinates": False,
+                    "raw_metadata": {"chemname": "Zeta-MOF"},
+                },
+                {
+                    "cod_id": "2000001",
+                    "has_coordinates": True,
+                    "raw_metadata": {"chemname": "Zeta-MOF"},
+                },
             ],
         }
 
@@ -1370,17 +1383,21 @@ def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
             failures, _ = await coordinator.failures(run["id"], limit=10, offset=0)
 
             assert run["status"] == "completed"
-            assert (run["processed_count"], run["imported_count"]) == (5, 3)
-            assert run["skipped_count"] == 2
-            assert linked == [("1000001", 1), ("1000003", 2), ("1000005", 5)]
-            assert any("Ambiguous" in item["reason"] for item in failures)
+            assert (run["processed_count"], run["imported_count"]) == (6, 3)
+            assert run["skipped_count"] == 3
+            # Two exact entries with coordinates are never chosen between.
+            assert linked == [("1000001", 1), ("1000005", 5), ("2000001", 6)]
+            assert any(
+                "Ambiguous" in item["reason"] and "1000003, 1000006" in item["reason"]
+                for item in failures
+            )
             assert any("No COD structure" in item["reason"] for item in failures)
             # Settled outcomes are not retried; only the unlinked matches remain.
             remaining = repository.cod_bulk_candidates(10)
             assert [item["name"] for item in remaining] == [
                 "Alpha-MOF",
-                "Beta-MOF",
                 "Epsilon-MOF (synthetic)",
+                "Zeta-MOF",
             ]
         finally:
             await coordinator.close()

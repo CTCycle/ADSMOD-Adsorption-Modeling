@@ -1,6 +1,6 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ## Main Navigation
 
@@ -93,7 +93,7 @@ The overview, source registry, and local record views do not need an external pr
 
 1. Open `sources/acquire`.
 2. PubChem: in Single mode search a CID, InChIKey, or name, inspect the matches, and Import one; in Bulk mode set the share and select Enrich stored species to add PubChem identity, synonyms, and properties to stored species that lack them. The card shows how many stored species are enriched (a local ratio; PubChem publishes no total). Fetch 3D structures (Bulk mode) downloads the 3D conformer of enriched species that have none stored yet.
-3. COD: in Single mode search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import. In Bulk mode set the share and select Fetch structures: stored materials without a structure are looked up by name, and only exact name matches are imported and linked. When several entries share the name, the one with coordinates and the lowest COD ID is used. Unavailable and ambiguous materials are skipped and listed under Jobs → Details (status bar).
+3. COD: in Single mode search by text, formula, or COD ID, select up to 50 results, optionally choose a material to link them to, and import. In Bulk mode set the share and select Fetch structures: stored materials without a structure are looked up by name, and only a unique exact name match is imported and linked: one exact entry, or one exact entry with coordinates among several. Several exact entries with coordinates (polymorphs or phases) are never chosen between; the skip lists their COD IDs so you can link one from Single mode. Unavailable and ambiguous materials are skipped and listed under Jobs → Details (status bar).
 4. Each card shows its active or latest run from this visit, with counts and a link to the imported records; Details opens Jobs for failures, Cancel, and Resume. Links from a species or material on the Datasets page open the matching search with it already run, and a failed request keeps the current selection and link target. Each card remembers its Single or Bulk mode.
 5. Review species and materials in the Datasets page side column: each opens a detail panel of collapsible sections with identifiers, properties, provenance, a structure preview (2D image and 3D viewer for species; linked COD crystal structures and 3D viewer for materials), and the datasets that use it. Missing data reads "Not available" and inapplicable fields "Not applicable"; a species without a cached conformer can be fetched from its panel. Unreferenced entities can be deleted there. Imported structures are listed in `sources/structures`, where a structure can be linked to or unlinked from a material and its CIF downloaded.
 6. Open `sources/catalog` to review providers by data type and saved connection state, and use the refresh icon in the Sources tab bar to queue independent health checks. Local records stay available when a provider is unavailable.

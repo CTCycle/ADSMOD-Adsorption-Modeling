@@ -877,10 +877,6 @@ class PublicDataRepository:
             )
         if payload.get("conformer_3d_url"):
             property_rows.append(("pubchem_3d_available", None, "true", None))
-        if payload.get("conformer_3d_sdf"):
-            property_rows.append(
-                (CONFORMER_PROPERTY, None, str(payload["conformer_3d_sdf"]), None)
-            )
         units = {
             "tpsa_angstrom2": "Å²",
             "exact_mass_da": "Da",

@@ -31,6 +31,9 @@ from server.repositories.schemas.types import normalize_identity
 # space, and formula fragments contain digits.
 _TRAILING_NAME_QUALIFIER = re.compile(r"\s+\([A-Za-z ]+\)\s*$")
 _COD_NAME_FIELDS = ("chemname", "commonname", "mineral")
+# Enough CIDs to judge uniqueness after formula filtering; more matches than
+# this go to review rather than being decided on a partial set.
+_IDENTITY_CANDIDATE_LIMIT = 20
 
 
 ###############################################################################
@@ -180,7 +183,20 @@ class PublicDataService:
             )
             if unsafe:
                 await self._review_species(adsorbate_id, name, unsafe, {})
-        options = await provider.candidates(f"smiles:{smiles}" if smiles else name)
+        found = await provider.candidate_set(
+            f"smiles:{smiles}" if smiles else name, limit=_IDENTITY_CANDIDATE_LIMIT
+        )
+        if not found.complete:
+            await self._review_species(
+                adsorbate_id,
+                name,
+                "incomplete_candidate_set",
+                {
+                    "pubchem_cids": [option["cid"] for option in found.options],
+                    "matched": found.total,
+                },
+            )
+        options = found.options
         formula = candidate.get("formula")
         if formula:
             expected = provider.elemental_composition(formula)
@@ -301,12 +317,13 @@ class PublicDataService:
     async def import_cod_for_material(
         self, adsorbent_id: int, name: str
     ) -> tuple[int | None, bool, str | None]:
-        """Import a COD structure for a stored material only on an exact name match.
+        """Import a COD structure for a stored material only on a unique match.
 
-        Several entries can carry the same name, so the pick is deterministic:
-        entries with coordinates first, then the lowest COD ID. Returns
-        (structure id, imported, reason). Without an exact match no structure is
-        linked and a reason is returned.
+        The match must be exact on a COD name field and identify one entry
+        with coordinates (or the only exact entry). Several such entries can be
+        polymorphs or distinct phases, so they are never chosen between
+        automatically. Returns (structure id, imported, reason); when nothing
+        is linked the reason names the candidates for manual selection.
         """
         provider = self.providers.get("cod")
         if not isinstance(provider, CODProvider):
@@ -329,10 +346,16 @@ class PublicDataService:
                 f"Ambiguous: {len(rows)} COD candidates, no exact name match "
                 f"(e.g. {candidates}); choose one manually."
             )
-        selected = min(
-            exact,
-            key=lambda row: (not row.get("has_coordinates"), int(row["cod_id"])),
-        )
+        suitable = [row for row in exact if row.get("has_coordinates")] or exact
+        if len(suitable) != 1:
+            candidates = ", ".join(
+                str(row["cod_id"]) for row in sorted(suitable, key=lambda r: int(r["cod_id"]))
+            )
+            return None, False, (
+                f"Ambiguous: {len(suitable)} COD entries match the name exactly "
+                f"({candidates}); choose one manually."
+            )
+        selected = suitable[0]
         # The search row already carries the metadata, so the import need not
         # look the entry up again.
         structure_id, imported = await self.import_cod(

@@ -796,6 +796,7 @@ def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -
                                 "TPSA": 0,
                                 "HBondDonorCount": 0,
                                 "HBondAcceptorCount": 0,
+                                "ConformerCount3D": 1,
                             }
                         ]
                     }
@@ -812,7 +813,7 @@ def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -
                     }
                 },
             )
-        return httpx.Response(200, text="3D SDF")
+        raise AssertionError(f"unexpected request {url}")
 
     monkeypatch.setattr(provider, "_request", fake_request)
     payload = asyncio.run(provider.resolve("methane"))
@@ -821,13 +822,14 @@ def test_pubchem_resolution_normalizes_properties_without_network(monkeypatch) -
     assert payload["inchi_key"] == "VNWKTOKETHGBQD-UHFFFAOYSA-N"
     assert payload["elemental_composition"] == {"C": 1.0, "H": 4.0}
     assert payload["descriptors"]["tpsa_angstrom2"] == 0.0
+    # Availability is read from the property row; the SDF is not downloaded.
     assert payload["conformer_3d_url"] is not None
+    assert "conformer_3d_sdf" not in payload
 
 
 ###############################################################################
-@pytest.mark.parametrize("failed_endpoint", ["synonyms", "conformer"])
-def test_pubchem_resolution_keeps_primary_record_when_secondary_endpoint_fails(
-    monkeypatch, failed_endpoint: str
+def test_pubchem_resolution_keeps_primary_record_when_synonyms_fail(
+    monkeypatch,
 ) -> None:  # type: ignore[no-untyped-def]
     provider = PubChemProvider(parallel_requests=1)
 
@@ -851,28 +853,16 @@ def test_pubchem_resolution_keeps_primary_record_when_secondary_endpoint_fails(
                 },
             )
         if "/synonyms/" in url:
-            if failed_endpoint == "synonyms":
-                raise ProviderUnavailableError("simulated secondary endpoint failure")
-            return httpx.Response(
-                200,
-                json={
-                    "InformationList": {
-                        "Information": [{"CID": 297, "Synonym": ["Marsh gas"]}]
-                    }
-                },
-            )
-        if failed_endpoint == "conformer":
             raise ProviderUnavailableError("simulated secondary endpoint failure")
-        return httpx.Response(200, text="3D SDF")
+        raise AssertionError(f"unexpected request {url}")
 
     monkeypatch.setattr(provider, "_request", fake_request)
     payload = asyncio.run(provider.resolve("methane"))
 
     assert payload["cid"] == "297"
     assert payload["formula"] == "CH4"
-    expected_synonyms = [] if failed_endpoint == "synonyms" else ["Marsh gas"]
-    assert payload["synonyms"] == expected_synonyms
-    assert (payload["conformer_3d_url"] is None) is (failed_endpoint == "conformer")
+    assert payload["synonyms"] == []
+    assert payload["conformer_3d_url"] is None
 
 
 ###############################################################################

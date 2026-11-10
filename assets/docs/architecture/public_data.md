@@ -1,6 +1,6 @@
 # Public data architecture
 
-Last updated: 2026-11-09
+Last updated: 2026-11-10
 
 ## Scope
 
@@ -84,7 +84,7 @@ COD records are not automatically linked to a canonical ADSMOD material by name 
 
 ## Structure preview
 
-- Species: the compact 2D image is PubChem's PNG for the stored CID (loaded by the browser only when a detail panel is open). The 3D conformer is cached on first use or by the bulk `conformers` run; a new PubChem resolve already downloads the SDF and caches it with no extra request. A species without a PubChem record shows no structure and links to the Acquire form rather than guessing from its name.
+- Species: the compact 2D image is PubChem's PNG for the stored CID (loaded by the browser only when a detail panel is open). The 3D conformer is cached on first use or by the bulk `conformers` run. A PubChem resolve does not download the SDF: it reads availability from the `ConformerCount3D` property it already requests. A species without a PubChem record shows no structure and links to the Acquire form rather than guessing from its name.
 - Materials: only COD structures that were explicitly linked (or matched uniquely by the bulk run) are shown; the CIF is stored verbatim and rendered with 3Dmol.js. Amorphous, composite, and polymeric adsorbents usually have no crystal structure, so the panel reports none instead of an unrelated record. No other structure provider is used.
 - Viewer: 3Dmol.js (BSD-3-Clause) is loaded by a dynamic import when the expanded viewer first opens and is not part of the initial bundle. Current COD files use `_space_group_symop_*` tags that 3Dmol does not read, so the viewer renames them to the legacy `_symmetry_equiv_pos_*` tags to expand the full unit cell.
 
@@ -211,7 +211,7 @@ A guard signature (numbers, metals, composite markers, isomer and charge markers
 
 `identity_status` is `resolved`, `provisional`, or `generic`. Aliases are stored in `adsorbate_synonyms` and `adsorbent_synonyms`, with their `origin` and optional source record, and serve as the positive resolution cache. Negative outcomes are kept in `public_data_sync_failures` and `identity_reviews`. Received names are preserved in `isotherm_components.source_name` and `isotherms.adsorbent_source_name`.
 
-`pubchem_enrich` accepts a stored species only on an InChIKey, or when a name or SMILES search leaves exactly one compound consistent with the stored formula. Bare formulas, ions and oxidation states, and several candidates open a review. Adsorbent names are never sent to PubChem. After an upload, `public_data.auto_resolve_uploaded_species` (on by default) queues this run.
+`pubchem_enrich` accepts a stored species only on an InChIKey, or when a name or SMILES search leaves exactly one compound consistent with the stored formula. Uniqueness is judged only on the complete candidate set: when PubChem matches more than 20 CIDs, the species opens an `incomplete_candidate_set` review instead of being decided on a partial set. Bare formulas, ions and oxidation states, and several candidates open a review. Adsorbent names are never sent to PubChem. After an upload, `public_data.auto_resolve_uploaded_species` (on by default) queues this run.
 
 `identity_reviews` holds open and decided questions; a decided pair or name is not raised again. `POST /api/v1/identity/audit` proposes likely duplicates without changing canonical rows. `POST /api/v1/identity/reviews/{id}/merge` is the only path that merges rows: in one transaction it re-points experiments, source links, structures, aliases, and properties, keeps the removed name as an alias, and stores a snapshot on the review. It refuses different InChIKeys and experiments that list both species as components. The migration merges nothing. Back up the SQLite file before the first batch of approvals.
 
