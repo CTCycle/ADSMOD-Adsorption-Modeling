@@ -37,7 +37,9 @@ describe('application routes', () => {
         expect(childRoutes.find((route) => route.path === 'sources')?.redirectTo).toBe('sources/catalog');
         expect(childRoutes.find((route) => route.path === 'datasets/:id')?.canDeactivate).toHaveLength(1);
         expect(childRoutes.find((route) => route.path === '')?.redirectTo).toBe('home');
-        expect(routes.find((route) => route.path === '**')?.redirectTo).toBe('home');
+        const wildcard = childRoutes.find((route) => route.path === '**');
+        expect(wildcard?.redirectTo).toBeUndefined();
+        expect(wildcard?.loadComponent).toBeDefined();
     });
 
     it('nests the Modeling workspace views and guards the deep-learning entry routes', () => {
