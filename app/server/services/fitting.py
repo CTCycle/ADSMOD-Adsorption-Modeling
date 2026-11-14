@@ -484,22 +484,32 @@ class FittingService:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _rank(computations: list[FitComputation], metric: str) -> None:
+    def _rank(computations: list[FitComputation], metric: str) -> str:
+        """Rank by `metric`, falling back to RMSE then R² when it is undefined for all models.
+
+        Returns the metric actually used so the caller can note a fallback.
+        """
         for item in computations:
             item.rank = None
-        ranked = [
-            item
-            for item in computations
-            if item.status != "failed"
-            and item.metrics.values.get(metric) is not None
-            and np.isfinite(float(item.metrics.values[metric]))
-        ]
+        for candidate in dict.fromkeys((metric, "rmse", "r_squared")):
+            ranked = [
+                item
+                for item in computations
+                if item.status != "failed"
+                and item.metrics.values.get(candidate) is not None
+                and np.isfinite(float(item.metrics.values[candidate]))
+            ]
+            if ranked:
+                break
+        else:
+            return metric
         ranked.sort(
-            key=lambda item: float(item.metrics.values[metric]),
-            reverse=metric not in MINIMIZE_MODEL_METRICS,
+            key=lambda item: float(item.metrics.values[candidate]),
+            reverse=candidate not in MINIMIZE_MODEL_METRICS,
         )
         for rank, item in enumerate(ranked, start=1):
             item.rank = rank
+        return candidate
 
     # -------------------------------------------------------------------------
     def _publish_progress(
@@ -541,7 +551,12 @@ class FittingService:
                     job_id, session_id, log, 100.0 * (index - 1) / len(series_list)
                 )
                 computations = self.pipeline.run(series, request, stop_event=stop_event)
-                self._rank(computations, metric)
+                used_metric = self._rank(computations, metric)
+                if used_metric != metric:
+                    log.append(
+                        f"[WARN]   {metric.upper()} is undefined for every model "
+                        f"(too few measurements); best model chosen by {used_metric}."
+                    )
                 for item in computations:
                     statuses.append(item.status)
                     if item.status == "failed":

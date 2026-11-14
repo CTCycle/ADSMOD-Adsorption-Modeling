@@ -282,3 +282,17 @@ def test_sessions_left_running_are_failed_on_restart(client: TestClient) -> None
     assert detail["status"] == "failed"
     assert detail["message"] == "Interrupted by application restart."
     assert detail["completed_at"] is not None
+
+
+###############################################################################
+def test_ranking_falls_back_to_rmse_when_the_chosen_metric_is_undefined() -> None:
+    from server.services.fitting import FittingService
+
+    def computation(rmse: float) -> Any:
+        return SimpleNamespace(
+            status="completed", rank=None, metrics=SimpleNamespace(values={"aicc": None, "rmse": rmse})
+        )
+
+    items = [computation(0.5), computation(0.1)]
+    assert FittingService._rank(items, "aicc") == "rmse"
+    assert [item.rank for item in items] == [2, 1]
