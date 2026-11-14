@@ -159,3 +159,5 @@
 @media (prefers-reduced-motion: reduce) {
     .row-chevron { transition: none; }
 }
+
+.session-stale { margin-left: 0.4rem; padding: 1px 8px; border: 1px solid var(--warning-border); border-radius: 999px; background: var(--warning-bg); color: var(--warning-text); font-size: 0.7rem; font-weight: 700; white-space: nowrap; }

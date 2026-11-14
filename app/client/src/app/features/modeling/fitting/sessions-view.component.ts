@@ -130,7 +130,7 @@ const LIVE_REFRESH_MS = 3000;
                                     <td data-label="Created" class="nowrap">{{ session.created_at | date: 'medium' }}</td>
                                     <td data-label="Models" class="num">{{ session.models.length }}</td>
                                     <td data-label="Experiments" class="num">{{ session.experiment_count }}</td>
-                                    <td data-label="Status"><span class="session-status" [attr.data-status]="session.status">{{ statusLabels[session.status] }}</span></td>
+                                    <td data-label="Status"><span class="session-status" [attr.data-status]="session.status">{{ statusLabels[session.status] }}</span>@if (session.stale) { <span class="session-stale" title="The dataset changed after this session was fitted">Stale</span> }</td>
                                     <td class="col-actions">
                                         <a class="button quiet icon-button" [routerLink]="['/modeling/fitting', session.id]" title="Open session" [attr.aria-label]="'Open ' + session.name"><adsmod-icon name="eye" /></a>
                                         <button class="button quiet danger icon-button" type="button" title="Delete session" [disabled]="session.status === 'running'" [attr.aria-label]="'Delete ' + session.name" (click)="deleteTarget.set(session)"><adsmod-icon name="trash" /></button>

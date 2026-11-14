@@ -162,6 +162,7 @@ export interface FittingSessionSummary {
     completed_at: string | null;
     duration_seconds: number | null;
     best_models: Record<string, string | null>;
+    stale: boolean;
 }
 
 export interface FittingSessionSnapshot {
@@ -169,8 +170,8 @@ export interface FittingSessionSnapshot {
     model_bounds: Record<string, ModelBounds>;
     session_overrides: Record<string, ModelBounds>;
     experiments: { isotherm_id: number; name: string; input_sha256: string }[];
-    [key: string]: unknown;
     skipped_experiments?: { isotherm_id: number; name: string; reason: string | null }[];
+    [key: string]: unknown;
 }
 
 export interface FittingSessionDetail extends FittingSessionSummary {
@@ -178,7 +179,6 @@ export interface FittingSessionDetail extends FittingSessionSummary {
     log: string[];
     experiments: ExperimentFitResult[];
     job_id: string | null;
-    stale: boolean;
     stale_reason: string | null;
 }
 

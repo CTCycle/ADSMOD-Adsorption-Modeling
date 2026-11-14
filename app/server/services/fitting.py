@@ -694,7 +694,13 @@ class FittingService:
     def list_sessions(self, query: SessionQuery) -> FittingSessionListResponse:
         records, total = self.results.list_sessions(query)
         return FittingSessionListResponse(
-            items=[FittingSessionSummary(**self._summary_fields(item)) for item in records],
+            items=[
+                FittingSessionSummary(
+                    **self._summary_fields(item),
+                    stale=item.status != "running" and self._session_staleness(item)[0],
+                )
+                for item in records
+            ],
             total=total,
             page=query.page,
             page_size=query.page_size,

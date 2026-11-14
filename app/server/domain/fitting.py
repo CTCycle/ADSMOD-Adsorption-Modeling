@@ -175,6 +175,7 @@ class FittingSessionSummary(BaseModel):
     completed_at: str | None
     duration_seconds: float | None
     best_models: dict[str, str | None] = Field(default_factory=dict)
+    stale: bool = False
 
 ###############################################################################
 class FittingSessionListResponse(BaseModel):
@@ -190,7 +191,6 @@ class FittingSessionDetail(FittingSessionSummary):
     log: list[str]
     experiments: list[ExperimentFitResponse]
     job_id: str | None = None
-    stale: bool = False
     stale_reason: str | None = None
 
 ###############################################################################
