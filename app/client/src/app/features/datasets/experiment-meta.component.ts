@@ -131,6 +131,7 @@ const BASIS_HINTS: Record<PressureBasis, string> = {
             .field input[type='text'] { width: 100%; }
             .field.invalid input, .field.invalid select { border-color: var(--danger); }
             .field small, .group-error { color: var(--danger-text); font-size: 0.72rem; font-weight: 500; }
+            .field small.hint { color: var(--text-secondary); }
             .field-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; align-items: start; }
             .entity-current { display: flex; align-items: center; gap: 0.5rem; color: var(--text-primary); font-size: 0.82rem; }
             .hint { color: var(--text-tertiary); font-size: 0.72rem; font-weight: 500; }
