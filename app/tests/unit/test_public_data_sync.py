@@ -1215,10 +1215,14 @@ def test_nist_fractional_requests_progress_through_missing_records() -> None:
     result = asyncio.run(_run_scripted_sync(service, [], fraction=0.2, batch_size=10))
     assert fetched == [["id2", "id3"]]
     assert result["imported_count"] == 2
+    # Records stored before the run are reported apart, never as skipped.
+    assert result["skipped_count"] == 0
 
     fetched.clear()
-    asyncio.run(_run_scripted_sync(service, [], fraction=0.2, batch_size=10))
+    second = asyncio.run(_run_scripted_sync(service, [], fraction=0.2, batch_size=10))
     assert fetched == [["id4", "id5"]]
+    assert second["skipped_count"] == 0
+    assert second["already_stored_count"] == 4
 
 
 def test_nist_fractional_requests_advance_past_permanent_exclusions() -> None:

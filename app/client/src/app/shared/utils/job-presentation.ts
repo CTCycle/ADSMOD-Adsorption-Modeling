@@ -79,6 +79,11 @@ export function pendingCount(run: PublicDataSyncRun): number {
     return Number(run.checkpoint['pending_count'] ?? 0);
 }
 
+/** Records scanned past because they were stored already; reported apart from skipped (unsupported) ones. */
+export function alreadyStoredCount(run: PublicDataSyncRun | null | undefined): number {
+    return Number(run?.checkpoint?.['already_stored_count'] ?? 0);
+}
+
 export function formatPercent(value: number): string {
     return `${Math.round(value)}%`;
 }

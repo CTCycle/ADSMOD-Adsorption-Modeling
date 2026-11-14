@@ -710,6 +710,7 @@ class PublicDataSyncCoordinator:
                 "category": str(parameters["category"]),
                 "available_count": int(result.get("available_count", 0)),
                 "local_count": int(result.get("local_count", 0)),
+                "already_stored_count": int(result.get("already_stored_count", 0)),
                 "request_stats": dict(result.get("request_stats") or {}),
                 **(
                     {"pending_count": int(result["pending_count"])}

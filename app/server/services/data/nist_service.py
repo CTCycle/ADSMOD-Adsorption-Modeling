@@ -508,7 +508,7 @@ class NISTDataService:
                 else int(math.ceil(self.clamp_fraction(fraction) * available_count))
             )
             record_cap = None if max_records is None else max(0, max_records)
-            eligible, remaining, skipped_count = self._budgeted_selection(
+            eligible, remaining, already_stored_count = self._budgeted_selection(
                 identifiers,
                 existing | {self.normalize_identifier(item) for item in excluded},
                 resume_after=resume_after_external_id,
@@ -559,6 +559,7 @@ class NISTDataService:
                         "processed_count": processed_count,
                         "imported_count": imported_count,
                         "skipped_count": skipped_count,
+                        "already_stored_count": already_stored_count,
                         "failed_count": failed_count,
                         "category": category,
                         "available_count": int(available_count),
@@ -576,6 +577,7 @@ class NISTDataService:
                         "processed_count": 0,
                         "imported_count": 0,
                         "skipped_count": skipped_count,
+                        "already_stored_count": already_stored_count,
                         "failed_count": failed_count,
                         "category": category,
                         "available_count": int(available_count),
@@ -595,6 +597,7 @@ class NISTDataService:
             "processed_count": processed_count,
             "imported_count": imported_count,
             "skipped_count": skipped_count,
+            "already_stored_count": already_stored_count,
             "failed_count": failed_count,
             "local_count": int(local_counts.get(category, 0)),
             "pending_count": max(0, len(eligible) - processed_count),
@@ -612,11 +615,11 @@ class NISTDataService:
         record_cap: int | None,
         processed_before: int,
     ) -> tuple[list[str], list[str], int]:
-        """Pick the records a run fetches: (eligible, remaining, skipped count).
+        """Pick the records a run fetches: (eligible, remaining, already-stored count).
 
         A fractional request covers the next share of the catalogue that is
         not yet settled locally, so repeated requests make progress. Records
-        scanned past but already settled count as skipped. A resume starts
+        scanned past but already settled are reported as already stored, not skipped. A resume starts
         after the checkpointed identifier.
         """
         if resume_after:

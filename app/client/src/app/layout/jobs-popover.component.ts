@@ -13,6 +13,7 @@ import {
     resumePublicDataSyncRun,
 } from '../services/public-data.service';
 import {
+    alreadyStoredCount,
     formatDate,
     formatPercent,
     formatShort,
@@ -64,6 +65,9 @@ import {
                                     <span class="job-counts">{{ job.saved_count }} saved · {{ job.skipped_count }} skipped · {{ job.failed_count }} failed</span>
                                 }
                                 <span class="job-time">{{ short(job.finished_at ?? job.created_at) }}</span>
+                                @if (job.run && isActive(job) && !job.run.cancel_requested) {
+                                    <button class="jobs-text-button danger" type="button" (click)="cancel(job.run.id)">Cancel</button>
+                                }
                             </div>
                             @if (expandedId() === job.id) {
                                 <div class="job-details">
@@ -74,6 +78,9 @@ import {
                                         <div><dt>Finished</dt><dd>{{ date(job.finished_at) }}</dd></div>
                                         @if (detailRun(); as run) {
                                             <div><dt>Processed</dt><dd>{{ run.processed_count }}</dd></div>
+                                            @if (alreadyStored(run)) {
+                                                <div><dt>Already stored</dt><dd>{{ alreadyStored(run) }}</dd></div>
+                                            }
                                         }
                                     </dl>
                                     @if (pending(); as remaining) {
@@ -137,6 +144,7 @@ export class JobsPopoverComponent {
     protected readonly short = formatShort;
     protected readonly date = formatDate;
     protected readonly link = importedLink;
+    protected readonly alreadyStored = alreadyStoredCount;
 
     constructor() {
         const stop = this.jobs.watch();

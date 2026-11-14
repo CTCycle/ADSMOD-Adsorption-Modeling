@@ -1,19 +1,43 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
-import { Component, computed, inject, input } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import type { UnifiedJob } from '../../models/job.model';
+import { ProgressBarComponent } from '../../shared/components/progress-bar/progress-bar.component';
 import { JobsMonitorService } from '../../services/jobs-monitor.service';
-import { importedLink, isActiveStatus, jobTitle, pendingCount, statusLabel } from '../../shared/utils/job-presentation';
+import { cancelPublicDataSyncRun } from '../../services/public-data.service';
+import { alreadyStoredCount, importedLink, isActiveStatus, jobTitle, pendingCount, statusLabel } from '../../shared/utils/job-presentation';
 
 /** Summary of a card's latest finished run, so results are visible where they were started. Running jobs are tracked in Jobs. */
 @Component({
     selector: 'adsmod-acquire-activity',
     standalone: true,
-    imports: [RouterLink],
+    imports: [RouterLink, ProgressBarComponent],
     template: `
-        @if (job(); as current) {
+        @if (active(); as running) {
+            <div class="activity" role="status">
+                <div class="activity-head">
+                    <strong class="activity-title" [title]="title(running)">{{ title(running) }}</strong>
+                    <span class="activity-status" [attr.data-status]="running.status">{{ label(running) }}</span>
+                </div>
+                <adsmod-progress-bar [value]="running.progress" label="Acquisition progress" />
+                <div class="activity-foot">
+                    @if (running.saved_count !== null) {
+                        <span>{{ running.saved_count }} saved · {{ running.skipped_count }} skipped · {{ running.failed_count }} failed</span>
+                    }
+                    <span class="activity-links">
+                        @if (running.run?.cancel_requested) {
+                            <span>Cancelling after the current batch…</span>
+                        } @else {
+                            <button class="text-button" type="button" [disabled]="cancelling()" (click)="cancel(running)">Cancel</button>
+                        }
+                        <button class="text-button" type="button" (click)="openDetails($event)">Details</button>
+                    </span>
+                </div>
+                @if (cancelError(); as message) { <p class="activity-error" role="alert">{{ message }}</p> }
+            </div>
+        } @else if (job(); as current) {
             <div class="activity" role="status">
                 <div class="activity-head">
                     <strong class="activity-title" [title]="title(current)">{{ title(current) }}</strong>
@@ -23,6 +47,7 @@ import { importedLink, isActiveStatus, jobTitle, pendingCount, statusLabel } fro
                     @if (current.saved_count !== null) {
                         <span>{{ current.saved_count }} saved · {{ current.skipped_count }} skipped · {{ current.failed_count }} failed</span>
                     }
+                    @if (alreadyStored(); as stored) { <span>{{ stored }} already stored</span> }
                     @if (remaining(); as count) { <span>{{ count }} remain; fetch again to continue</span> }
                     <span class="activity-links">
                         @if (link(); as target) { <a class="text-link" [routerLink]="target.path" [queryParams]="target.queryParams">{{ target.label }}</a> }
@@ -59,9 +84,14 @@ export class AcquireActivityComponent {
         this.jobs.jobs().filter((job) => job.run?.source_key === this.source() && job.run.operation !== 'nist_index'),
     );
 
+    protected readonly active = computed<UnifiedJob | undefined>(() => this.sourceJobs().find((job) => isActiveStatus(job.status)));
+    protected readonly cancelling = signal(false);
+    protected readonly cancelError = signal<string | null>(null);
+
     protected readonly job = computed<UnifiedJob | undefined>(() =>
         this.sourceJobs().find((job) => !isActiveStatus(job.status) && this.sessionRunIds().has(job.run?.id ?? '')),
     );
+    protected readonly alreadyStored = computed(() => alreadyStoredCount(this.job()?.run));
     protected readonly remaining = computed(() => {
         const run = this.job()?.run;
         return run ? pendingCount(run) : 0;
@@ -73,6 +103,16 @@ export class AcquireActivityComponent {
 
     protected readonly title = jobTitle;
     protected readonly label = statusLabel;
+
+    protected async cancel(job: UnifiedJob): Promise<void> {
+        if (!job.run || this.cancelling()) return;
+        this.cancelling.set(true);
+        this.cancelError.set(null);
+        const result = await cancelPublicDataSyncRun(job.run.id);
+        this.cancelError.set(result.error);
+        this.cancelling.set(false);
+        await this.jobs.refresh();
+    }
 
     protected openDetails(event: Event): void {
         // The popover closes on any outside document click, including this one.
