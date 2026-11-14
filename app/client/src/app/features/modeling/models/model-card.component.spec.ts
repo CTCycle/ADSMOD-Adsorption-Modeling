@@ -82,6 +82,12 @@ describe('ModelCardComponent', () => {
         expect(button(root, 'Discard')).toBeTruthy();
     });
 
+    it('shows an inline message and disables Save while lower exceeds upper', () => {
+        const { root } = setup({ expanded: true, draft: { qmax: { lower: 50, upper: 1 } } });
+        expect(button(root, 'Save defaults').disabled).toBe(true);
+        expect(root.querySelector('[role="alert"]')?.textContent).toContain('lower bound must be smaller');
+    });
+
     it('enables Restore defaults only when a parameter is customized', () => {
         const { fixture, root } = setup({ expanded: true });
         expect(button(root, 'Restore defaults').disabled).toBe(true);

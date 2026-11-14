@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 import { Component, computed, input, output } from '@angular/core';
+import { boundsError } from '../../../core/state/modeling.store';
 import type { ModelBounds, ModelCatalogEntry } from '../../../models/fitting.model';
 import { EquationRendererComponent } from '../../../shared/components/equation-renderer/equation-renderer.component';
 import { SwitchComponent } from '../../../shared/components/switch/switch.component';
@@ -56,7 +57,9 @@ import { ModelConfigFormComponent } from './model-config-form.component';
                         (valueChange)="draftChange.emit($event)"
                     />
                     <p class="catalog-hint">Search bounds in Pa and mol/kg, used to initialize new fitting sessions. Existing sessions keep their own snapshot.</p>
-                    @if (error()) {
+                    @if (invalid(); as problem) {
+                        <p class="catalog-error" role="alert">{{ problem }}</p>
+                    } @else if (error()) {
                         <p class="catalog-error" role="alert">{{ error() }}</p>
                     } @else if (dirty()) {
                         <p class="catalog-dirty" role="status">Unsaved changes</p>
@@ -68,7 +71,7 @@ import { ModelConfigFormComponent } from './model-config-form.component';
                         @if (dirty()) {
                             <button class="button quiet" type="button" [disabled]="busy()" (click)="discard.emit()">Discard</button>
                         }
-                        <button class="button primary" type="button" [disabled]="busy() || !dirty()" (click)="save.emit()">Save defaults</button>
+                        <button class="button primary" type="button" [disabled]="busy() || !dirty() || !!invalid()" (click)="save.emit()">Save defaults</button>
                     </div>
                 </section>
             }
@@ -128,5 +131,6 @@ export class ModelCardComponent {
     protected readonly titleId = computed(() => `model-title-${this.model().key}`);
     protected readonly contentId = computed(() => `model-editor-${this.model().key}`);
     protected readonly customized = computed(() => this.model().parameters.some((parameter) => parameter.customized));
+    protected readonly invalid = computed(() => boundsError(this.draft()));
     protected readonly dirty = computed(() => JSON.stringify(this.draft()) !== JSON.stringify(this.saved()));
 }
