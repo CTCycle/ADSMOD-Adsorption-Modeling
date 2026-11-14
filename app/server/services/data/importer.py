@@ -605,6 +605,9 @@ class AdsorptionImportEngine:
             delimiter=mapping.series_delimiter,
             decimal_separator=mapping.decimal_separator,
         )
+        if not pressure_values or not uptake_values:
+            missing = "Pressure" if not pressure_values else "Uptake"
+            raise ValueError(f"{missing} series is empty for this experiment.")
         if len(pressure_values) != len(uptake_values):
             raise ValueError(
                 "Pressure and uptake series have unequal lengths "

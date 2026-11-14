@@ -243,12 +243,20 @@ def decode_frame(
     worksheet: str | int | None,
 ) -> pd.DataFrame:
     if suffix in {".xls", ".xlsx"}:
-        return pd.read_excel(
-            io.BytesIO(payload),
-            sheet_name=worksheet if worksheet is not None else 0,
-            header=header_row,
-            dtype=object,
-        )
+        try:
+            return pd.read_excel(
+                io.BytesIO(payload),
+                sheet_name=worksheet if worksheet is not None else 0,
+                header=header_row,
+                dtype=object,
+            )
+        except ValueError as exc:
+            if "engine" not in str(exc).casefold():
+                raise
+            # pandas cannot identify the format of a corrupt or mislabelled workbook.
+            raise ValueError(
+                f"The {suffix} file could not be read; it may be corrupt or not a real Excel workbook."
+            ) from exc
     if suffix == ".json":
         decoded = json.loads(payload.decode(encoding if encoding else "utf-8-sig"))
         if isinstance(decoded, dict):
