@@ -1,6 +1,6 @@
 # API surface
 
-Last updated: 2026-11-10
+Last updated: 2026-11-14
 
 ADSMOD exposes one FastAPI backend. Liveness and readiness are available at
 `/health/live` and `/health/ready`; there are no service-specific health
@@ -53,19 +53,23 @@ The unified backend serves all versioned routes under `/api/v1`:
     `created_to`, `sort=created_at|name|status`, `direction`, `page`,
     `page_size` up to 100; returns `{items, total, page, page_size}`),
     `POST /sessions` (`name`, `dataset_id`, `models`, `optimizer`,
-    `max_evaluations`, `weighting`, `parameter_overrides`, `display_units`;
+    `max_evaluations`, `weighting`, `parameter_overrides`, `display_units`,
+    optional `skip_ineligible`;
     returns `session_id`, `job_id`, `poll_interval`), `GET /sessions/{id}`, and
     `DELETE /sessions/{id}` (204; 409 while running)
   - `GET /jobs/{job_id}` and `DELETE /jobs/{job_id}` for polling and cancel
 
   A session fits all experiments of exactly one dataset. Start returns 400 when
-  any experiment is ineligible, a model is disabled, unknown, or incompatible,
+  any experiment is ineligible (unless `skip_ineligible` is true, which fits the
+  eligible ones and records the rest, with reasons, in
+  `configuration.skipped_experiments`; 400 when none is eligible), a model is disabled, unknown, or incompatible,
   or `inverse_sigma` weighting lacks uncertainties. Global defaults replace the
   canonical `ModelSpec` bounds inside the solver (data-driven heuristics still
   apply within them); session overrides never change the globals. The effective
   bounds, overrides, experiment input hashes, and model version are stored in
   `fitting_sessions.configuration`. Sessions still `running` at startup are
-  marked failed ("Interrupted by application restart"). The former
+  marked failed ("Interrupted by application restart"). Staleness compares only the
+  fitted experiments' hashes; session list items carry `stale` too. The former
   `POST /fitting/run` and `GET /fitting/runs/{id}` are removed.
 - `/analytics/*` (read-only cross-dataset queries for the dashboards:
   `GET /overview`, and `POST /selection`, `/series`, `/uptake-at-pressure`,

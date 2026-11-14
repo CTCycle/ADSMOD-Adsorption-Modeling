@@ -1,6 +1,6 @@
 # ADSMOD User Workflows
 
-Last updated: 2026-11-10
+Last updated: 2026-11-14
 
 ## Main Navigation
 
@@ -13,6 +13,7 @@ The application uses one Angular frontend with these primary routes:
 - `sources` for the provider workspace (opens Catalog)
 - `sources/:view` for Catalog, Acquire, and Structures
 - `dashboards/overview` and `dashboards/explore` for cross-dataset data exploration
+- Fitting wizard: when some experiments of a dataset cannot be fitted (for example mixtures), tick "Exclude these experiments" to fit the rest; the excluded experiments are listed on the session. The sessions list marks sessions whose data changed as Stale, and when AICc is undefined for every model the best model falls back to RMSE (noted in the session log).
 - `modeling/fitting` for fitting sessions, `modeling/fitting/new` for the new-session wizard, and `modeling/fitting/:id` for one session
 - `modeling/models` for the adsorption model catalog and global parameter defaults
 - `modeling/deep-learning/:view` for processing, training datasets, checkpoints, and the dashboard (only when deep learning is installed)
@@ -99,7 +100,7 @@ Open **Datasets > Identity review** from the notice on the Datasets page, or go 
 
 1. Open `sources/acquire`. For each NIST collection (adsorbate species, adsorbent materials, adsorption isotherms), use the single Check availability button in the card heading to see stored versus available records (`N / M records`). Availability checks are not acquisitions: they never appear in acquisition history or its counters. Fetch share is a percentage (1 to 100) that only sets how much of the index a fetch requests; once availability is known, each row previews the records it covers.
 2. Set the share of the index to consider and select Fetch. Each run is bounded; fetch again to continue where the previous run stopped. Records already stored are never downloaded twice.
-3. Follow the run in the Run tracker: progress, saved, already-stored, and failed counts, failed-record reasons, and Cancel between committed batches.
+3. Follow the run in the Run tracker on the card (live progress, saved, skipped, failed counts, and Cancel between committed batches; the Jobs panel row has Cancel too). Skipped counts only fetched records that were excluded (for example an unsupported unit); records that were already stored are reported separately as already stored.
 4. Follow "View datasets" to the Datasets page and explore the `NIST ISODB` dataset. NIST experiments can be
    edited like any other; fetching NIST isotherms again asks before overwriting those local edits.
 5. To fetch specific records instead, switch Adsorption collections to Targeted: search by compound (name, synonym, or InChIKey), adsorbent material, or experiment (filename or DOI), optionally with a temperature range, tick the isotherms, and select Fetch selected. Already stored isotherms are marked and cannot be selected; fetching also stores the referenced compound and material records. Isotherms whose uptake unit is unsupported are skipped with a reason, as in bulk runs.

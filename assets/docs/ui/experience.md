@@ -1,6 +1,6 @@
 # ADSMOD User Experience Rules
 
-Last updated: 2026-11-06
+Last updated: 2026-11-14
 
 ## Page Structure
 
@@ -35,7 +35,8 @@ Selecting a species or material opens a right-side panel of collapsible sections
 - Keep behavior consistent across dataset ingestion, fitting, NIST collection, dashboards, and modeling.
 - Preserve non-blocking UX by polling backend job endpoints for progress.
 - Keep provider acquisition on the Sources page and locally stored data on the Datasets page.
-- Fitting is session-based: a session fits every experiment of one dataset, and start is blocked with an explicit reason when an experiment or model is ineligible.
+- Fitting is session-based: a session fits every experiment of one dataset, and start is blocked with an explicit reason when an experiment or model is ineligible, unless the user explicitly excludes the ineligible experiments (listed with their reasons and kept on the session).
+- Unknown addresses show a Not found page inside the shell instead of redirecting to Home. At 375px the five primary destinations fit one row (no scrolled-away items), tab bars wrap rather than clip, and only tables and code scroll horizontally. Default parameter bounds with lower ≥ upper show an inline message and disable Save.
 - Measurement tables are read-only until Edit dataset; edits stay local until Save changes, Cancel discards them, and leaving with unsaved changes asks first.
 - Large collections page on the server: experiments 50 per page, measurements 100 per page.
 
