@@ -49,7 +49,9 @@ def normalize_decimal_separators(numeric: str, decimal_separator: str, value: An
         thousands = "," if decimal == "." else "."
         numeric = numeric.replace(thousands, "").replace(decimal, ".")
     elif "," in numeric:
-        if numeric.count(",") == 1 and len(numeric.rsplit(",", 1)[1]) == 3:
+        # A leading zero cannot start a thousands group, so "0,100" is a decimal.
+        leading_zero = numeric.lstrip("+-").startswith("0,")
+        if numeric.count(",") == 1 and len(numeric.rsplit(",", 1)[1]) == 3 and not leading_zero:
             raise ValueError(
                 f"'{value}' is ambiguous; select comma-decimal or comma-thousands explicitly."
             )
@@ -58,6 +60,7 @@ def normalize_decimal_separators(numeric: str, decimal_separator: str, value: An
         "." in numeric
         and numeric.count(".") == 1
         and len(numeric.rsplit(".", 1)[1]) == 3
+        and not numeric.lstrip("+-").startswith("0.")
     ):
         raise ValueError(
             f"'{value}' is ambiguous; select decimal-point or thousands-point explicitly."

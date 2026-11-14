@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 
 from server.common.units import (
+    parse_number,
     BUILT_IN_UNIT_DETAILS,
     AmbiguousUnitError,
     CustomUnit,
@@ -121,3 +122,11 @@ def test_header_units_keep_prefix_case_and_whole_symbols(header, expected) -> No
 def test_invalid_custom_unit_definitions_are_rejected(quantity, factor) -> None:  # type: ignore[no-untyped-def]
     with pytest.raises(UnitConversionError):
         CustomUnit(quantity, "x", factor)
+
+
+###############################################################################
+def test_leading_zero_group_is_a_decimal_in_auto_detection() -> None:
+    assert parse_number("0.100") == 0.1
+    assert parse_number("-0,250") == -0.25
+    with pytest.raises(ValueError, match="ambiguous"):
+        parse_number("1.100")
