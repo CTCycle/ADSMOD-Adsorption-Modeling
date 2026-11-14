@@ -134,7 +134,7 @@ const NUMBER_FORMAT = new Intl.NumberFormat('en-US', { maximumSignificantDigits:
                 }
                 @if (session.issues().length) {
                     <section class="issue-summary" aria-labelledby="issue-summary-title">
-                        <h3 id="issue-summary-title">{{ session.issues().length }} value{{ session.issues().length === 1 ? ' needs' : 's need' }} attention</h3>
+                        <h3 id="issue-summary-title" tabindex="-1">{{ session.issues().length }} value{{ session.issues().length === 1 ? ' needs' : 's need' }} attention</h3>
                         <ul>
                             @for (issue of session.issues().slice(0, 12); track $index) {
                                 <li>
@@ -464,6 +464,7 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
         const local = this.session.validateLocally();
         if (local.length) {
             this.session.issues.set(local);
+            this.focusIssueSummary();
             return;
         }
         this.session.saving.set(true);
@@ -472,6 +473,7 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
         if (!result.data) {
             this.session.issues.set(result.issues);
             this.saveError.set(result.error ?? 'The changes could not be saved.');
+            this.focusIssueSummary();
             return;
         }
         this.session.cancel();
@@ -480,6 +482,15 @@ export class DatasetDetailsPageComponent implements HasUnsavedChanges {
         if (detail.data) this.detail.set(detail.data);
         this.refreshKey.update((value) => value + 1);
         this.showNotice('Changes saved.');
+    }
+
+    /** Bring the error summary into view so a failed Save is never silent. */
+    private focusIssueSummary(): void {
+        setTimeout(() => {
+            const target = document.getElementById('issue-summary-title');
+            target?.scrollIntoView?.({ block: 'center' });
+            target?.focus({ preventScroll: true });
+        });
     }
 
     protected async goToIssue(issue: DatasetEditIssue): Promise<void> {
