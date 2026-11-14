@@ -276,8 +276,8 @@ const NUMBER_FORMAT = new Intl.NumberFormat('en-US', { maximumSignificantDigits:
             .details-body { display: grid; grid-template-columns: minmax(15rem, 18rem) minmax(0, 1fr); gap: var(--spacing-md); align-items: start; }
             .details-nav { position: sticky; top: var(--spacing-md); padding: var(--spacing-sm); }
             .experiment-pane { display: grid; gap: var(--spacing-sm); min-width: 0; padding: var(--spacing-md); }
-            .pane-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
-            .pane-head h3 { margin: 0; overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+            .pane-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; min-width: 0; }
+            .pane-head h3 { min-width: 0; max-width: 100%; margin: 0; overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
             .pane-toggle { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
             .pane-toggle button { min-height: 2rem; padding: 0 0.8rem; border: 0; background: var(--surface); color: var(--text-secondary); font: inherit; font-size: 0.78rem; font-weight: 600; cursor: pointer; }
             .pane-toggle button.active { background: var(--slate-100); color: var(--text-primary); }
@@ -290,7 +290,7 @@ const NUMBER_FORMAT = new Intl.NumberFormat('en-US', { maximumSignificantDigits:
                 .details-nav { position: static; }
             }
             @media (max-width: 640px) {
-                .details-header { grid-template-columns: 1fr; padding: var(--spacing-sm) var(--spacing-md); }
+                .details-header { grid-template-columns: minmax(0, 1fr); padding: var(--spacing-sm) var(--spacing-md); }
                 .experiment-pane { padding: var(--spacing-sm); }
             }
         `,

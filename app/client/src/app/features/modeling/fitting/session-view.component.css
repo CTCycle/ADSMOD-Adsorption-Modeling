@@ -1,13 +1,14 @@
 /* Copyright © 2023 Thomas Virdis */
 /* Licensed under the MIT License. */
 
-:host { display: grid; gap: var(--spacing-sm); min-width: 0; }
+:host { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-sm); min-width: 0; }
 
 .back-link { justify-self: start; color: var(--text-secondary); font-size: 0.8rem; text-decoration: none; }
 .back-link:hover { color: var(--link); text-decoration: underline; }
 
 .session-panel {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--spacing-sm);
     min-width: 0;
     padding: var(--spacing-md);

@@ -648,6 +648,32 @@ button {
   }
 }
 
+@media (max-width: 640px) {
+  /* Five destinations fit one row at phone width; no clipped, scrolled-away items. */
+  .console-nav {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    overflow-x: visible;
+  }
+
+  .console-nav-item {
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.25rem 0.125rem;
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    align-content: center;
+    gap: 0.125rem;
+    font-size: 0.68rem;
+    text-align: center;
+  }
+
+  .console-status-bar {
+    gap: 0.6rem;
+    padding: 0 0.5rem;
+  }
+}
+
 /*
  * Control geometry: one compact size, radius and emphasis scale for every
  * button, so action groups align regardless of where they are rendered.
@@ -971,9 +997,9 @@ a.table-action {
 /* Training view tabs: same underline pattern as the Public Data and Dashboards tabs */
 .training-view-toolbar {
   display: flex;
-  gap: var(--spacing-xs);
+  flex-wrap: wrap;
+  gap: 0 var(--spacing-xs);
   margin: 0;
-  overflow-x: auto;
   border-bottom: 1px solid var(--slate-200);
 }
 

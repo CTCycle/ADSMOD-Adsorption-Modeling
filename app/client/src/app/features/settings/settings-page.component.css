@@ -352,14 +352,14 @@
 
     .settings-tabs {
         flex-direction: row;
-        overflow-x: auto;
+        flex-wrap: wrap;
         border-right: 0;
         border-bottom: 1px solid var(--slate-200);
         scrollbar-width: thin;
     }
 
     .settings-tab {
-        flex: 0 0 auto;
+        flex: 1 1 auto;
         min-height: var(--control-height);
     }
 

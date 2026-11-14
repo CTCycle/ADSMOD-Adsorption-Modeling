@@ -24,8 +24,8 @@ import { machineLearningAvailable } from '../../services/system.service';
     `,
     styles: [`
         :host { display: block; min-width: 0; }
-        .modeling-workspace { display: grid; gap: var(--spacing-md); min-width: 0; padding-bottom: var(--spacing-lg); }
-        .modeling-tabs { display: flex; gap: 4px; overflow-x: auto; border-bottom: 1px solid var(--border-color); scrollbar-width: thin; }
+        .modeling-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--spacing-md); min-width: 0; padding-bottom: var(--spacing-lg); }
+        .modeling-tabs { display: flex; flex-wrap: wrap; gap: 0 4px; border-bottom: 1px solid var(--border-color); scrollbar-width: thin; }
         .modeling-tabs a {
             flex: 0 0 auto;
             padding: 10px 14px;
@@ -36,6 +36,7 @@ import { machineLearningAvailable } from '../../services/system.service';
             text-decoration: none;
             white-space: nowrap;
         }
+        @media (max-width: 640px) { .modeling-tabs a { padding: 10px; font-size: 0.82rem; } }
         .modeling-tabs a:hover, .modeling-tabs a.active { color: var(--text-primary); border-bottom-color: var(--primary-600); }
         .modeling-tabs a:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
     `],
