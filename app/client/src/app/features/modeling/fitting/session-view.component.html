@@ -33,6 +33,13 @@
             <p class="notice danger" role="alert">{{ actionError() }}</p>
         }
 
+        @if (session.configuration.skipped_experiments?.length) {
+            <p class="notice warning" role="status">
+                {{ session.configuration.skipped_experiments?.length }} experiment(s) were excluded from this session because they cannot be fitted:
+                {{ skippedList(session) }}.
+            </p>
+        }
+
         @if (session.stale) {
             <p class="notice warning" role="status">{{ session.stale_reason }}</p>
         }

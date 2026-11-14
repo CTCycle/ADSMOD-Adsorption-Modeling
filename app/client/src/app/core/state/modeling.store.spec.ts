@@ -125,6 +125,7 @@ describe('ModelingStore', () => {
             optimizer: 'dogbox',
             weighting: 'unweighted',
             max_evaluations: 500,
+            skip_ineligible: false,
             parameter_overrides: { langmuir: { k: { lower: 2, upper: 5 } } },
             display_units: { pressure: 'bar', uptake: 'mmol/g' },
         });

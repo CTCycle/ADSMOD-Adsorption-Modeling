@@ -56,7 +56,8 @@ export class SessionWizardComponent implements OnInit {
                 const readiness = this.store.readiness();
                 if (!readiness) return this.store.readinessError() ?? 'The dataset could not be checked.';
                 if (!readiness.experiment_count) return 'The dataset has no experiments.';
-                if (!readiness.ready) return 'Resolve the experiments that cannot be fitted before continuing.';
+                if (!readiness.eligible_count) return 'No experiment in the dataset can be fitted.';
+                if (!readiness.ready && !draft.skipIneligible) return 'Exclude the experiments that cannot be fitted, or fix them in the dataset, before continuing.';
                 return null;
             }
             case 1: {
@@ -173,6 +174,10 @@ export class SessionWizardComponent implements OnInit {
 
     protected setOptimizer(value: string): void {
         this.store.updateDraft({ optimizer: value as OptimizationMethod });
+    }
+
+    protected setSkipIneligible(checked: boolean): void {
+        this.store.updateDraft({ skipIneligible: checked });
     }
 
     protected setMaxEvaluations(value: string): void {

@@ -327,11 +327,13 @@ class FittingService:
             if not experiments:
                 raise ValueError("The selected dataset has no experiments to fit.")
             ineligible = [item for item in experiments if item.series is None]
-            if ineligible:
+            if ineligible and not payload.skip_ineligible:
                 details = "; ".join(f"{item.name}: {item.reason}" for item in ineligible)
                 raise ValueError(
                     f"{len(ineligible)} experiment(s) cannot be fitted. {details}"
                 )
+            if len(ineligible) == len(experiments):
+                raise ValueError("No experiment in the dataset can be fitted.")
             incompatible = self._model_incompatibility(experiments)
             blocked = [key for key in keys if key in incompatible]
             if blocked:
@@ -370,6 +372,10 @@ class FittingService:
                 "experiments": [
                     {"isotherm_id": series["isotherm_id"], "name": series["isotherm_name"], "input_sha256": digest}
                     for series, digest in zip(series_list, hashes, strict=True)
+                ],
+                "skipped_experiments": [
+                    {"isotherm_id": item.isotherm_id, "name": item.name, "reason": item.reason}
+                    for item in ineligible
                 ],
             }
             session_id = self.results.create_session(

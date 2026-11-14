@@ -48,6 +48,8 @@ export interface FittingSessionDraft {
     optimizer: OptimizationMethod;
     weighting: FittingWeighting;
     maxEvaluations: number;
+    /** Fit only the eligible experiments and list the others as skipped. */
+    skipIneligible: boolean;
 }
 
 /** Bounds as effectively applied: canonical spec bounds overlaid by saved global defaults. */
@@ -182,6 +184,7 @@ export class ModelingStore {
             optimizer: configuration?.default_optimizer ?? 'trf',
             weighting: configuration?.default_weighting ?? 'unweighted',
             maxEvaluations: configuration?.default_max_evaluations ?? 1000,
+            skipIneligible: false,
         });
     }
 
@@ -196,7 +199,7 @@ export class ModelingStore {
 
     async selectDraftDataset(datasetId: number | null): Promise<void> {
         const revision = ++this.readinessRevision;
-        this.updateDraft({ datasetId });
+        this.updateDraft({ datasetId, skipIneligible: false });
         this.readiness.set(null);
         this.readinessError.set(null);
         if (datasetId === null) return;
@@ -226,6 +229,7 @@ export class ModelingStore {
             optimizer: draft.optimizer,
             weighting: draft.weighting,
             max_evaluations: draft.maxEvaluations,
+            skip_ineligible: draft.skipIneligible,
             parameter_overrides: Object.fromEntries(Object.entries(draft.overrides).filter(([key]) => draft.models.includes(key))),
             display_units: {
                 pressure: configuration?.display_units.default_pressure ?? 'bar',

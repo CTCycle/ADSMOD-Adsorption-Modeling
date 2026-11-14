@@ -227,6 +227,37 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
 
 
 ###############################################################################
+def test_ineligible_experiments_can_be_skipped_explicitly(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dataset_id = _import(client)
+    service = client.app.state.core_container.fitting_service
+    original = service.datasets.fitting_series
+
+    def fitting_series(dataset: int, isotherm_id: int) -> dict[str, Any]:
+        series = original(dataset, isotherm_id)
+        if series["isotherm_name"] == "B":
+            raise ValueError("mixture experiment")
+        return series
+
+    monkeypatch.setattr(service.datasets, "fitting_series", fitting_series)
+    readiness = client.get(f"/api/v1/fitting/datasets/{dataset_id}/readiness").json()
+    assert readiness["ready"] is False
+    assert readiness["eligible_count"] == 1
+
+    base = {"dataset_id": dataset_id, "name": "Skip", "models": ["langmuir"], "max_evaluations": 500}
+    blocked = client.post("/api/v1/fitting/sessions", json=base)
+    assert blocked.status_code == 400
+    assert "cannot be fitted" in blocked.json()["detail"]
+
+    detail = _run(client, {**base, "skip_ineligible": True})
+    assert [item["experiment_name"] for item in detail["experiments"]] == ["A"]
+    skipped = detail["configuration"]["skipped_experiments"]
+    assert [item["name"] for item in skipped] == ["B"]
+    assert detail["stale"] is False
+
+
+###############################################################################
 def test_sessions_left_running_are_failed_on_restart(client: TestClient) -> None:
     dataset_id = _import(client)
     service = client.app.state.core_container.fitting_service

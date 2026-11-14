@@ -64,7 +64,7 @@ describe('SessionWizardComponent', () => {
         TestBed.inject(CoreWorkspaceStore).datasets.set([{ id: 1, name: 'ds', experiment_count: 2 } as DatasetSummary]);
         store.catalog.set(catalog);
         store.configuration.set(configuration);
-        store.draft.set({ step: 0, name: 'Run', datasetId: 1, models, overrides: {}, optimizer: 'trf', weighting: 'unweighted', maxEvaluations: 100 });
+        store.draft.set({ step: 0, name: 'Run', datasetId: 1, models, overrides: {}, optimizer: 'trf', weighting: 'unweighted', maxEvaluations: 100, skipIneligible: false });
         store.readiness.set(ready);
         const fixture = TestBed.createComponent(SessionWizardComponent);
         fixture.detectChanges();
@@ -80,10 +80,20 @@ describe('SessionWizardComponent', () => {
 
         expect(next().disabled).toBe(true);
         expect(root.textContent).toContain('bad-run');
-        expect(root.textContent).toContain('Resolve the experiments that cannot be fitted');
+        expect(root.textContent).toContain('Exclude the experiments that cannot be fitted');
 
         store.readiness.set(readiness(false));
         fixture.detectChanges();
+        expect(next().disabled).toBe(false);
+    });
+
+    it('lets Next proceed once the ineligible experiments are explicitly excluded', async () => {
+        const { fixture, root, store, next } = await setup(readiness(true), ['langmuir']);
+        const checkbox = root.querySelector('.skip-option input') as HTMLInputElement;
+        checkbox.click();
+        fixture.detectChanges();
+
+        expect(store.draft()?.skipIneligible).toBe(true);
         expect(next().disabled).toBe(false);
     });
 

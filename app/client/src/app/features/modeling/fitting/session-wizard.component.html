@@ -54,12 +54,18 @@
                                 <p class="notice success" role="status">All {{ readiness.experiment_count }} experiments can be fitted.</p>
                             } @else {
                                 <div class="notice danger" role="alert">
-                                    <p><strong>{{ ineligible().length }} of {{ readiness.experiment_count }} experiments cannot be fitted.</strong> Fix or remove them in the dataset before starting a session.</p>
+                                    <p><strong>{{ ineligible().length }} of {{ readiness.experiment_count }} experiments cannot be fitted.</strong> Fix them in the dataset, or exclude them from this session.</p>
                                     <ul>
                                         @for (item of ineligible(); track item.isotherm_id) {
                                             <li><strong>{{ item.name }}</strong> · {{ item.reason }}</li>
                                         }
                                     </ul>
+                                    @if (readiness.eligible_count) {
+                                        <label class="skip-option">
+                                            <input type="checkbox" [checked]="draft.skipIneligible" (change)="setSkipIneligible($any($event.target).checked)" />
+                                            Exclude these experiments and fit the other {{ readiness.eligible_count }}
+                                        </label>
+                                    }
                                     <a [routerLink]="['/datasets', readiness.dataset_id]">Open dataset</a>
                                 </div>
                             }
@@ -157,7 +163,7 @@
                     <dl class="review">
                         <div><dt>Session name</dt><dd>{{ draft.name.trim() }}</dd></div>
                         <div><dt>Dataset</dt><dd>{{ dataset()?.name ?? '—' }}</dd></div>
-                        <div><dt>Experiments</dt><dd>{{ store.readiness()?.experiment_count ?? '—' }} (all experiments in the dataset)</dd></div>
+                        <div><dt>Experiments</dt><dd>{{ store.readiness()?.experiment_count ?? '—' }} {{ draft.skipIneligible && store.readiness() ? '(' + store.readiness()!.eligible_count + ' fitted, ' + (store.readiness()!.experiment_count - store.readiness()!.eligible_count) + ' excluded)' : '(all experiments in the dataset)' }}</dd></div>
                         <div><dt>Optimization method</dt><dd>{{ optimizerLabels[draft.optimizer] }}</dd></div>
                         <div><dt>Weighting</dt><dd>{{ weightingLabels[draft.weighting] }}</dd></div>
                         <div><dt>Max iterations</dt><dd>{{ draft.maxEvaluations }}</dd></div>

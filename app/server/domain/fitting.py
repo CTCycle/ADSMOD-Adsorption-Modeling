@@ -49,6 +49,7 @@ class FittingSessionRequest(BaseModel):
         default_factory=dict
     )
     display_units: DisplayUnits = Field(default_factory=DisplayUnits)
+    skip_ineligible: bool = False
 
     # -------------------------------------------------------------------------
     @field_validator("name")

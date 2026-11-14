@@ -92,6 +92,7 @@ export interface FittingSessionPayload {
     weighting: FittingWeighting;
     parameter_overrides: Record<string, ModelBounds>;
     display_units: { pressure: string; uptake: string };
+    skip_ineligible: boolean;
 }
 
 export interface FittingSessionStartResponse {
@@ -169,6 +170,7 @@ export interface FittingSessionSnapshot {
     session_overrides: Record<string, ModelBounds>;
     experiments: { isotherm_id: number; name: string; input_sha256: string }[];
     [key: string]: unknown;
+    skipped_experiments?: { isotherm_id: number; name: string; reason: string | null }[];
 }
 
 export interface FittingSessionDetail extends FittingSessionSummary {

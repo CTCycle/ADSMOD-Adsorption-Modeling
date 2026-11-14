@@ -133,6 +133,10 @@ export class SessionViewComponent implements OnInit {
         if (!this.destroyed) this.timer = setTimeout(() => void task(), delayMs);
     }
 
+    protected skippedList(session: FittingSessionDetail): string {
+        return (session.configuration.skipped_experiments ?? []).map((item) => item.name).join(', ');
+    }
+
     protected async cancel(): Promise<void> {
         const jobId = this.session()?.job_id;
         if (!jobId || this.cancelling()) return;
