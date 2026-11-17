@@ -199,7 +199,9 @@ def _register_ml(application: FastAPI, runtime: ApplicationRuntime) -> None:
     # Routes are always mounted but gated per request on the verified deep
     # learning installation; the ML packages load on the first training call.
     configure_environment()
-    ml_container = LazyMlContainer(runtime.config, snapshot_access=runtime.training_data)
+    ml_container = LazyMlContainer(
+        runtime.config, snapshot_access=runtime.training_data
+    )
     register_ml_routes(application, ml_container, prefix="/api/v1")
     runtime.ml_container = ml_container
     application.state.ml_container = ml_container
@@ -292,10 +294,15 @@ def create_app(
     database_manager = settings_store.database if settings_store is not None else None
     container = CoreServiceContainer(config, database_manager=database_manager)
     store = settings_store or ApplicationSettingsStore(container.database)
+
     def is_busy() -> bool:
         if container.job_manager.is_job_running():
             return True
-        ml_jobs = runtime.ml_container.job_manager if runtime.ml_container is not None else None
+        ml_jobs = (
+            runtime.ml_container.job_manager
+            if runtime.ml_container is not None
+            else None
+        )
         return ml_jobs is not None and ml_jobs.is_job_running()
 
     runtime = ApplicationRuntime(

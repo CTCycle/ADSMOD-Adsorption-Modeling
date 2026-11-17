@@ -52,7 +52,9 @@ def register_frontend_routes(app: FastAPI, dist_root: Path = FRONTEND_DIST) -> b
         return False
 
     app.add_api_route("/", bundle.serve_index, methods=["GET"], include_in_schema=False)
-    app.add_api_route("/{path:path}", bundle.serve, methods=["GET"], include_in_schema=False)
+    app.add_api_route(
+        "/{path:path}", bundle.serve, methods=["GET"], include_in_schema=False
+    )
     app.add_api_route(
         "/{path:path}",
         bundle.not_found,

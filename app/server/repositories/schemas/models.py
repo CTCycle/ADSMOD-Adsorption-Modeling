@@ -33,9 +33,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
+
 ###############################################################################
 class Base(DeclarativeBase):
     pass
+
 
 ###############################################################################
 class ApplicationSettingsRecord(Base):
@@ -45,28 +47,54 @@ class ApplicationSettingsRecord(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     datasets_allowed_extensions: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-    datasets_column_detection_cutoff: Mapped[float] = mapped_column(Float, nullable=False)
+    datasets_column_detection_cutoff: Mapped[float] = mapped_column(
+        Float, nullable=False
+    )
     nist_parallel_tasks: Mapped[int] = mapped_column(Integer, nullable=False)
-    public_data_request_timeout_seconds: Mapped[float] = mapped_column(Float, nullable=False)
+    public_data_request_timeout_seconds: Mapped[float] = mapped_column(
+        Float, nullable=False
+    )
     public_data_retry_attempts: Mapped[int] = mapped_column(Integer, nullable=False)
-    public_data_retry_backoff_max_seconds: Mapped[float] = mapped_column(Float, nullable=False)
-    public_data_pubchem_parallel_requests: Mapped[int] = mapped_column(Integer, nullable=False)
-    public_data_cod_max_interactive_results: Mapped[int] = mapped_column(Integer, nullable=False)
-    public_data_health_cache_ttl_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_retry_backoff_max_seconds: Mapped[float] = mapped_column(
+        Float, nullable=False
+    )
+    public_data_pubchem_parallel_requests: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    public_data_cod_max_interactive_results: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    public_data_health_cache_ttl_seconds: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
     public_data_sync_batch_size: Mapped[int] = mapped_column(Integer, nullable=False)
-    public_data_sync_max_records_per_run: Mapped[int] = mapped_column(Integer, nullable=False)
-    public_data_sync_max_concurrent_jobs: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_sync_max_records_per_run: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    public_data_sync_max_concurrent_jobs: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
     public_data_auto_resolve_uploaded_species: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=true()
     )
-    public_data_sync_response_size_limit_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-    public_data_sync_resume_on_startup: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    public_data_sync_response_size_limit_bytes: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
+    public_data_sync_resume_on_startup: Mapped[bool] = mapped_column(
+        Boolean, nullable=False
+    )
     public_data_auto_sync_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    public_data_auto_sync_categories: Mapped[list[str]] = mapped_column(JSON, nullable=False)
-    public_data_auto_sync_interval_hours: Mapped[int] = mapped_column(Integer, nullable=False)
+    public_data_auto_sync_categories: Mapped[list[str]] = mapped_column(
+        JSON, nullable=False
+    )
+    public_data_auto_sync_interval_hours: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
     public_data_auto_sync_fraction: Mapped[float] = mapped_column(Float, nullable=False)
     fitting_default_max_iterations: Mapped[int] = mapped_column(Integer, nullable=False)
-    fitting_max_iterations_upper_bound: Mapped[int] = mapped_column(Integer, nullable=False)
+    fitting_max_iterations_upper_bound: Mapped[int] = mapped_column(
+        Integer, nullable=False
+    )
     fitting_preview_row_limit: Mapped[int] = mapped_column(Integer, nullable=False)
     fitting_best_model_metric: Mapped[str] = mapped_column(String(32), nullable=False)
     jobs_polling_interval: Mapped[float] = mapped_column(Float, nullable=False)
@@ -76,6 +104,7 @@ class ApplicationSettingsRecord(Base):
     training_dataloader_workers: Mapped[int] = mapped_column(Integer, nullable=False)
     training_persistent_workers: Mapped[bool] = mapped_column(Boolean, nullable=False)
     updated_at: Mapped[str] = mapped_column(String(40), nullable=False)
+
 
 ###############################################################################
 class Dataset(Base):
@@ -123,6 +152,7 @@ class Dataset(Base):
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
+
 ###############################################################################
 class DatasetImport(Base):
     __tablename__ = "dataset_imports"
@@ -157,6 +187,7 @@ class DatasetImport(Base):
         ),
     )
 
+
 ###############################################################################
 class CustomUnitRecord(Base):
     """User-defined unit label for one physical quantity.
@@ -190,6 +221,7 @@ class CustomUnitRecord(Base):
         ),
         CheckConstraint("length(normalized_symbol) > 0", name="ck_custom_units_symbol"),
     )
+
 
 ###############################################################################
 class Adsorbate(Base):
@@ -230,6 +262,7 @@ class Adsorbate(Base):
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
 
+
 ###############################################################################
 class Adsorbent(Base):
     __tablename__ = "adsorbents"
@@ -267,6 +300,7 @@ class Adsorbent(Base):
         if "normalized_name" not in kwargs and "name" in kwargs:
             kwargs["normalized_name"] = normalize_identity(str(kwargs["name"]))
         super().__init__(**kwargs)
+
 
 ###############################################################################
 class Isotherm(Base):
@@ -338,6 +372,7 @@ class Isotherm(Base):
         Index("ix_isotherms_dataset_edited", "dataset_id", "edited_at"),
     )
 
+
 ###############################################################################
 class IsothermComponent(Base):
     """One adsorbate species taking part in an experiment."""
@@ -363,6 +398,7 @@ class IsothermComponent(Base):
         CheckConstraint("position >= 1", name="ck_components_position"),
         Index("ix_components_adsorbate", "adsorbate_id"),
     )
+
 
 ###############################################################################
 class Observation(Base):
@@ -449,6 +485,7 @@ class Observation(Base):
         ),
     )
 
+
 ###############################################################################
 class FittingSession(Base):
     __tablename__ = "fitting_sessions"
@@ -499,6 +536,7 @@ class FittingSession(Base):
         Index("ix_fitting_sessions_dataset", "dataset_id"),
     )
 
+
 ###############################################################################
 class FittingSessionModel(Base):
     __tablename__ = "fitting_session_models"
@@ -509,11 +547,12 @@ class FittingSessionModel(Base):
     model_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    session: Mapped[FittingSession] = relationship(back_populates="models", lazy="raise")
-
-    __table_args__ = (
-        Index("ix_fitting_session_models_key", "model_key"),
+    session: Mapped[FittingSession] = relationship(
+        back_populates="models", lazy="raise"
     )
+
+    __table_args__ = (Index("ix_fitting_session_models_key", "model_key"),)
+
 
 ###############################################################################
 class FitResult(Base):
@@ -550,7 +589,9 @@ class FitResult(Base):
     warnings: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
     rank: Mapped[int | None] = mapped_column(Integer)
 
-    session: Mapped[FittingSession] = relationship(back_populates="results", lazy="raise")
+    session: Mapped[FittingSession] = relationship(
+        back_populates="results", lazy="raise"
+    )
     parameters: Mapped[list[FitParameter]] = relationship(
         back_populates="result",
         cascade="all, delete-orphan",
@@ -560,7 +601,10 @@ class FitResult(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "session_id", "isotherm_id", "model_name", name="uq_fit_results_session_model"
+            "session_id",
+            "isotherm_id",
+            "model_name",
+            name="uq_fit_results_session_model",
         ),
         CheckConstraint(
             "status IN ('success', 'warning', 'failed')",
@@ -570,6 +614,7 @@ class FitResult(Base):
         CheckConstraint("parameter_count > 0", name="ck_fit_results_parameters"),
         Index("ix_fit_results_session_rank", "session_id", "isotherm_id", "rank"),
     )
+
 
 ###############################################################################
 class FitParameter(Base):
@@ -592,6 +637,7 @@ class FitParameter(Base):
         UniqueConstraint("result_id", "position", name="uq_fit_parameters_position"),
         CheckConstraint("position >= 0", name="ck_fit_parameters_position"),
     )
+
 
 ###############################################################################
 class TrainingSnapshot(Base):
@@ -618,6 +664,7 @@ class TrainingSnapshot(Base):
         CheckConstraint("row_count > 0", name="ck_training_snapshots_row_count"),
     )
 
+
 ###############################################################################
 class TrainingSnapshotRow(Base):
     __tablename__ = "training_snapshot_rows"
@@ -640,6 +687,7 @@ class TrainingSnapshotRow(Base):
         CheckConstraint("row_index >= 0", name="ck_training_snapshot_rows_index"),
         Index("ix_training_snapshot_rows_snapshot_index", "snapshot_id", "row_index"),
     )
+
 
 ###############################################################################
 class AdsorptionModelSetting(Base):

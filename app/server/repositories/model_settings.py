@@ -11,11 +11,13 @@ from sqlalchemy import select
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.schemas.models import AdsorptionModelSetting
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class StoredModelSetting:
     enabled: bool = True
     parameter_bounds: dict[str, dict[str, float]] = field(default_factory=dict)
+
 
 ###############################################################################
 class ModelSettingsRepository:

@@ -23,9 +23,9 @@ from torch import compile as torch_compile
 
 # [SCADS SEQUENCE MODEL]
 
+
 ###############################################################################
 class SCADSModel:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], metadata: dict[str, Any]) -> None:
         smile_vocab = metadata.get("smile_vocabulary") or {}
@@ -145,9 +145,9 @@ class SCADSModel:
 
         return model
 
+
 ###############################################################################
 class SCADSAtomicModel:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], metadata: dict[str, Any]) -> None:
         smile_vocab = metadata.get("smile_vocabulary") or {}
@@ -248,7 +248,9 @@ class SCADSAtomicModel:
         context_vector = self.context_pooling(molecular_embeddings)
 
         temperature_feature = keras.ops.expand_dims(self.features_input[:, 0], axis=-1)
-        molecular_weight_feature = keras.ops.expand_dims(self.features_input[:, 1], axis=-1)
+        molecular_weight_feature = keras.ops.expand_dims(
+            self.features_input[:, 1], axis=-1
+        )
         pressure_feature = keras.ops.expand_dims(self.features_input[:, 3], axis=-1)
         numeric_features = layers.concatenate(
             [temperature_feature, molecular_weight_feature, pressure_feature],

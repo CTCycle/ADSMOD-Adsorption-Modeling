@@ -21,6 +21,7 @@ from server.services.providers.public_data import (
 _FORMULA_TOKEN = re.compile(r"([A-Z][a-z]?)(\d+(?:\.\d+)?)?")
 _INCHI_KEY = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class CandidateSet:
@@ -32,6 +33,7 @@ class CandidateSet:
     def complete(self) -> bool:
         return self.sampled >= self.total
 
+
 ###############################################################################
 class PubChemProvider(RetryingHttpProvider):
     key = "pubchem"
@@ -41,7 +43,9 @@ class PubChemProvider(RetryingHttpProvider):
         "2D/3D structure records."
     )
     homepage_url = "https://pubchem.ncbi.nlm.nih.gov/"
-    license_name = "Public-domain U.S. government database; upstream record attribution applies"
+    license_name = (
+        "Public-domain U.S. government database; upstream record attribution applies"
+    )
     license_url = "https://pubchem.ncbi.nlm.nih.gov/docs/downloads"
     terms_url = "https://pubchem.ncbi.nlm.nih.gov/docs/programmatic-access"
     capabilities = (
@@ -131,7 +135,7 @@ class PubChemProvider(RetryingHttpProvider):
             return None
         try:
             return float(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
     # -------------------------------------------------------------------------
@@ -164,8 +168,10 @@ class PubChemProvider(RetryingHttpProvider):
         namespace, value = self._namespace(query)
         if not value:
             raise ValueError("PubChem query must not be empty.")
-        cids, total = ([value], 1) if namespace == "cid" else await self._candidate_cids(
-            namespace, value, limit
+        cids, total = (
+            ([value], 1)
+            if namespace == "cid"
+            else await self._candidate_cids(namespace, value, limit)
         )
         response = await self._request(
             "GET",

@@ -14,6 +14,7 @@ import pandas as pd
 from server.domain.training_data import TrainingDataAccess
 from server.domain.training import TrainingMetadata
 
+
 ###############################################################################
 class TrainingDataSerializer:
     """ML-side manifest for backend-owned immutable training snapshots."""

@@ -10,6 +10,7 @@ import pandas as pd
 from server.common.utils.logger import logger
 from server.common.units import UnitConversionError, UnitRegistry, normalize_token
 
+
 ###############################################################################
 def map_values(
     values: list[int | float] | int | float | None,
@@ -28,6 +29,7 @@ def map_values(
     if pd.isna(values):
         return None
     return converter(float(values))
+
 
 ###############################################################################
 class PressureConversion:
@@ -77,6 +79,7 @@ class PressureConversion:
         )
         return dataframe.drop(columns=self.P_UNIT_COL)
 
+
 ###############################################################################
 class UptakeConversion:
     """Apply canonical uptake conversions while preserving the ML frame shape."""
@@ -111,11 +114,13 @@ class UptakeConversion:
         try:
             return map_values(
                 values,
-                lambda value: UnitRegistry.convert_uptake(
-                    value,
-                    resolved,
-                    None if molar_mass is None else float(molar_mass),
-                ).canonical_value,
+                lambda value: (
+                    UnitRegistry.convert_uptake(
+                        value,
+                        resolved,
+                        None if molar_mass is None else float(molar_mass),
+                    ).canonical_value
+                ),
             )
         except UnitConversionError as exc:
             raise UnitConversionError(
@@ -141,6 +146,7 @@ class UptakeConversion:
             for _, row in dataframe.iterrows()
         ]
         return dataframe.drop(columns=self.Q_UNIT_COL)
+
 
 ###############################################################################
 def PQ_units_conversion(dataframe: pd.DataFrame) -> pd.DataFrame:

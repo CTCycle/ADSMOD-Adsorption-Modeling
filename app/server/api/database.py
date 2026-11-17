@@ -27,7 +27,9 @@ class DatabaseSettingsRequest(BaseModel):
 
     backend: Literal["sqlite", "postgres"]
     sqlite_path: str = "data/database.db"
-    engine: Literal["postgres", "postgresql", "postgresql+psycopg"] = "postgresql+psycopg"
+    engine: Literal["postgres", "postgresql", "postgresql+psycopg"] = (
+        "postgresql+psycopg"
+    )
     host: str | None = None
     port: int = Field(default=5432, ge=1, le=65535)
     database_name: str | None = None
@@ -44,9 +46,13 @@ class DatabaseSettingsRequest(BaseModel):
         if self.backend == "postgres" and not all(
             (self.host, self.database_name, self.username)
         ):
-            raise ValueError("Host, database name, and username are required for PostgreSQL.")
+            raise ValueError(
+                "Host, database name, and username are required for PostgreSQL."
+            )
         if not self.sqlite_path.strip() or self.sqlite_path.strip() == ":memory:":
-            raise ValueError("Enter a persistent SQLite file path; in-memory databases are reserved for tests.")
+            raise ValueError(
+                "Enter a persistent SQLite file path; in-memory databases are reserved for tests."
+            )
         return self
 
 
@@ -96,7 +102,9 @@ def _response(request: Request) -> dict[str, Any]:
 
 
 ###############################################################################
-def _build_config(payload: DatabaseSettingsRequest, current: DatabaseConfig) -> DatabaseConfig:
+def _build_config(
+    payload: DatabaseSettingsRequest, current: DatabaseConfig
+) -> DatabaseConfig:
     same_backend = (payload.backend == "sqlite") == current.embedded_database
     password = None
     if payload.backend == "postgres":
@@ -277,7 +285,9 @@ class _DatabaseSwitch:
         try:
             self.snapshot.engine.dispose()
         except Exception:
-            logger.exception("Could not dispose the previous database engine after switching.")
+            logger.exception(
+                "Could not dispose the previous database engine after switching."
+            )
 
     # -------------------------------------------------------------------------
     async def _release_without_switch(self) -> None:
@@ -377,7 +387,10 @@ async def switch_database(
 def create_database_router() -> APIRouter:
     router = APIRouter(prefix="/database", tags=["database"])
     router.add_api_route(
-        "", get_database_settings, methods=["GET"], response_model=DatabaseSettingsResponse
+        "",
+        get_database_settings,
+        methods=["GET"],
+        response_model=DatabaseSettingsResponse,
     )
     router.add_api_route(
         "/test",

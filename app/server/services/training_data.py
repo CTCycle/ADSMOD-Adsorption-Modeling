@@ -14,6 +14,7 @@ from server.repositories.snapshots import SnapshotHasher, SnapshotStore
 from server.repositories.database.initializer import prepare_database_for_startup
 from server.services.container import CoreServiceContainer
 
+
 ###############################################################################
 def _json_safe(value: object) -> object:
     if value is None or isinstance(value, (str, bool, int)):
@@ -29,11 +30,13 @@ def _json_safe(value: object) -> object:
         return [_json_safe(item) for item in value]
     return str(value)
 
+
 ###############################################################################
 class TrainingDataService:
-
     # -------------------------------------------------------------------------
-    def __init__(self, container: CoreServiceContainer, *, owns_database: bool = False) -> None:
+    def __init__(
+        self, container: CoreServiceContainer, *, owns_database: bool = False
+    ) -> None:
         self.container = container
         self.snapshot_store = SnapshotStore(container.database)
         self.owns_database = owns_database
@@ -46,25 +49,57 @@ class TrainingDataService:
     # -------------------------------------------------------------------------
     def list_sources(self) -> list[dict[str, Any]]:
         sources: list[dict[str, Any]] = []
-        nist_count = int(self.container.nist_repository.count_nist_rows().get("observation_count", 0))
+        nist_count = int(
+            self.container.nist_repository.count_nist_rows().get("observation_count", 0)
+        )
         if nist_count > 0:
-            sources.append({"source": "nist", "dataset_name": "NIST ISODB", "display_name": "NIST ISODB", "row_count": nist_count, "dataset_id": None})
-        sources.extend({"source": item["source"], "dataset_name": item["name"], "display_name": item["name"], "row_count": item["observation_count"], "dataset_id": item["id"]} for item in self.container.datasets.list_summaries() if item["source"] == "uploaded")
+            sources.append(
+                {
+                    "source": "nist",
+                    "dataset_name": "NIST ISODB",
+                    "display_name": "NIST ISODB",
+                    "row_count": nist_count,
+                    "dataset_id": None,
+                }
+            )
+        sources.extend(
+            {
+                "source": item["source"],
+                "dataset_name": item["name"],
+                "display_name": item["name"],
+                "row_count": item["observation_count"],
+                "dataset_id": item["id"],
+            }
+            for item in self.container.datasets.list_summaries()
+            if item["source"] == "uploaded"
+        )
         return sources
 
     # -------------------------------------------------------------------------
-    def create_snapshot(self, rows: list[dict[str, Any]], *, metadata: dict[str, Any] | None = None) -> SnapshotReference:
+    def create_snapshot(
+        self, rows: list[dict[str, Any]], *, metadata: dict[str, Any] | None = None
+    ) -> SnapshotReference:
         record = self.snapshot_store.create(rows, metadata=metadata)
         return SnapshotReference(record.snapshot_id, record.content_hash)
 
     # -------------------------------------------------------------------------
-    def create_snapshot_from_selections(self, selections: list[dict[str, Any]], *, metadata: dict[str, Any] | None = None) -> SnapshotReference:
-        validated = [SnapshotDatasetSelection.model_validate(selection) for selection in selections]
+    def create_snapshot_from_selections(
+        self,
+        selections: list[dict[str, Any]],
+        *,
+        metadata: dict[str, Any] | None = None,
+    ) -> SnapshotReference:
+        validated = [
+            SnapshotDatasetSelection.model_validate(selection)
+            for selection in selections
+        ]
         rows: list[dict[str, Any]] = []
         excluded = {"multi_species_isotherms": 0, "non_pascal_pressure_isotherms": 0}
         for selection in validated:
             if selection.source == "uploaded":
-                selected = self._uploaded_snapshot_rows(selection.dataset_name, selection.dataset_id)
+                selected = self._uploaded_snapshot_rows(
+                    selection.dataset_name, selection.dataset_id
+                )
             else:
                 selected = self._nist_snapshot_rows(selection.dataset_name)
             kept, dropped = self._screen_training_rows(selected)
@@ -78,25 +113,49 @@ class TrainingDataService:
             )
         # Snapshot rows come from adsorption-branch reads only: the ML models
         # learn equilibrium adsorption, never a desorption branch.
-        return self.create_snapshot(rows, metadata={**dict(metadata or {}), "selections": [selection.model_dump(mode="json") for selection in validated], "excluded": excluded, "branch": "adsorption"})
+        return self.create_snapshot(
+            rows,
+            metadata={
+                **dict(metadata or {}),
+                "selections": [
+                    selection.model_dump(mode="json") for selection in validated
+                ],
+                "excluded": excluded,
+                "branch": "adsorption",
+            },
+        )
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _screen_training_rows(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    def _screen_training_rows(
+        rows: list[dict[str, Any]],
+    ) -> tuple[list[dict[str, Any]], dict[str, int]]:
         """Drop isotherms the ML pipeline cannot represent: it models one species in Pa."""
         species: dict[Any, set[Any]] = {}
         units: dict[Any, set[Any]] = {}
         for row in rows:
             species.setdefault(row["isotherm_id"], set()).add(row.get("adsorbate_id"))
-            units.setdefault(row["isotherm_id"], set()).add(row.get("pressure_canonical_unit"))
+            units.setdefault(row["isotherm_id"], set()).add(
+                row.get("pressure_canonical_unit")
+            )
         multi_species = {key for key, value in species.items() if len(value) > 1}
-        non_pascal = {key for key, value in units.items() if value != {"Pa"}} - multi_species
+        non_pascal = {
+            key for key, value in units.items() if value != {"Pa"}
+        } - multi_species
         kept = [
-            {key: value for key, value in row.items() if key not in {"adsorbate_id", "pressure_canonical_unit"}}
+            {
+                key: value
+                for key, value in row.items()
+                if key not in {"adsorbate_id", "pressure_canonical_unit"}
+            }
             for row in rows
-            if row["isotherm_id"] not in multi_species and row["isotherm_id"] not in non_pascal
+            if row["isotherm_id"] not in multi_species
+            and row["isotherm_id"] not in non_pascal
         ]
-        return kept, {"multi_species_isotherms": len(multi_species), "non_pascal_pressure_isotherms": len(non_pascal)}
+        return kept, {
+            "multi_species_isotherms": len(multi_species),
+            "non_pascal_pressure_isotherms": len(non_pascal),
+        }
 
     # -------------------------------------------------------------------------
     def fetch_snapshot(self, snapshot_id: str) -> SnapshotPayload:
@@ -121,37 +180,80 @@ class TrainingDataService:
         return SnapshotPayload(snapshot_id, content_hash, tuple(rows))
 
     # -------------------------------------------------------------------------
-    def _uploaded_snapshot_rows(self, dataset_name: str, dataset_id: int | None) -> list[dict[str, Any]]:
+    def _uploaded_snapshot_rows(
+        self, dataset_name: str, dataset_id: int | None
+    ) -> list[dict[str, Any]]:
         summaries = self.container.datasets.list_summaries()
-        dataset = next((item for item in summaries if item["source"] == "uploaded" and ((dataset_id is None and item["name"] == dataset_name) or item["id"] == dataset_id)), None)
+        dataset = next(
+            (
+                item
+                for item in summaries
+                if item["source"] == "uploaded"
+                and (
+                    (dataset_id is None and item["name"] == dataset_name)
+                    or item["id"] == dataset_id
+                )
+            ),
+            None,
+        )
         if dataset is None:
             raise LookupError(f"Uploaded dataset '{dataset_name}' does not exist.")
         frame = self.container.datasets.observation_frame(int(dataset["id"]))
         if frame.empty:
-            raise ValueError(f"Uploaded dataset '{dataset_name}' contains no observations.")
+            raise ValueError(
+                f"Uploaded dataset '{dataset_name}' contains no observations."
+            )
         rows: list[dict[str, Any]] = []
         for index, raw_record in enumerate(frame.to_dict(orient="records")):
             record = {str(key): _json_safe(value) for key, value in raw_record.items()}
             experiment = str(record.get("experiment") or f"row-{index}")
-            record.update({"filename": f"{dataset_name}:{experiment}", "temperature": record.get("temperature"), "adsorbent_name": record.get("adsorbent_name"), "adsorbate_name": record.get("adsorbate_name"), "pressure_units": "Pa", "adsorption_units": "mol/kg"})
+            record.update(
+                {
+                    "filename": f"{dataset_name}:{experiment}",
+                    "temperature": record.get("temperature"),
+                    "adsorbent_name": record.get("adsorbent_name"),
+                    "adsorbate_name": record.get("adsorbate_name"),
+                    "pressure_units": "Pa",
+                    "adsorption_units": "mol/kg",
+                }
+            )
             rows.append(record)
         return rows
 
     # -------------------------------------------------------------------------
     def _nist_snapshot_rows(self, dataset_name: str) -> list[dict[str, Any]]:
-        adsorption, guests, _ = self.container.nist_repository.load_adsorption_datasets()
+        adsorption, guests, _ = (
+            self.container.nist_repository.load_adsorption_datasets()
+        )
         if adsorption.empty:
             raise ValueError(f"NIST dataset '{dataset_name}' contains no observations.")
-        guest_properties = {str(row.get("name", "")).strip().casefold(): row for row in guests.to_dict(orient="records")}
+        guest_properties = {
+            str(row.get("name", "")).strip().casefold(): row
+            for row in guests.to_dict(orient="records")
+        }
         rows: list[dict[str, Any]] = []
         for index, raw_record in enumerate(adsorption.to_dict(orient="records")):
             record = {str(key): _json_safe(value) for key, value in raw_record.items()}
             adsorbate = str(record.get("adsorbate") or "").strip()
             adsorbent = str(record.get("adsorbent") or "").strip()
             guest = guest_properties.get(adsorbate.casefold(), {})
-            record.update({"filename": f"{dataset_name}:{record.get('external_key') or index}", "temperature": record.get("temperature_k"), "adsorbent_name": adsorbent, "adsorbate_name": adsorbate, "adsorbate_molecular_weight": _json_safe(guest.get("molecular_weight")), "adsorbate_SMILE": _json_safe(guest.get("smile_code")), "pressure_units": "Pa", "adsorption_units": "mol/kg"})
+            record.update(
+                {
+                    "filename": f"{dataset_name}:{record.get('external_key') or index}",
+                    "temperature": record.get("temperature_k"),
+                    "adsorbent_name": adsorbent,
+                    "adsorbate_name": adsorbate,
+                    "adsorbate_molecular_weight": _json_safe(
+                        guest.get("molecular_weight")
+                    ),
+                    "adsorbate_SMILE": _json_safe(guest.get("smile_code")),
+                    "pressure_units": "Pa",
+                    "adsorption_units": "mol/kg",
+                }
+            )
             rows.append(record)
         return rows
+
 
 ###############################################################################
 def open_training_data_service(config: AdsmodConfig) -> TrainingDataService:

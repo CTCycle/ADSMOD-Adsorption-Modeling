@@ -73,7 +73,11 @@ def _import(client: TestClient, name: str = "Screening set") -> dict[str, Any]:
         files=files,
     ).json()
     mapping["confirmed_issue_codes"] = sorted(
-        {issue["code"] for issue in validation["issues"] if issue["severity"] == "confirmation"}
+        {
+            issue["code"]
+            for issue in validation["issues"]
+            if issue["severity"] == "confirmation"
+        }
     )
     response = client.post(
         "/api/v1/datasets/import/commit",
@@ -92,7 +96,9 @@ def _experiments(client: TestClient, dataset_id: int, **params: Any) -> dict[str
 
 
 ###############################################################################
-def _observations(client: TestClient, dataset_id: int, experiment_id: int) -> list[dict[str, Any]]:
+def _observations(
+    client: TestClient, dataset_id: int, experiment_id: int
+) -> list[dict[str, Any]]:
     response = client.get(
         f"/api/v1/datasets/{dataset_id}/experiments/{experiment_id}/observations",
         params={"order": "source"},
@@ -104,7 +110,9 @@ def _observations(client: TestClient, dataset_id: int, experiment_id: int) -> li
 ###############################################################################
 def _experiment(client: TestClient, dataset_id: int, name: str) -> dict[str, Any]:
     return next(
-        item for item in _experiments(client, dataset_id)["experiments"] if item["name"] == name
+        item
+        for item in _experiments(client, dataset_id)["experiments"]
+        if item["name"] == name
     )
 
 
@@ -127,7 +135,9 @@ def test_multi_experiment_import_is_listed_as_one_dataset(client: TestClient) ->
     co2 = _experiment(client, dataset["id"], "A")
     assert co2["observation_count"] == 3 and co2["temperature_k"] == 298.15
     assert [component["name"] for component in co2["components"]] == ["Carbon dioxide"]
-    filtered = _experiments(client, dataset["id"], adsorbate_id=co2["components"][0]["adsorbate_id"])
+    filtered = _experiments(
+        client, dataset["id"], adsorbate_id=co2["components"][0]["adsorbate_id"]
+    )
     assert [item["id"] for item in filtered["experiments"]] == [co2["id"]]
 
     detail = client.get(f"/api/v1/datasets/{dataset['id']}").json()
@@ -165,7 +175,9 @@ def test_wide_species_columns_are_stored_as_one_experiment_with_two_species(
     }
     files = {"file": ("mixture.csv", csv.encode("utf-8"), "text/csv")}
     response = client.post(
-        "/api/v1/datasets/import/commit", data={"mapping": json.dumps(mapping)}, files=files
+        "/api/v1/datasets/import/commit",
+        data={"mapping": json.dumps(mapping)},
+        files=files,
     )
     assert response.status_code == 201, response.text
     dataset = response.json()["dataset"]
@@ -246,10 +258,18 @@ def test_edit_overwrites_values_recomputes_canonical_units_and_feeds_fitting(
             "name": "Screening set (curated)",
             "description": "Corrected first point.",
             "experiments": [
-                {"id": co2["id"], "temperature_original": 30, "temperature_original_unit": "°C"}
+                {
+                    "id": co2["id"],
+                    "temperature_original": 30,
+                    "temperature_original_unit": "°C",
+                }
             ],
             "observations": [
-                {"id": first["id"], "pressure_original": 0.2, "uptake_stddev_mol_kg": 0.05}
+                {
+                    "id": first["id"],
+                    "pressure_original": 0.2,
+                    "uptake_stddev_mol_kg": 0.05,
+                }
             ],
         },
     )
@@ -268,7 +288,9 @@ def test_edit_overwrites_values_recomputes_canonical_units_and_feeds_fitting(
     assert rows[first["id"]]["uptake_stddev_mol_kg"] == 0.05
     assert rows[second["id"]]["pressure_canonical"] == pytest.approx(50000.0)
 
-    series = client.app.state.core_container.datasets.fitting_series(dataset["id"], co2["id"])
+    series = client.app.state.core_container.datasets.fitting_series(
+        dataset["id"], co2["id"]
+    )
     assert series["temperature_k"] == pytest.approx(303.15)
     assert series["pressure"][0] == pytest.approx(20000.0)
 
@@ -283,7 +305,9 @@ def test_edit_overwrites_values_recomputes_canonical_units_and_feeds_fitting(
 
 
 ###############################################################################
-def test_invalid_edit_reports_field_issues_and_persists_nothing(client: TestClient) -> None:
+def test_invalid_edit_reports_field_issues_and_persists_nothing(
+    client: TestClient,
+) -> None:
     dataset = _import(client)
     co2 = _experiment(client, dataset["id"], "A")
     first, second, _ = _observations(client, dataset["id"], co2["id"])
@@ -293,7 +317,10 @@ def test_invalid_edit_reports_field_issues_and_persists_nothing(client: TestClie
         json={
             "name": "Should not persist",
             "experiments": [
-                {"id": co2["id"], "components": [{"position": 1, "adsorbate_id": 99999}]}
+                {
+                    "id": co2["id"],
+                    "components": [{"position": 1, "adsorbate_id": 99999}],
+                }
             ],
             "observations": [
                 {"id": first["id"], "pressure_original": -1.0},
@@ -304,13 +331,22 @@ def test_invalid_edit_reports_field_issues_and_persists_nothing(client: TestClie
 
     assert response.status_code == 422
     issues = response.json()["detail"]["issues"]
-    assert {(item["observation_id"], item["field"]) for item in issues if item["scope"] == "observation"} == {
+    assert {
+        (item["observation_id"], item["field"])
+        for item in issues
+        if item["scope"] == "observation"
+    } == {
         (first["id"], "pressure_original"),
         (second["id"], "uptake_stddev_mol_kg"),
     }
     assert any(item["field"] == "components" for item in issues)
-    assert client.get(f"/api/v1/datasets/{dataset['id']}").json()["dataset"]["name"] == "Screening set"
-    assert _observations(client, dataset["id"], co2["id"])[0]["pressure_original"] == 0.1
+    assert (
+        client.get(f"/api/v1/datasets/{dataset['id']}").json()["dataset"]["name"]
+        == "Screening set"
+    )
+    assert (
+        _observations(client, dataset["id"], co2["id"])[0]["pressure_original"] == 0.1
+    )
 
 
 ###############################################################################
@@ -340,9 +376,13 @@ def test_failed_write_rolls_back_the_whole_edit(
     monkeypatch.undo()
 
     summary = client.get(f"/api/v1/datasets/{dataset['id']}").json()["dataset"]
-    assert summary["name"] == "Screening set" and summary["edited_experiment_count"] == 0
+    assert (
+        summary["name"] == "Screening set" and summary["edited_experiment_count"] == 0
+    )
     assert _experiment(client, dataset["id"], "A")["edited_at"] is None
-    assert _observations(client, dataset["id"], co2["id"])[0]["pressure_original"] == 0.1
+    assert (
+        _observations(client, dataset["id"], co2["id"])[0]["pressure_original"] == 0.1
+    )
 
 
 ###############################################################################
@@ -356,7 +396,10 @@ def test_delete_keeps_shared_entities_and_entities_in_use_cannot_be_deleted(
     species_id = co2["components"][0]["adsorbate_id"]
 
     material = client.get(f"/api/v1/materials/{material_id}").json()
-    assert sorted(item["name"] for item in material["datasets"]) == ["First set", "Second set"]
+    assert sorted(item["name"] for item in material["datasets"]) == [
+        "First set",
+        "Second set",
+    ]
     assert client.delete(f"/api/v1/materials/{material_id}").status_code == 409
     assert client.delete(f"/api/v1/species/{species_id}").status_code == 409
 
@@ -440,7 +483,9 @@ def _canonical_experiment(external_key: str, uptake: float) -> dict[str, Any]:
 ###############################################################################
 def test_nist_redownload_keeps_local_edits_unless_overwrite_is_confirmed() -> None:
     database = DatabaseManager(
-        DatabaseConfig(embedded_database=True, connect_timeout=5, sqlite_path=":memory:")
+        DatabaseConfig(
+            embedded_database=True, connect_timeout=5, sqlite_path=":memory:"
+        )
     )
     Base.metadata.create_all(database.engine)
     try:
@@ -463,7 +508,9 @@ def test_nist_redownload_keeps_local_edits_unless_overwrite_is_confirmed() -> No
                 "dataset": {},
                 "experiments": {},
                 "components": {},
-                "observations": {rows[0]["id"]: {"uptake_original": 9.0, "uptake_mol_kg": 9.0}},
+                "observations": {
+                    rows[0]["id"]: {"uptake_original": 9.0, "uptake_mol_kg": 9.0}
+                },
                 "edited_experiment_ids": {experiment["id"]},
             },
         )
@@ -473,7 +520,9 @@ def test_nist_redownload_keeps_local_edits_unless_overwrite_is_confirmed() -> No
         rows, _ = datasets.observations(dataset_id, experiment["id"])
         assert rows[0]["uptake_mol_kg"] == 9.0
 
-        nist.save_experiments([_canonical_experiment("iso-1", 1.0)], restore_edited=True)
+        nist.save_experiments(
+            [_canonical_experiment("iso-1", 1.0)], restore_edited=True
+        )
         restored = datasets.experiments(dataset_id)[0][0]
         rows, _ = datasets.observations(dataset_id, restored["id"])
         assert restored["id"] == experiment["id"] and restored["edited_at"] is None

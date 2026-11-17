@@ -9,6 +9,7 @@ import pandas as pd
 
 from server.domain.training_data import TrainingDataAccess
 
+
 ###############################################################################
 class DatasetCompositionService:
     """Resolve training sources through the backend's immutable snapshot service."""
@@ -67,8 +68,7 @@ class DatasetCompositionService:
         ]
         if missing:
             raise ValueError(
-                "Snapshot is missing required training columns: "
-                + ", ".join(missing)
+                "Snapshot is missing required training columns: " + ", ".join(missing)
             )
 
     # -------------------------------------------------------------------------

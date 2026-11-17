@@ -10,9 +10,9 @@ from copy import deepcopy
 from pathlib import Path
 import sys
 
+
 ###############################################################################
 class UnicodeSafeFormatter(logging.Formatter):
-
     # -------------------------------------------------------------------------
     def format(self, record: logging.LogRecord) -> str:
         message = super().format(record)
@@ -32,7 +32,7 @@ class AccessLogFilter(logging.Filter):
         _, method, target, _, status = record.args
         try:
             status = int(status)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return True
         path = str(target).split("?", 1)[0]
         if status >= 500:
@@ -41,10 +41,14 @@ class AccessLogFilter(logging.Filter):
             record.levelno, record.levelname = logging.WARNING, "WARNING"
         elif status < 400 and (
             method in {"GET", "HEAD", "OPTIONS"}
-            or (method == "POST" and path in {
-                "/api/v1/datasets/import/preview",
-                "/api/v1/datasets/import/validate",
-            })
+            or (
+                method == "POST"
+                and path
+                in {
+                    "/api/v1/datasets/import/preview",
+                    "/api/v1/datasets/import/validate",
+                }
+            )
         ):
             record.levelno, record.levelname = logging.DEBUG, "DEBUG"
             return os.getenv("ADSMOD_LOG_LEVEL", "INFO").upper() == "DEBUG"
@@ -66,11 +70,14 @@ if not logger.handlers:
     logger.setLevel(logging.DEBUG)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(
-        logging.DEBUG if os.getenv("ADSMOD_LOG_LEVEL", "INFO").upper() == "DEBUG" else logging.INFO
+        logging.DEBUG
+        if os.getenv("ADSMOD_LOG_LEVEL", "INFO").upper() == "DEBUG"
+        else logging.INFO
     )
     console_handler.setFormatter(UnicodeSafeFormatter("%(levelname)s - %(message)s"))
     logger.addHandler(console_handler)
 logger.propagate = False
+
 
 ###############################################################################
 def configure_logging(log_directory: Path | None = None) -> None:
@@ -104,6 +111,7 @@ def configure_logging(log_directory: Path | None = None) -> None:
         logger.warning(
             "Core file logging is unavailable; continuing with console logging."
         )
+
 
 ###############################################################################
 def close_file_logging() -> None:

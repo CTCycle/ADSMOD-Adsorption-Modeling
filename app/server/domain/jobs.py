@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from server.domain.public_data import PublicDataSyncRunView
 
+
 ###############################################################################
 class JobStartResponse(BaseModel):
     job_id: str
@@ -19,6 +20,7 @@ class JobStartResponse(BaseModel):
     status: str
     message: str
     poll_interval: float | None = None
+
 
 ###############################################################################
 class JobStatusResponse(BaseModel):
@@ -30,9 +32,11 @@ class JobStatusResponse(BaseModel):
     error: str | None = None
     poll_interval: float | None = None
 
+
 ###############################################################################
 class JobListResponse(BaseModel):
     jobs: list[JobStatusResponse]
+
 
 ###############################################################################
 class UnifiedJobView(BaseModel):
@@ -58,15 +62,18 @@ class UnifiedJobView(BaseModel):
     error: str | None = None
     run: PublicDataSyncRunView | None = None
 
+
 ###############################################################################
 class UnifiedJobListResponse(BaseModel):
     jobs: list[UnifiedJobView]
     active_count: int = Field(ge=0)
 
+
 ###############################################################################
 class JobCancelResponse(BaseModel):
     status: str
     job_id: str
+
 
 ###############################################################################
 class StatusMessageResponse(BaseModel):

@@ -13,13 +13,16 @@ from typing import Any, Literal
 
 PressureBasis = Literal["absolute", "partial", "relative"]
 
+
 ###############################################################################
 class UnitConversionError(ValueError):
     pass
 
+
 ###############################################################################
 class AmbiguousUnitError(UnitConversionError):
     """The spelling cannot tell apart units that differ only by prefix case."""
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -30,14 +33,18 @@ class ConvertedValue:
     canonical_unit: str
     rule: str
 
+
 ###############################################################################
 def normalize_token(value: object) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).strip().casefold()
     text = text.replace("−", "-").replace("·", " ").replace("³", "3")
     return " ".join(text.split())
 
+
 ###############################################################################
-def normalize_decimal_separators(numeric: str, decimal_separator: str, value: Any) -> str:
+def normalize_decimal_separators(
+    numeric: str, decimal_separator: str, value: Any
+) -> str:
     if decimal_separator not in {"auto", ".", ","}:
         raise ValueError("Decimal separator must be 'auto', '.', or ','.")
     if decimal_separator == ".":
@@ -51,7 +58,11 @@ def normalize_decimal_separators(numeric: str, decimal_separator: str, value: An
     elif "," in numeric:
         # A leading zero cannot start a thousands group, so "0,100" is a decimal.
         leading_zero = numeric.lstrip("+-").startswith("0,")
-        if numeric.count(",") == 1 and len(numeric.rsplit(",", 1)[1]) == 3 and not leading_zero:
+        if (
+            numeric.count(",") == 1
+            and len(numeric.rsplit(",", 1)[1]) == 3
+            and not leading_zero
+        ):
             raise ValueError(
                 f"'{value}' is ambiguous; select comma-decimal or comma-thousands explicitly."
             )
@@ -66,6 +77,7 @@ def normalize_decimal_separators(numeric: str, decimal_separator: str, value: An
             f"'{value}' is ambiguous; select decimal-point or thousands-point explicitly."
         )
     return numeric
+
 
 ###############################################################################
 def parse_number(value: Any, decimal_separator: str = "auto") -> float:
@@ -97,6 +109,7 @@ def parse_number(value: Any, decimal_separator: str = "auto") -> float:
     if not math.isfinite(result):
         raise ValueError("Measurement must be finite.")
     return result
+
 
 ###############################################################################
 class UnitRegistry:
@@ -383,6 +396,7 @@ HEADER_UNIT_TOKENS = (
     "kelvin",
 )
 
+
 ###############################################################################
 def detect_header_unit(header: str, quantity: str) -> str | None:
     """Return the unit a header declares, or None when absent or ambiguous.
@@ -420,6 +434,7 @@ KNOWN_MOLAR_MASSES_G_MOL = {
     "hydrogen": 2.01588,
 }
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class UnitDefinition:
@@ -429,6 +444,7 @@ class UnitDefinition:
     name: str
     group: str
     note: str = ""
+
 
 ###############################################################################
 # Display metadata for every built-in unit. Conversion factors stay in
@@ -441,10 +457,16 @@ BUILT_IN_UNIT_DETAILS: tuple[UnitDefinition, ...] = (
     UnitDefinition("pressure", "MPa", "MPa", "megapascal", "Absolute pressure"),
     UnitDefinition("pressure", "bar", "bar", "bar", "Absolute pressure"),
     UnitDefinition("pressure", "mbar", "mbar", "millibar", "Absolute pressure"),
-    UnitDefinition("pressure", "atm", "atm", "standard atmosphere", "Absolute pressure"),
+    UnitDefinition(
+        "pressure", "atm", "atm", "standard atmosphere", "Absolute pressure"
+    ),
     UnitDefinition("pressure", "torr", "Torr", "torr", "Absolute pressure"),
-    UnitDefinition("pressure", "mmHg", "mmHg", "millimetre of mercury", "Absolute pressure"),
-    UnitDefinition("pressure", "psi", "psi", "pound per square inch", "Absolute pressure"),
+    UnitDefinition(
+        "pressure", "mmHg", "mmHg", "millimetre of mercury", "Absolute pressure"
+    ),
+    UnitDefinition(
+        "pressure", "psi", "psi", "pound per square inch", "Absolute pressure"
+    ),
     UnitDefinition(
         "pressure",
         "1",
@@ -463,7 +485,9 @@ BUILT_IN_UNIT_DETAILS: tuple[UnitDefinition, ...] = (
     ),
     UnitDefinition("uptake", "mol/kg", "mol/kg", "mole per kilogram", "Molar uptake"),
     UnitDefinition("uptake", "mmol/g", "mmol/g", "millimole per gram", "Molar uptake"),
-    UnitDefinition("uptake", "mmol/kg", "mmol/kg", "millimole per kilogram", "Molar uptake"),
+    UnitDefinition(
+        "uptake", "mmol/kg", "mmol/kg", "millimole per kilogram", "Molar uptake"
+    ),
     UnitDefinition("uptake", "umol/g", "µmol/g", "micromole per gram", "Molar uptake"),
     UnitDefinition("uptake", "mol/g", "mol/g", "mole per gram", "Molar uptake"),
     UnitDefinition(
@@ -506,6 +530,7 @@ BUILT_IN_UNIT_DETAILS: tuple[UnitDefinition, ...] = (
     UnitDefinition("temperature", "degF", "°F", "degree Fahrenheit", "Temperature"),
 )
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class CustomUnit:
@@ -535,6 +560,7 @@ class CustomUnit:
     @property
     def key(self) -> str:
         return UnitRegistry.unit_key(self.symbol)
+
 
 ###############################################################################
 class UnitCatalog:

@@ -8,7 +8,11 @@ import asyncio
 from server.configurations.settings import AdsmodConfig, PublicDataConfig
 from server.common.utils.logger import logger
 from server.common.path import resolve_storage_root
-from server.services.providers import CODProvider, NISTPublicDataProvider, PubChemProvider
+from server.services.providers import (
+    CODProvider,
+    NISTPublicDataProvider,
+    PubChemProvider,
+)
 from server.services.providers.public_data import RequestBudget
 from server.repositories.analytics import AnalyticsRepository
 from server.repositories.database.manager import DatabaseManager
@@ -36,7 +40,6 @@ from server.services.jobs import JobManager
 
 ###############################################################################
 class CoreServiceContainer:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

@@ -24,6 +24,7 @@ from server.repositories.nist import NISTRepository
 NISTCategory = Literal["experiments", "guest", "host"]
 SEARCH_CACHE_SECONDS = 600.0
 
+
 ###############################################################################
 class NISTDataService:
     """Remote NIST/ARPA-E access used by durable public-data acquisition runs."""
@@ -224,9 +225,7 @@ class NISTDataService:
                 guests, guest_column = await self.load_index_for_category(
                     "guest", client
                 )
-                hosts, host_column = await self.load_index_for_category(
-                    "host", client
-                )
+                hosts, host_column = await self.load_index_for_category("host", client)
             self._search_cache = {
                 "at": time.monotonic(),
                 "experiments": experiments.to_dict("records"),
@@ -346,9 +345,7 @@ class NISTDataService:
         page = matches[offset : offset + limit]
         return {
             "total": len(matches),
-            "items": [
-                self._search_item(row, guests, hosts, existing) for row in page
-            ],
+            "items": [self._search_item(row, guests, hosts, existing) for row in page],
         }
 
     # -------------------------------------------------------------------------
@@ -487,7 +484,8 @@ class NISTDataService:
             for identifier in unknown:
                 failed_count += 1
                 await on_failure(
-                    identifier, "The identifier is not present in the current NIST index."
+                    identifier,
+                    "The identifier is not present in the current NIST index.",
                 )
             checkpoint_frozen = False
             last_external_id = resume_after_external_id
@@ -644,9 +642,7 @@ class NISTDataService:
         self, category: NISTCategory
     ) -> tuple[set[str], str]:
         if category == "experiments":
-            existing = await asyncio.to_thread(
-                self.repository.list_nist_experiment_ids
-            )
+            existing = await asyncio.to_thread(self.repository.list_nist_experiment_ids)
             base_url = "https://adsorption.nist.gov/isodb/api/isotherm/{}.json"
         elif category == "guest":
             existing = await asyncio.to_thread(
@@ -654,9 +650,7 @@ class NISTDataService:
             )
             base_url = "https://adsorption.nist.gov/isodb/api/gas/{}.json"
         else:
-            existing = await asyncio.to_thread(
-                self.repository.list_adsorbent_hash_keys
-            )
+            existing = await asyncio.to_thread(self.repository.list_adsorbent_hash_keys)
             base_url = "https://adsorption.nist.gov/matdb/api/material/{}.json"
         return existing, base_url
 
@@ -682,7 +676,9 @@ class NISTDataService:
     ) -> tuple[list[tuple[str, dict[str, Any]]], list[str]]:
         responses = await asyncio.gather(
             *(
-                api_client.fetch_json(client, base_url.format(quote(identifier, safe="")))
+                api_client.fetch_json(
+                    client, base_url.format(quote(identifier, safe=""))
+                )
                 for identifier in batch
             )
         )

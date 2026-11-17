@@ -20,6 +20,7 @@ from server.repositories.schemas.models import (
 
 SessionSort = Literal["created_at", "name", "status"]
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class SessionQuery:
@@ -34,9 +35,9 @@ class SessionQuery:
     page: int = 1
     page_size: int = 20
 
+
 ###############################################################################
 class FittingRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -181,9 +182,7 @@ class FittingRepository:
             return record
 
     # -------------------------------------------------------------------------
-    def list_sessions(
-        self, query: SessionQuery
-    ) -> tuple[list[FittingSession], int]:
+    def list_sessions(self, query: SessionQuery) -> tuple[list[FittingSession], int]:
         conditions = []
         if query.query.strip():
             pattern = f"%{query.query.strip().casefold()}%"
@@ -210,7 +209,9 @@ class FittingRepository:
             "status": FittingSession.status,
         }[query.sort]
         order = column.desc() if query.descending else column.asc()
-        tiebreak = FittingSession.id.desc() if query.descending else FittingSession.id.asc()
+        tiebreak = (
+            FittingSession.id.desc() if query.descending else FittingSession.id.asc()
+        )
         with self.database.session_factory() as session:
             total = session.scalar(
                 select(func.count(FittingSession.id)).where(*conditions)

@@ -26,6 +26,7 @@ from server.repositories.schemas.types import JSONList, JSONMapping, UTCDateTime
 # ChemicalProperty key holding the cached PubChem 3D conformer (SDF text).
 CONFORMER_PROPERTY = "conformer_3d_sdf"
 
+
 ###############################################################################
 class DataSource(Base):
     __tablename__ = "data_sources"
@@ -38,14 +39,18 @@ class DataSource(Base):
     license_name: Mapped[str | None] = mapped_column(String(128))
     license_url: Mapped[str | None] = mapped_column(String(1024))
     terms_url: Mapped[str | None] = mapped_column(String(1024))
-    capabilities: Mapped[list[Any]] = mapped_column(JSONList, nullable=False, default=list)
+    capabilities: Mapped[list[Any]] = mapped_column(
+        JSONList, nullable=False, default=list
+    )
     health_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="unknown", server_default="unknown"
     )
     health_detail: Mapped[str | None] = mapped_column(String(2000))
     last_health_checked_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     last_successful_sync_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
@@ -56,6 +61,7 @@ class DataSource(Base):
             name="ck_data_sources_health_status",
         ),
     )
+
 
 ###############################################################################
 class PublicDataSyncRun(Base):
@@ -94,7 +100,9 @@ class PublicDataSyncRun(Base):
         Boolean, nullable=False, default=False, server_default=false()
     )
     error_detail: Mapped[str | None] = mapped_column(String(2000))
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     finished_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     updated_at: Mapped[datetime] = mapped_column(
@@ -120,6 +128,7 @@ class PublicDataSyncRun(Base):
         Index("ix_public_data_sync_runs_source_created", "source_key", "created_at"),
     )
 
+
 ###############################################################################
 class PublicDataSyncFailure(Base):
     __tablename__ = "public_data_sync_failures"
@@ -134,12 +143,15 @@ class PublicDataSyncFailure(Base):
     external_id: Mapped[str | None] = mapped_column(String(512))
     reason: Mapped[str] = mapped_column(String(2000), nullable=False)
     retry_eligible_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
 
     __table_args__ = (
         Index("ix_public_data_sync_failures_run", "sync_run_id", "id"),
         Index("ix_public_data_sync_failures_retry", "source_key", "retry_eligible_at"),
     )
+
 
 ###############################################################################
 class SourceRecord(Base):
@@ -153,7 +165,9 @@ class SourceRecord(Base):
     external_id: Mapped[str] = mapped_column(String(512), nullable=False)
     source_url: Mapped[str | None] = mapped_column(String(2048))
     source_version: Mapped[str | None] = mapped_column(String(128))
-    retrieved_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     raw_metadata: Mapped[dict[str, Any]] = mapped_column(
         JSONMapping, nullable=False, default=dict
     )
@@ -168,6 +182,7 @@ class SourceRecord(Base):
         ),
         Index("ix_source_records_source_retrieved", "source_id", "retrieved_at"),
     )
+
 
 ###############################################################################
 class AdsorbateSourceRecord(Base):
@@ -187,6 +202,7 @@ class AdsorbateSourceRecord(Base):
         Index("ix_adsorbate_source_records_adsorbate", "adsorbate_id"),
     )
 
+
 ###############################################################################
 class AdsorbentSourceRecord(Base):
     __tablename__ = "adsorbent_source_records"
@@ -205,6 +221,7 @@ class AdsorbentSourceRecord(Base):
         Index("ix_adsorbent_source_records_adsorbent", "adsorbent_id"),
     )
 
+
 ###############################################################################
 class IsothermSourceRecord(Base):
     __tablename__ = "isotherm_source_records"
@@ -222,6 +239,7 @@ class IsothermSourceRecord(Base):
         ),
         Index("ix_isotherm_source_records_isotherm", "isotherm_id"),
     )
+
 
 ###############################################################################
 class Structure(Base):
@@ -245,8 +263,12 @@ class Structure(Base):
     cell_beta_deg: Mapped[float | None] = mapped_column(Float)
     cell_gamma_deg: Mapped[float | None] = mapped_column(Float)
     cell_volume_angstrom3: Mapped[float | None] = mapped_column(Float)
-    has_coordinates: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    has_coordinates: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
     updated_at: Mapped[datetime] = mapped_column(
         UTCDateTime, default=utc_now, onupdate=utc_now, nullable=False
     )
@@ -257,6 +279,7 @@ class Structure(Base):
         Index("ix_structures_formula", "formula"),
         Index("ix_structures_updated", "updated_at"),
     )
+
 
 ###############################################################################
 class StructureSourceRecord(Base):
@@ -275,6 +298,7 @@ class StructureSourceRecord(Base):
         ),
         Index("ix_structure_source_records_structure", "structure_id"),
     )
+
 
 ###############################################################################
 class StructureAtom(Base):
@@ -303,6 +327,7 @@ class StructureAtom(Base):
         ),
         Index("ix_structure_atoms_structure", "structure_id", "sequence_index"),
     )
+
 
 ###############################################################################
 class AdsorbateSynonym(Base):
@@ -340,6 +365,7 @@ class AdsorbateSynonym(Base):
         ),
     )
 
+
 ###############################################################################
 class AdsorbentSynonym(Base):
     __tablename__ = "adsorbent_synonyms"
@@ -373,6 +399,7 @@ class AdsorbentSynonym(Base):
             postgresql_where=text("source_record_id IS NULL"),
         ),
     )
+
 
 ###############################################################################
 class IdentityReview(Base):
@@ -410,6 +437,7 @@ class IdentityReview(Base):
         Index("ix_identity_reviews_status", "status", "entity_kind"),
     )
 
+
 ###############################################################################
 class ChemicalProperty(Base):
     __tablename__ = "chemical_properties"
@@ -437,6 +465,7 @@ class ChemicalProperty(Base):
         Index("ix_chemical_properties_adsorbate_key", "adsorbate_id", "key"),
     )
 
+
 ###############################################################################
 class Reference(Base):
     __tablename__ = "references"
@@ -447,9 +476,12 @@ class Reference(Base):
     journal: Mapped[str | None] = mapped_column(String(512))
     year: Mapped[int | None] = mapped_column(Integer)
     url: Mapped[str | None] = mapped_column(String(2048))
-    created_at: Mapped[datetime] = mapped_column(UTCDateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        UTCDateTime, default=utc_now, nullable=False
+    )
 
     __table_args__ = (Index("ix_references_year", "year"),)
+
 
 ###############################################################################
 class SourceRecordReference(Base):

@@ -22,7 +22,9 @@ PRESSURES_BAR = (0.1, 0.3, 0.6, 1.0, 2.0, 4.0)
 ###############################################################################
 def _write_fitting_csv(path: Path) -> str:
     """Write a two-experiment Langmuir-like dataset where every experiment is fittable."""
-    lines = ["experiment,adsorbent,adsorbate,temperature [K],pressure [bar],uptake [mol/kg]"]
+    lines = [
+        "experiment,adsorbent,adsorbate,temperature [K],pressure [bar],uptake [mol/kg]"
+    ]
     for name, adsorbent, qsat in (("A", "Zeolite 13X", 4.0), ("B", "ZIF-8", 2.0)):
         for pressure in PRESSURES_BAR:
             uptake = qsat * pressure / (1 + pressure)
@@ -50,7 +52,9 @@ def _wait_for_job(
 @pytest.fixture
 def fitting_dataset_id(api_context: APIRequestContext, tmp_path: Path) -> int:
     csv_path = _write_fitting_csv(tmp_path / "fitting_sessions.csv")
-    dataset = _commit_sample(api_context, csv_path, f"fitting_test_{uuid.uuid4().hex[:8]}")
+    dataset = _commit_sample(
+        api_context, csv_path, f"fitting_test_{uuid.uuid4().hex[:8]}"
+    )
     return int(dataset["id"])
 
 
@@ -103,7 +107,10 @@ class TestFittingSessions:
         session = response.json()
         assert session["name"] == "E2E session"
         assert session["status"] in {"completed", "warning"}
-        assert sorted(item["experiment_name"] for item in session["experiments"]) == ["A", "B"]
+        assert sorted(item["experiment_name"] for item in session["experiments"]) == [
+            "A",
+            "B",
+        ]
         for experiment in session["experiments"]:
             assert {result["model"] for result in experiment["results"]} == {
                 "langmuir",
@@ -115,7 +122,9 @@ class TestFittingSessions:
             "/api/v1/fitting/sessions", params={"dataset_id": fitting_dataset_id}
         )
         assert listing.ok, listing.text()
-        assert [item["id"] for item in listing.json()["items"]] == [payload["session_id"]]
+        assert [item["id"] for item in listing.json()["items"]] == [
+            payload["session_id"]
+        ]
 
     # -------------------------------------------------------------------------
     def test_disabled_model_is_rejected(

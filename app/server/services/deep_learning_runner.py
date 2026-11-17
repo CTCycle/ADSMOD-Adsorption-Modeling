@@ -54,9 +54,27 @@ HINTS = {
 }
 ERROR_PATTERNS = (
     ("disk_full", re.compile(r"os error 112|no space left|not enough space", re.I)),
-    ("file_locked", re.compile(r"os error 32|os error 5\b|being used by another process|access is denied", re.I)),
-    ("network", re.compile(r"error sending request|dns error|connection (?:reset|refused|closed)|timed out|failed to download|tcp connect|network|offline", re.I)),
-    ("resolution", re.compile(r"no solution found|failed to resolve|resolution failed|lockfile .* needs to be updated", re.I)),
+    (
+        "file_locked",
+        re.compile(
+            r"os error 32|os error 5\b|being used by another process|access is denied",
+            re.I,
+        ),
+    ),
+    (
+        "network",
+        re.compile(
+            r"error sending request|dns error|connection (?:reset|refused|closed)|timed out|failed to download|tcp connect|network|offline",
+            re.I,
+        ),
+    ),
+    (
+        "resolution",
+        re.compile(
+            r"no solution found|failed to resolve|resolution failed|lockfile .* needs to be updated",
+            re.I,
+        ),
+    ),
 )
 
 
@@ -106,7 +124,7 @@ def read_json(path: Path) -> dict[str, Any] | None:
             # A concurrent atomic replace briefly locks the file on Windows.
             time.sleep(0.05)
             continue
-        except (OSError, ValueError):
+        except OSError, ValueError:
             return None
         return payload if isinstance(payload, dict) else None
     return None
@@ -117,11 +135,15 @@ def read_json(path: Path) -> dict[str, Any] | None:
 ###############################################################################
 def load_lock_packages(lock_path: Path) -> dict[str, dict[str, Any]]:
     document = tomllib.loads(lock_path.read_text(encoding="utf-8"))
-    return {normalize(package["name"]): package for package in document.get("package", [])}
+    return {
+        normalize(package["name"]): package for package in document.get("package", [])
+    }
 
 
 # -----------------------------------------------------------------------------
-def _closure(packages: dict[str, dict[str, Any]], seeds: list[dict[str, Any]]) -> set[str]:
+def _closure(
+    packages: dict[str, dict[str, Any]], seeds: list[dict[str, Any]]
+) -> set[str]:
     """Name-level dependency closure; markers are ignored on purpose.
 
     Ignoring markers can only over-approximate a closure, so the core closure
@@ -152,7 +174,9 @@ def exclusive_packages(lock_path: Path, *, include_dev: bool) -> set[str]:
     if include_dev:
         core_seeds += root.get("dev-dependencies", {}).get("dev", [])
     core = _closure(packages, core_seeds) | {ROOT_PACKAGE}
-    optional = _closure(packages, list(root.get("optional-dependencies", {}).get(EXTRA_NAME, [])))
+    optional = _closure(
+        packages, list(root.get("optional-dependencies", {}).get(EXTRA_NAME, []))
+    )
     return optional - core
 
 
@@ -195,10 +219,13 @@ def probe() -> dict[str, Any]:
         result["cuda_runtime"] = torch.version.cuda
         if torch.cuda.is_available():
             if float((torch.ones(2, device="cuda") * 2).sum().item()) != 4.0:
-                raise RuntimeError("torch CUDA tensor arithmetic returned a wrong result")
+                raise RuntimeError(
+                    "torch CUDA tensor arithmetic returned a wrong result"
+                )
             result["cuda_available"] = True
             result["devices"] = [
-                str(torch.cuda.get_device_name(index)) for index in range(torch.cuda.device_count())
+                str(torch.cuda.get_device_name(index))
+                for index in range(torch.cuda.device_count())
             ]
         result["ok"] = True
     except BaseException as exc:  # noqa: BLE001
@@ -227,7 +254,9 @@ def run_probe(python: str, *, timeout: float = 240.0) -> dict[str, Any]:
     detail = (completed.stderr or completed.stdout).strip().splitlines()
     return {
         "ok": False,
-        "error": detail[-1] if detail else f"Import check exited with code {completed.returncode}",
+        "error": detail[-1]
+        if detail
+        else f"Import check exited with code {completed.returncode}",
     }
 
 
@@ -248,7 +277,8 @@ class Worker:
         self.uv = plan["uv_exe"]
         self.python_exe = plan["python_exe"]
         self.exclusive = exclusive_packages(
-            self.project_dir / "uv.lock", include_dev=self._installation_type() == "Development"
+            self.project_dir / "uv.lock",
+            include_dev=self._installation_type() == "Development",
         )
         self.warnings: list[str] = []
 
@@ -260,8 +290,15 @@ class Worker:
 
     # -------------------------------------------------------------------------
     def _installation_type(self) -> str:
-        state = read_json(Path(self.plan["venv_dir"]) / ".adsmod-dependency-state.json") or {}
-        return "Development" if state.get("installationType") == "Development" else "Standard"
+        state = (
+            read_json(Path(self.plan["venv_dir"]) / ".adsmod-dependency-state.json")
+            or {}
+        )
+        return (
+            "Development"
+            if state.get("installationType") == "Development"
+            else "Standard"
+        )
 
     # -------------------------------------------------------------------------
     def update_operation(self, **changes: Any) -> None:
@@ -282,7 +319,10 @@ class Worker:
     def environment(self) -> dict[str, str]:
         env = dict(os.environ)
         env["UV_PROJECT_ENVIRONMENT"] = str(self.venv)
-        env.setdefault("UV_CACHE_DIR", str(Path(self.plan["repo_root"]) / "runtimes" / "cache" / "uv"))
+        env.setdefault(
+            "UV_CACHE_DIR",
+            str(Path(self.plan["repo_root"]) / "runtimes" / "cache" / "uv"),
+        )
         env["PYTHONPATH"] = str(Path(self.plan["repo_root"]) / "app")
         env.pop("PYTHONHOME", None)
         return env
@@ -327,7 +367,11 @@ class Worker:
         lines = [line for line in output.splitlines() if line.strip()]
         error_lines = [line for line in lines if "error" in line.lower()]
         detail = (error_lines or lines or [""])[-1].strip()
-        return f"uv exited with code {exit_code}: {detail}" if detail else f"uv exited with code {exit_code}"
+        return (
+            f"uv exited with code {exit_code}: {detail}"
+            if detail
+            else f"uv exited with code {exit_code}"
+        )
 
     # -------------------------------------------------------------------------
     def with_lock_retries(self, action: Any) -> Any:
@@ -337,25 +381,48 @@ class Worker:
             except RunnerError as exc:
                 if exc.code != "file_locked" or attempt == LOCK_RETRIES:
                     raise
-                self.log(f"A file is locked; retrying in {attempt * 3} s ({attempt}/{LOCK_RETRIES})")
+                self.log(
+                    f"A file is locked; retrying in {attempt * 3} s ({attempt}/{LOCK_RETRIES})"
+                )
                 time.sleep(attempt * 3)
         raise AssertionError("unreachable")
 
     # -------------------------------------------------------------------------
     def sync_arguments(self) -> list[str]:
-        group = ["--group", "dev"] if self._installation_type() == "Development" else ["--no-dev"]
+        group = (
+            ["--group", "dev"]
+            if self._installation_type() == "Development"
+            else ["--no-dev"]
+        )
         return [
-            self.uv, "sync", "--locked", "--inexact", "--python", self.python_exe, *group,
+            self.uv,
+            "sync",
+            "--locked",
+            "--inexact",
+            "--python",
+            self.python_exe,
+            *group,
         ]
 
     # -------------------------------------------------------------------------
     def installed_names(self) -> set[str]:
-        command = [self.uv, "pip", "list", "--python", str(self.venv_python), "--format", "json"]
+        command = [
+            self.uv,
+            "pip",
+            "list",
+            "--python",
+            str(self.venv_python),
+            "--format",
+            "json",
+        ]
         completed = subprocess.run(  # noqa: S603
             command, capture_output=True, text=True, env=self.environment(), check=False
         )
         if completed.returncode != 0:
-            raise RunnerError("uv_failed", f"Could not list installed packages: {completed.stderr.strip()}")
+            raise RunnerError(
+                "uv_failed",
+                f"Could not list installed packages: {completed.stderr.strip()}",
+            )
         return {normalize(item["name"]) for item in json.loads(completed.stdout)}
 
     # -------------------------------------------------------------------------
@@ -372,8 +439,17 @@ class Worker:
         if not targets:
             self.log("No optional deep learning packages are installed.")
             return
-        self.log(f"Removing {len(targets)} packages exclusive to the deep learning extra.")
-        command = [self.uv, "pip", "uninstall", "--python", str(self.venv_python), *targets]
+        self.log(
+            f"Removing {len(targets)} packages exclusive to the deep learning extra."
+        )
+        command = [
+            self.uv,
+            "pip",
+            "uninstall",
+            "--python",
+            str(self.venv_python),
+            *targets,
+        ]
         self.with_lock_retries(lambda: self.run_command(command))
 
     # -------------------------------------------------------------------------
@@ -389,7 +465,10 @@ class Worker:
         result = run_probe(str(self.venv_python))
         self.log(f"Import check: {json.dumps(result)}")
         if not result.get("ok"):
-            raise RunnerError("validation", f"Deep learning import check failed: {result.get('error')}")
+            raise RunnerError(
+                "validation",
+                f"Deep learning import check failed: {result.get('error')}",
+            )
         if not result.get("cuda_available") and self.nvidia_gpu_present():
             self.warnings.append(
                 "An NVIDIA GPU was detected but PyTorch cannot use CUDA. Training will run on the CPU; "
@@ -412,7 +491,9 @@ class Worker:
     def update_profile(self, profile: str) -> None:
         state = read_json(self.venv_state_path)
         if state is None:
-            self.log("No launcher dependency state file was found; profile not recorded.")
+            self.log(
+                "No launcher dependency state file was found; profile not recorded."
+            )
             return
         state["featureSet"] = profile
         write_json_atomic(self.venv_state_path, state)
@@ -429,8 +510,14 @@ class Worker:
         while pid_alive(pid) and time.monotonic() < deadline:
             time.sleep(0.5)
         if pid_alive(pid):
-            self.log(f"Backend PID {pid} did not exit in time; terminating its process tree.")
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(pid)], capture_output=True, check=False)  # noqa: S603, S607
+            self.log(
+                f"Backend PID {pid} did not exit in time; terminating its process tree."
+            )
+            subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(pid)],
+                capture_output=True,
+                check=False,
+            )  # noqa: S603, S607
             time.sleep(2)
 
     # -------------------------------------------------------------------------
@@ -486,7 +573,12 @@ class Worker:
                 error={"code": failure.code, "summary": failure.summary, "hint": hint},
             )
         else:
-            changes: dict[str, Any] = {"status": "succeeded", "phase": "done", "finished_at": utc_now(), "warnings": self.warnings}
+            changes: dict[str, Any] = {
+                "status": "succeeded",
+                "phase": "done",
+                "finished_at": utc_now(),
+                "warnings": self.warnings,
+            }
             self.update_operation(**changes)
             if validated is not None:
                 self.record_validation(validated)
@@ -520,7 +612,10 @@ class Worker:
         try:
             if spec["new_console"]:
                 subprocess.Popen(  # noqa: S603
-                    spec["command"], cwd=spec["cwd"], env=environment, creationflags=creation
+                    spec["command"],
+                    cwd=spec["cwd"],
+                    env=environment,
+                    creationflags=creation,
                 )
             else:
                 with self.log_path.open("a", encoding="utf-8") as handle:
@@ -538,7 +633,11 @@ class Worker:
             self.update_operation(restart={"attempted": True, "healthy": False})
             return
         healthy = self.wait_for_health(spec["health_url"])
-        self.log("ADSMOD restarted." if healthy else "ADSMOD did not become healthy; start it manually with start_on_windows.bat.")
+        self.log(
+            "ADSMOD restarted."
+            if healthy
+            else "ADSMOD did not become healthy; start it manually with start_on_windows.bat."
+        )
         self.update_operation(restart={"attempted": True, "healthy": healthy})
 
     # -------------------------------------------------------------------------
@@ -551,7 +650,7 @@ class Worker:
                 with opener.open(url, timeout=2) as response:  # noqa: S310
                     if 200 <= response.status < 300:
                         return True
-            except (urllib.error.URLError, OSError, ValueError):
+            except urllib.error.URLError, OSError, ValueError:
                 pass
             time.sleep(1)
         return False
@@ -571,7 +670,9 @@ def pid_alive(pid: int) -> bool:
     if not handle:
         return False
     try:
-        return ctypes.windll.kernel32.WaitForSingleObject(handle, 0) == 0x102  # WAIT_TIMEOUT
+        return (
+            ctypes.windll.kernel32.WaitForSingleObject(handle, 0) == 0x102
+        )  # WAIT_TIMEOUT
     finally:
         ctypes.windll.kernel32.CloseHandle(handle)
 

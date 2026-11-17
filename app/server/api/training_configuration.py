@@ -8,8 +8,16 @@ from typing import Any
 from fastapi import APIRouter, Request
 
 from server.configurations.settings import AdsmodConfig
-from server.domain.configuration import RuntimeDeviceCapabilities, TrainingConfigurationResponse
-from server.domain.training import DatasetBuildRequest, ResumeTrainingRequest, TrainingConfigRequest
+from server.domain.configuration import (
+    RuntimeDeviceCapabilities,
+    TrainingConfigurationResponse,
+)
+from server.domain.training import (
+    DatasetBuildRequest,
+    ResumeTrainingRequest,
+    TrainingConfigRequest,
+)
+
 
 ###############################################################################
 def _numeric_constraints(model: type[Any]) -> dict[str, dict[str, int | float]]:
@@ -30,6 +38,7 @@ def _numeric_constraints(model: type[Any]) -> dict[str, dict[str, int | float]]:
             constraints[name] = values
     return constraints
 
+
 ###############################################################################
 def _device_capabilities() -> RuntimeDeviceCapabilities:
     # Deferred: torch belongs to the optional ML profile.
@@ -37,13 +46,16 @@ def _device_capabilities() -> RuntimeDeviceCapabilities:
 
     cuda_available = bool(torch.cuda.is_available())
     device_count = int(torch.cuda.device_count()) if cuda_available else 0
-    devices = tuple(str(torch.cuda.get_device_name(index)) for index in range(device_count))
+    devices = tuple(
+        str(torch.cuda.get_device_name(index)) for index in range(device_count)
+    )
     return RuntimeDeviceCapabilities(
         keras_backend="torch",
         cuda_available=cuda_available,
         device_count=device_count,
         devices=devices,
     )
+
 
 ###############################################################################
 def configuration(request: Request) -> TrainingConfigurationResponse:
@@ -81,6 +93,7 @@ def configuration(request: Request) -> TrainingConfigurationResponse:
         checkpoint_capabilities={"save": True, "resume": True, "delete": True},
         runtime=_device_capabilities(),
     )
+
 
 ###############################################################################
 def create_configuration_router() -> APIRouter:

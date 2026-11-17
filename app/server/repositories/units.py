@@ -11,9 +11,9 @@ from server.common.units import CustomUnit, UnitRegistry
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.schemas.models import CustomUnitRecord
 
+
 ###############################################################################
 class UnitRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database

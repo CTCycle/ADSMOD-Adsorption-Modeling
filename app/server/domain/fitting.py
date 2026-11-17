@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
 ###############################################################################
 class ParameterBounds(BaseModel):
     """Canonical-unit (Pa, mol/kg) search bounds for one model parameter."""
@@ -26,12 +27,14 @@ class ParameterBounds(BaseModel):
             raise ValueError("Parameter lower bound must be smaller than upper bound.")
         return self
 
+
 ###############################################################################
 class DisplayUnits(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     pressure: str = "bar"
     uptake: str = "mmol/g"
+
 
 ###############################################################################
 class FittingSessionRequest(BaseModel):
@@ -60,6 +63,7 @@ class FittingSessionRequest(BaseModel):
             raise ValueError("Session name cannot be empty.")
         return cleaned
 
+
 ###############################################################################
 class ExperimentFitRequest(BaseModel):
     """Resolved per-experiment fitting request built from a session snapshot."""
@@ -72,6 +76,7 @@ class ExperimentFitRequest(BaseModel):
     weighting: Literal["unweighted", "inverse_sigma"]
     model_bounds: dict[str, dict[str, ParameterBounds]]
 
+
 ###############################################################################
 class ModelParameterDefinition(BaseModel):
     name: str
@@ -82,6 +87,7 @@ class ModelParameterDefinition(BaseModel):
     canonical_upper: float
     unit: str
     customized: bool
+
 
 ###############################################################################
 class ModelDefinition(BaseModel):
@@ -95,10 +101,12 @@ class ModelDefinition(BaseModel):
     enabled: bool
     parameters: list[ModelParameterDefinition]
 
+
 ###############################################################################
 class ModelCatalogResponse(BaseModel):
     status: Literal["success"] = "success"
     models: list[ModelDefinition]
+
 
 ###############################################################################
 class ModelSettingsUpdate(BaseModel):
@@ -106,6 +114,7 @@ class ModelSettingsUpdate(BaseModel):
 
     enabled: bool
     parameters: dict[str, ParameterBounds] = Field(default_factory=dict)
+
 
 ###############################################################################
 class FittedParameter(BaseModel):
@@ -116,6 +125,7 @@ class FittedParameter(BaseModel):
     ci95_low: float | None
     ci95_high: float | None
     unit: str
+
 
 ###############################################################################
 class FitMetrics(BaseModel):
@@ -129,6 +139,7 @@ class FitMetrics(BaseModel):
     aicc: float | None
     bic: float | None
 
+
 ###############################################################################
 class SessionModelResult(BaseModel):
     model: str
@@ -141,6 +152,7 @@ class SessionModelResult(BaseModel):
     metrics: FitMetrics
     warnings: list[str]
 
+
 ###############################################################################
 class ExperimentFitResponse(BaseModel):
     isotherm_id: int | None
@@ -151,12 +163,14 @@ class ExperimentFitResponse(BaseModel):
     best_model: str | None
     results: list[SessionModelResult]
 
+
 ###############################################################################
 class FittingExperimentSummary(BaseModel):
     isotherm_id: int
     name: str
     eligible: bool
     reason: str | None = None
+
 
 ###############################################################################
 class FittingSessionSummary(BaseModel):
@@ -177,6 +191,7 @@ class FittingSessionSummary(BaseModel):
     best_models: dict[str, str | None] = Field(default_factory=dict)
     stale: bool = False
 
+
 ###############################################################################
 class FittingSessionListResponse(BaseModel):
     status: Literal["success"] = "success"
@@ -184,6 +199,7 @@ class FittingSessionListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
 
 ###############################################################################
 class FittingSessionDetail(FittingSessionSummary):
@@ -193,12 +209,14 @@ class FittingSessionDetail(FittingSessionSummary):
     job_id: str | None = None
     stale_reason: str | None = None
 
+
 ###############################################################################
 class FittingSessionStartResponse(BaseModel):
     status: Literal["success"] = "success"
     session_id: int
     job_id: str
     poll_interval: float
+
 
 ###############################################################################
 class FittingDatasetReadiness(BaseModel):

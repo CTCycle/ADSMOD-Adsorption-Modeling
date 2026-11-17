@@ -380,7 +380,7 @@ def assign_branches(record: Mapping[str, Any]) -> dict[str, Any]:
                 )
                 for point in points
             ]
-        except (KeyError, TypeError, ValueError):
+        except KeyError, TypeError, ValueError:
             # Invalid points are reported by `normalize_experiment`.
             continue
         peak = keys.index(max(keys))

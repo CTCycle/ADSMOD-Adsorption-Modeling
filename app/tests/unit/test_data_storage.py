@@ -373,9 +373,16 @@ def test_material_upsert_reuses_row_owning_the_inchi_key() -> None:
 
     repository = MaterialRepository(StubDatabase())  # type: ignore[arg-type]
     inchi_key = "QGZKDVFQNNGYKY-UHFFFAOYSA-N"
-    repository.upsert_adsorbates([{"key": "adsorbate:a", "name": "Ammonia", "inchi_key": inchi_key}])
+    repository.upsert_adsorbates(
+        [{"key": "adsorbate:a", "name": "Ammonia", "inchi_key": inchi_key}]
+    )
     batch = [
-        {"key": "adsorbate:b", "name": "Ammonia", "inchi_key": inchi_key, "formula": "H3N"},
+        {
+            "key": "adsorbate:b",
+            "name": "Ammonia",
+            "inchi_key": inchi_key,
+            "formula": "H3N",
+        },
         {"key": "adsorbate:c", "name": "NH3", "inchi_key": inchi_key},
     ]
     repository.upsert_adsorbates(batch)

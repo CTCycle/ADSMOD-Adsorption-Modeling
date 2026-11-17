@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from server.services.jobs import JobManager
     from server.services.ml_container import MlServiceContainer
 
+
 ###############################################################################
 class _LazyTrainingService:
     """Forwards attribute access to the real training service, loading it on demand."""
@@ -26,6 +27,7 @@ class _LazyTrainingService:
     def __getattr__(self, name: str) -> Any:
         return getattr(self._owner.load().training_service, name)
 
+
 ###############################################################################
 class LazyMlContainer:
     """Defers importing torch/keras and building the ML services until first use.
@@ -35,7 +37,9 @@ class LazyMlContainer:
     """
 
     # -------------------------------------------------------------------------
-    def __init__(self, config: AdsmodConfig, *, snapshot_access: TrainingDataAccess) -> None:
+    def __init__(
+        self, config: AdsmodConfig, *, snapshot_access: TrainingDataAccess
+    ) -> None:
         self.config = config
         self.snapshot_access = snapshot_access
         self.training_service = _LazyTrainingService(self)

@@ -23,10 +23,14 @@ def test_access_log_policy(monkeypatch, method, path, status, debug, expected):
     handler = logging.StreamHandler()
     handler.addFilter(config["filters"]["access_policy"]["()"]())
     record = logging.LogRecord(
-        "uvicorn.access", logging.INFO, __file__, 1, '%s - "%s %s HTTP/%s" %s',
-        ("127.0.0.1", method, path, "1.1", status), None,
+        "uvicorn.access",
+        logging.INFO,
+        __file__,
+        1,
+        '%s - "%s %s HTTP/%s" %s',
+        ("127.0.0.1", method, path, "1.1", status),
+        None,
     )
     assert bool(handler.filter(record)) is (expected is not None)
     if expected is not None:
         assert record.levelno == expected
-

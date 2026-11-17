@@ -82,7 +82,9 @@ class MaterialService:
     # -------------------------------------------------------------------------
     def list_species(self, **filters: Any) -> SpeciesPageResponse:
         rows, total = self.repository.list_species(**filters)
-        return SpeciesPageResponse(items=rows, pagination=self._pagination(filters, total))
+        return SpeciesPageResponse(
+            items=rows, pagination=self._pagination(filters, total)
+        )
 
     # -------------------------------------------------------------------------
     def get_species(self, adsorbate_id: int) -> SpeciesDetailResponse:

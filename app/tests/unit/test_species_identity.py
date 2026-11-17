@@ -505,7 +505,13 @@ def _guarded_service(
 
 ###############################################################################
 def _stored(name: str, formula: str | None = None) -> dict[str, Any]:
-    return {"id": 7, "name": name, "inchi_key": None, "formula": formula, "smiles": None}
+    return {
+        "id": 7,
+        "name": name,
+        "inchi_key": None,
+        "formula": formula,
+        "smiles": None,
+    }
 
 
 ###############################################################################

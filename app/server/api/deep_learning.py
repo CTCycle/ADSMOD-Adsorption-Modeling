@@ -82,7 +82,9 @@ async def start_operation(
     timer = threading.Timer(SHUTDOWN_DELAY_SECONDS, request_shutdown)
     timer.daemon = True
     timer.start()
-    return DeepLearningOperationAccepted(operation_id=operation_id, action=payload.action)
+    return DeepLearningOperationAccepted(
+        operation_id=operation_id, action=payload.action
+    )
 
 
 ###############################################################################
@@ -95,8 +97,15 @@ async def get_log(
 ###############################################################################
 def create_deep_learning_router() -> APIRouter:
     router = APIRouter(prefix="/deep-learning", tags=["deep-learning"])
-    router.add_api_route("/status", get_status, methods=["GET"], response_model=DeepLearningStatusResponse)
-    router.add_api_route("/plan", get_plan, methods=["GET"], response_model=DeepLearningPlanResponse)
+    router.add_api_route(
+        "/status",
+        get_status,
+        methods=["GET"],
+        response_model=DeepLearningStatusResponse,
+    )
+    router.add_api_route(
+        "/plan", get_plan, methods=["GET"], response_model=DeepLearningPlanResponse
+    )
     router.add_api_route(
         "/operations",
         start_operation,
@@ -104,7 +113,9 @@ def create_deep_learning_router() -> APIRouter:
         response_model=DeepLearningOperationAccepted,
         status_code=status.HTTP_202_ACCEPTED,
     )
-    router.add_api_route("/log", get_log, methods=["GET"], response_model=DeepLearningLogResponse)
+    router.add_api_route(
+        "/log", get_log, methods=["GET"], response_model=DeepLearningLogResponse
+    )
     return router
 
 

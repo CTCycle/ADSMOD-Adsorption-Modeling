@@ -63,21 +63,20 @@ TERMINAL_SYNC_STATUSES = (
     "interrupted",
 )
 
+
 ###############################################################################
 def normalized_sync_parameters(parameters: dict[str, Any]) -> dict[str, Any]:
     """Return the request identity used to detect duplicate active sync runs."""
-    normalized = {
-        key: value for key, value in parameters.items() if key != "trigger"
-    }
+    normalized = {key: value for key, value in parameters.items() if key != "trigger"}
     for key in ("cod_ids", "identifiers", "adsorbate_ids"):
         values = normalized.get(key)
         if isinstance(values, (list, tuple)):
             normalized[key] = sorted(str(item) for item in values)
     return normalized
 
+
 ###############################################################################
 class PublicDataRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -188,7 +187,9 @@ class PublicDataRepository:
                     .select_from(public_adsorbate_ids().subquery())
                     .scalar_subquery()
                     .label("chemicals"),
-                    select(func.count(func.distinct(StructureSourceRecord.structure_id)))
+                    select(
+                        func.count(func.distinct(StructureSourceRecord.structure_id))
+                    )
                     .scalar_subquery()
                     .label("structures"),
                     select(func.count(Adsorbate.id))
@@ -215,20 +216,14 @@ class PublicDataRepository:
                     select(func.count(PublicDataSyncRun.id))
                     .where(
                         PublicDataSyncRun.status.in_(ACTIVE_SYNC_STATUSES),
-                        PublicDataSyncRun.operation.not_in(
-                            NON_ACQUISITION_OPERATIONS
-                        ),
+                        PublicDataSyncRun.operation.not_in(NON_ACQUISITION_OPERATIONS),
                     )
                     .scalar_subquery()
                     .label("active_sync_runs"),
                     select(func.count(PublicDataSyncRun.id))
                     .where(
-                        PublicDataSyncRun.status.in_(
-                            ("failed", "partially_completed")
-                        ),
-                        PublicDataSyncRun.operation.not_in(
-                            NON_ACQUISITION_OPERATIONS
-                        ),
+                        PublicDataSyncRun.status.in_(("failed", "partially_completed")),
+                        PublicDataSyncRun.operation.not_in(NON_ACQUISITION_OPERATIONS),
                     )
                     .scalar_subquery()
                     .label("failed_sync_runs"),
@@ -301,9 +296,7 @@ class PublicDataRepository:
         with self.database.transaction() as session:
             run = session.get(PublicDataSyncRun, run_id)
             if run is None:
-                raise LookupError(
-                    f"Public-data sync run {run_id!r} was not found."
-                )
+                raise LookupError(f"Public-data sync run {run_id!r} was not found.")
             if run.status != "interrupted":
                 raise ValueError("Only interrupted sync runs can be resumed.")
             normalized = normalized_sync_parameters(dict(run.parameters))
@@ -316,8 +309,7 @@ class PublicDataRepository:
                 )
             ).all()
             if any(
-                normalized_sync_parameters(dict(active_run.parameters))
-                == normalized
+                normalized_sync_parameters(dict(active_run.parameters)) == normalized
                 for active_run in active_runs
             ):
                 raise ValueError(
@@ -420,7 +412,9 @@ class PublicDataRepository:
                 session.scalar(select(func.count()).select_from(query.subquery())) or 0
             )
             rows = session.scalars(
-                query.order_by(PublicDataSyncRun.created_at.desc(), PublicDataSyncRun.id)
+                query.order_by(
+                    PublicDataSyncRun.created_at.desc(), PublicDataSyncRun.id
+                )
                 .offset(offset)
                 .limit(limit)
             ).all()
@@ -469,7 +463,9 @@ class PublicDataRepository:
         }
         unknown = set(values) - allowed
         if unknown:
-            raise ValueError(f"Unsupported sync-run fields: {', '.join(sorted(unknown))}")
+            raise ValueError(
+                f"Unsupported sync-run fields: {', '.join(sorted(unknown))}"
+            )
         values["updated_at"] = datetime.now(timezone.utc)
         with self.database.transaction() as session:
             result = session.execute(
@@ -615,7 +611,9 @@ class PublicDataRepository:
                     )
                 )
             for synonym in synonyms or []:
-                add_alias(session, "adsorbate", adsorbate_id, synonym, source_key, record.id)
+                add_alias(
+                    session, "adsorbate", adsorbate_id, synonym, source_key, record.id
+                )
 
     # -------------------------------------------------------------------------
     def link_adsorbent_record(
@@ -650,7 +648,9 @@ class PublicDataRepository:
                     )
                 )
             for synonym in synonyms or []:
-                add_alias(session, "adsorbent", adsorbent_id, synonym, source_key, record.id)
+                add_alias(
+                    session, "adsorbent", adsorbent_id, synonym, source_key, record.id
+                )
 
     # -------------------------------------------------------------------------
     def link_isotherm_record(
@@ -670,12 +670,24 @@ class PublicDataRepository:
         """
         if session is not None:
             self._link_isotherm_record(
-                session, source_key, dataset_id, external_id, source_url, raw_metadata, doi
+                session,
+                source_key,
+                dataset_id,
+                external_id,
+                source_url,
+                raw_metadata,
+                doi,
             )
             return
         with self.database.transaction() as own_session:
             self._link_isotherm_record(
-                own_session, source_key, dataset_id, external_id, source_url, raw_metadata, doi
+                own_session,
+                source_key,
+                dataset_id,
+                external_id,
+                source_url,
+                raw_metadata,
+                doi,
             )
 
     # -------------------------------------------------------------------------
@@ -734,9 +746,7 @@ class PublicDataRepository:
         if normalized_doi is None:
             return
         reference = session.scalar(
-            select(Reference).where(
-                func.lower(Reference.doi) == normalized_doi.lower()
-            )
+            select(Reference).where(func.lower(Reference.doi) == normalized_doi.lower())
         )
         if reference is None:
             reference = Reference(
@@ -791,7 +801,9 @@ class PublicDataRepository:
             )
             if adsorbate is None:
                 adsorbate = Adsorbate(
-                    key=stable_material_key("adsorbate", name, inchi_key or f"pubchem:{cid}"),
+                    key=stable_material_key(
+                        "adsorbate", name, inchi_key or f"pubchem:{cid}"
+                    ),
                     name=name,
                     inchi_key=inchi_key,
                 )
@@ -948,7 +960,10 @@ class PublicDataRepository:
             if value.isdigit():
                 return session.scalar(
                     select(AdsorbateSourceRecord.adsorbate_id)
-                    .join(SourceRecord, SourceRecord.id == AdsorbateSourceRecord.source_record_id)
+                    .join(
+                        SourceRecord,
+                        SourceRecord.id == AdsorbateSourceRecord.source_record_id,
+                    )
                     .join(DataSource, DataSource.id == SourceRecord.source_id)
                     .where(
                         DataSource.key == "pubchem",
@@ -958,9 +973,7 @@ class PublicDataRepository:
                 )
             if len(value) == 27 and value[14] == "-" and value[25] == "-":
                 return session.scalar(
-                    select(Adsorbate.id).where(
-                        Adsorbate.inchi_key == value.upper()
-                    )
+                    select(Adsorbate.id).where(Adsorbate.inchi_key == value.upper())
                 )
             # A name is reused only when PubChem itself listed it as a synonym
             # of exactly one stored compound.
@@ -1025,7 +1038,10 @@ class PublicDataRepository:
         with self.database.session_factory() as session:
             linked = (
                 select(AdsorbateSourceRecord.adsorbate_id)
-                .join(SourceRecord, SourceRecord.id == AdsorbateSourceRecord.source_record_id)
+                .join(
+                    SourceRecord,
+                    SourceRecord.id == AdsorbateSourceRecord.source_record_id,
+                )
                 .join(DataSource, DataSource.id == SourceRecord.source_id)
                 .where(DataSource.key == "pubchem")
             )
@@ -1063,7 +1079,10 @@ class PublicDataRepository:
     def _pubchem_record_for(adsorbate_id: Any) -> Any:
         return (
             select(SourceRecord.id, SourceRecord.external_id)
-            .join(AdsorbateSourceRecord, AdsorbateSourceRecord.source_record_id == SourceRecord.id)
+            .join(
+                AdsorbateSourceRecord,
+                AdsorbateSourceRecord.source_record_id == SourceRecord.id,
+            )
             .join(DataSource, DataSource.id == SourceRecord.source_id)
             .where(
                 DataSource.key == "pubchem",
@@ -1083,7 +1102,9 @@ class PublicDataRepository:
                 session.execute(
                     select(ChemicalProperty.key, ChemicalProperty.value_text).where(
                         ChemicalProperty.source_record_id == record.id,
-                        ChemicalProperty.key.in_(("pubchem_3d_available", CONFORMER_PROPERTY)),
+                        ChemicalProperty.key.in_(
+                            ("pubchem_3d_available", CONFORMER_PROPERTY)
+                        ),
                     )
                 ).all()
             )
@@ -1099,7 +1120,10 @@ class PublicDataRepository:
             record = session.execute(self._pubchem_record_for(adsorbate_id)).first()
             if record is None:
                 raise LookupError(f"Chemical {adsorbate_id} has no PubChem record.")
-            for key, value in (("pubchem_3d_available", "true"), (CONFORMER_PROPERTY, sdf)):
+            for key, value in (
+                ("pubchem_3d_available", "true"),
+                (CONFORMER_PROPERTY, sdf),
+            ):
                 session.execute(
                     delete(ChemicalProperty).where(
                         ChemicalProperty.source_record_id == record.id,
@@ -1116,7 +1140,9 @@ class PublicDataRepository:
                 )
 
     # -------------------------------------------------------------------------
-    def conformer_candidates(self, limit: int | None, fraction: float = 1.0) -> list[dict[str, Any]]:
+    def conformer_candidates(
+        self, limit: int | None, fraction: float = 1.0
+    ) -> list[dict[str, Any]]:
         """Enriched chemicals with a published 3D conformer that is not cached yet.
 
         Chemicals whose earlier download failed and is not yet eligible for
@@ -1129,11 +1155,18 @@ class PublicDataRepository:
             settled = self._ineligible_failures("pubchem", "conformer:")
             rows = session.execute(
                 select(AdsorbateSourceRecord.adsorbate_id)
-                .join(ChemicalProperty, ChemicalProperty.source_record_id == AdsorbateSourceRecord.source_record_id)
+                .join(
+                    ChemicalProperty,
+                    ChemicalProperty.source_record_id
+                    == AdsorbateSourceRecord.source_record_id,
+                )
                 .where(
                     ChemicalProperty.key == "pubchem_3d_available",
                     AdsorbateSourceRecord.source_record_id.not_in(cached),
-                    (literal("conformer:") + cast(AdsorbateSourceRecord.adsorbate_id, String)).not_in(settled),
+                    (
+                        literal("conformer:")
+                        + cast(AdsorbateSourceRecord.adsorbate_id, String)
+                    ).not_in(settled),
                 )
                 .order_by(AdsorbateSourceRecord.adsorbate_id)
             ).all()
@@ -1217,7 +1250,10 @@ class PublicDataRepository:
     ) -> int:
         cod_id = str(metadata["cod_id"])
         with self.database.transaction() as session:
-            if adsorbent_id is not None and session.get(Adsorbent, adsorbent_id) is None:
+            if (
+                adsorbent_id is not None
+                and session.get(Adsorbent, adsorbent_id) is None
+            ):
                 raise LookupError(f"Material {adsorbent_id} does not exist.")
             source = self._source(session, "cod")
             record = self._record(
@@ -1257,7 +1293,9 @@ class PublicDataRepository:
             structure.name = metadata.get("name")
             structure.formula = metadata.get("formula")
             structure.content = cif_text
-            structure.content_sha256 = hashlib.sha256(cif_text.encode("utf-8")).hexdigest()
+            structure.content_sha256 = hashlib.sha256(
+                cif_text.encode("utf-8")
+            ).hexdigest()
             structure.space_group = metadata.get("space_group")
             structure.space_group_number = metadata.get("space_group_number")
             structure.cell_a_angstrom = metadata.get("cell_a_angstrom")
@@ -1267,7 +1305,9 @@ class PublicDataRepository:
             structure.cell_beta_deg = metadata.get("cell_beta_deg")
             structure.cell_gamma_deg = metadata.get("cell_gamma_deg")
             structure.cell_volume_angstrom3 = metadata.get("cell_volume_angstrom3")
-            structure.has_coordinates = bool(atoms) or bool(metadata.get("has_coordinates"))
+            structure.has_coordinates = bool(atoms) or bool(
+                metadata.get("has_coordinates")
+            )
 
             session.execute(
                 delete(StructureAtom).where(StructureAtom.structure_id == structure.id)
@@ -1427,11 +1467,15 @@ class PublicDataRepository:
             return []
         item_ids = [item.id for item in items]
         provenance = provenance_entries(session, "structure", item_ids)
-        material_ids = [item.adsorbent_id for item in items if item.adsorbent_id is not None]
+        material_ids = [
+            item.adsorbent_id for item in items if item.adsorbent_id is not None
+        ]
         material_names = {
             int(material_id): str(material_name)
             for material_id, material_name in session.execute(
-                select(Adsorbent.id, Adsorbent.name).where(Adsorbent.id.in_(material_ids))
+                select(Adsorbent.id, Adsorbent.name).where(
+                    Adsorbent.id.in_(material_ids)
+                )
             )
         }
         atom_counts = {
@@ -1462,9 +1506,7 @@ class PublicDataRepository:
                     }
                 )
         primary_record_ids = [
-            entries[0][0]
-            for entries in provenance.values()
-            if entries
+            entries[0][0] for entries in provenance.values() if entries
         ]
         references = references_for_records(session, primary_record_ids)
 

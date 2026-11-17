@@ -64,7 +64,9 @@ def resolve_adsorbent(
         identity_status=(
             STATUS_GENERIC
             if generic
-            else STATUS_RESOLVED if external else STATUS_PROVISIONAL
+            else STATUS_RESOLVED
+            if external
+            else STATUS_PROVISIONAL
         ),
         scope_dataset_id=resolver.dataset_id if generic else None,
     )
@@ -150,7 +152,9 @@ def write_experiment_content(
     session.flush()
 
     for observation in canonical["observations"]:
-        fields = {key: value for key, value in observation.items() if key != "adsorbate"}
+        fields = {
+            key: value for key, value in observation.items() if key != "adsorbate"
+        }
         session.add(
             Observation(
                 isotherm_id=isotherm.id,
@@ -165,7 +169,9 @@ def write_experiment_content(
     try:
         session.flush()
     except IntegrityError as exc:
-        if "pressure_key" not in str(exc.orig) and "uq_observations_identity" not in str(exc.orig):
+        if "pressure_key" not in str(
+            exc.orig
+        ) and "uq_observations_identity" not in str(exc.orig):
             raise
         raise CanonicalizationError(
             "duplicate_measurement",
@@ -198,7 +204,6 @@ def iso_or_none(value: Any) -> str | None:
 
 ###############################################################################
 class DatasetRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -211,9 +216,7 @@ class DatasetRepository:
                 func.count(func.distinct(Isotherm.id)).label("experiment_count"),
                 func.count(Observation.id).label("observation_count"),
                 func.count(
-                    func.distinct(
-                        case((Isotherm.edited_at.is_not(None), Isotherm.id))
-                    )
+                    func.distinct(case((Isotherm.edited_at.is_not(None), Isotherm.id)))
                 ).label("edited_experiment_count"),
             )
             .outerjoin(Isotherm, Isotherm.dataset_id == Dataset.id)
@@ -289,9 +292,9 @@ class DatasetRepository:
         ).subquery()
         result: dict[int, tuple[int, list[str]]] = {}
         for dataset_id, name, _, total in session.execute(
-            select(ranked).where(ranked.c.rank <= SUMMARY_NAME_LIMIT).order_by(
-                ranked.c.dataset_id, ranked.c.rank
-            )
+            select(ranked)
+            .where(ranked.c.rank <= SUMMARY_NAME_LIMIT)
+            .order_by(ranked.c.dataset_id, ranked.c.rank)
         ):
             count, names = result.get(int(dataset_id), (int(total), []))
             result[int(dataset_id)] = (count, [*names, str(name)])
@@ -399,7 +402,9 @@ class DatasetRepository:
             .join(Observation, Observation.isotherm_id == Isotherm.id)
             .join(Adsorbate, Adsorbate.id == Observation.adsorbate_id)
             .where(Dataset.id == dataset_id, Observation.branch == "adsorption")
-            .order_by(Isotherm.id, Observation.adsorbate_id, Observation.pressure_canonical)
+            .order_by(
+                Isotherm.id, Observation.adsorbate_id, Observation.pressure_canonical
+            )
         )
         with self.database.session_factory() as session:
             if session.get(Dataset, dataset_id) is None:
@@ -544,26 +549,32 @@ class DatasetRepository:
         session: Session, isotherms: list[Isotherm]
     ) -> list[dict[str, Any]]:
         ids = [isotherm.id for isotherm in isotherms]
-        stats = {
-            row[0]: row[1:]
-            for row in session.execute(
-                select(
-                    Observation.isotherm_id,
-                    func.count(Observation.id),
-                    func.coalesce(
-                        func.sum(case((Observation.branch == "desorption", 1), else_=0)),
-                        0,
-                    ),
-                    func.min(Observation.pressure_canonical),
-                    func.max(Observation.pressure_canonical),
-                    func.min(Observation.pressure_canonical_unit),
-                    func.min(Observation.pressure_original_unit),
-                    func.min(Observation.uptake_original_unit),
+        stats = (
+            {
+                row[0]: row[1:]
+                for row in session.execute(
+                    select(
+                        Observation.isotherm_id,
+                        func.count(Observation.id),
+                        func.coalesce(
+                            func.sum(
+                                case((Observation.branch == "desorption", 1), else_=0)
+                            ),
+                            0,
+                        ),
+                        func.min(Observation.pressure_canonical),
+                        func.max(Observation.pressure_canonical),
+                        func.min(Observation.pressure_canonical_unit),
+                        func.min(Observation.pressure_original_unit),
+                        func.min(Observation.uptake_original_unit),
+                    )
+                    .where(Observation.isotherm_id.in_(ids))
+                    .group_by(Observation.isotherm_id)
                 )
-                .where(Observation.isotherm_id.in_(ids))
-                .group_by(Observation.isotherm_id)
-            )
-        } if ids else {}
+            }
+            if ids
+            else {}
+        )
         output: list[dict[str, Any]] = []
         for isotherm in isotherms:
             (
@@ -684,7 +695,9 @@ class DatasetRepository:
             )
 
     # -------------------------------------------------------------------------
-    def experiment_identities(self, dataset_id: int) -> tuple[str, list[tuple[int, str]]]:
+    def experiment_identities(
+        self, dataset_id: int
+    ) -> tuple[str, list[tuple[int, str]]]:
         """Return the dataset name and every experiment ``(id, name)`` it owns."""
         with self.database.session_factory() as session:
             dataset = session.get(Dataset, dataset_id)
@@ -772,11 +785,23 @@ class DatasetRepository:
         """Persist experiments; pass `session` to join the caller's transaction."""
         if session is not None:
             return self._persist_canonical(
-                session, name, source, provenance, experiments, import_manifest, dataset_id
+                session,
+                name,
+                source,
+                provenance,
+                experiments,
+                import_manifest,
+                dataset_id,
             )
         with self.database.transaction() as own_session:
             return self._persist_canonical(
-                own_session, name, source, provenance, experiments, import_manifest, dataset_id
+                own_session,
+                name,
+                source,
+                provenance,
+                experiments,
+                import_manifest,
+                dataset_id,
             )
 
     # -------------------------------------------------------------------------
@@ -794,9 +819,7 @@ class DatasetRepository:
         if dataset_id is None:
             if (
                 session.scalar(
-                    select(Dataset.id).where(
-                        Dataset.normalized_name == normalized_name
-                    )
+                    select(Dataset.id).where(Dataset.normalized_name == normalized_name)
                 )
                 is not None
             ):

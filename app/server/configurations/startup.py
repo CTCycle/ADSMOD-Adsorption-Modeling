@@ -7,6 +7,7 @@ from server.configurations.settings import AdsmodConfig
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 
+
 ###############################################################################
 def public_host_mode_enabled(config: AdsmodConfig) -> bool:
     """Return whether the configured host is outside the local-only boundary."""

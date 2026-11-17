@@ -29,7 +29,6 @@ def read_charge(SMILE: str, start: int) -> tuple[str, int]:
 
 ###############################################################################
 class PressureUptakeSeriesProcess:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.P_COL = "pressure"
@@ -46,7 +45,9 @@ class PressureUptakeSeriesProcess:
         """Drop leading all-zero measurements, keeping one, with one shared offset."""
         if len(pressure) != len(uptake):
             raise ValueError("Pressure and uptake series must have equal length.")
-        nonzero = np.flatnonzero((np.asarray(pressure) != 0) | (np.asarray(uptake) != 0))
+        nonzero = np.flatnonzero(
+            (np.asarray(pressure) != 0) | (np.asarray(uptake) != 0)
+        )
         start_idx = max(int(nonzero[0]) - 1, 0) if nonzero.size > 0 else 0
 
         return pressure[start_idx:], uptake[start_idx:]
@@ -103,9 +104,9 @@ class PressureUptakeSeriesProcess:
 
         return [values[i] for i in indices]
 
+
 ###############################################################################
 class SMILETokenization:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any]) -> None:
         self.element_symbols = [
@@ -248,7 +249,9 @@ class SMILETokenization:
                     tokens.append(SMILE[i : i + 3])
                     i += 3
                 else:
-                    logger.error(f"Invalid ring closure with '%' in SMILE string {SMILE}")
+                    logger.error(
+                        f"Invalid ring closure with '%' in SMILE string {SMILE}"
+                    )
                     i += 1
             elif pair in TWO_CHAR_TOKENS:
                 tokens.append(pair)

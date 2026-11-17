@@ -19,6 +19,7 @@ from server.domain.analytics import (
 from server.services.container import CoreServiceContainer
 from server.services.data.analytics import AnalyticsService
 
+
 ###############################################################################
 class AnalyticsEndpoint:
     """Read-only analytical queries; POST only carries structured filters."""
@@ -96,6 +97,7 @@ class AnalyticsEndpoint:
             methods=["POST"],
             response_model=DistributionResponse,
         )
+
 
 ###############################################################################
 def create_analytics_router(container: CoreServiceContainer) -> APIRouter:

@@ -64,20 +64,34 @@ def test_reconstructed_history_uses_one_based_epochs() -> None:
         }
     ]
 
+
 ###############################################################################
-def test_training_snapshot_screening_excludes_multi_species_and_non_pascal_pressure() -> None:
+def test_training_snapshot_screening_excludes_multi_species_and_non_pascal_pressure() -> (
+    None
+):
     from server.services.training_data import TrainingDataService
 
     def row(isotherm_id: int, adsorbate_id: int, unit: str) -> dict:
-        return {"isotherm_id": isotherm_id, "adsorbate_id": adsorbate_id, "pressure_canonical_unit": unit}
+        return {
+            "isotherm_id": isotherm_id,
+            "adsorbate_id": adsorbate_id,
+            "pressure_canonical_unit": unit,
+        }
 
-    rows = [row(1, 10, "Pa"), row(1, 10, "Pa"), row(2, 20, "Pa"), row(2, 21, "Pa"), row(3, 30, "1")]
+    rows = [
+        row(1, 10, "Pa"),
+        row(1, 10, "Pa"),
+        row(2, 20, "Pa"),
+        row(2, 21, "Pa"),
+        row(3, 30, "1"),
+    ]
 
     kept, dropped = TrainingDataService._screen_training_rows(rows)
 
     assert [item["isotherm_id"] for item in kept] == [1, 1]
     assert dropped == {"multi_species_isotherms": 1, "non_pascal_pressure_isotherms": 1}
     assert all("adsorbate_id" not in item for item in kept)
+
 
 ###############################################################################
 def test_leading_zero_trim_keeps_pressure_uptake_pairs_aligned() -> None:
@@ -89,6 +103,7 @@ def test_leading_zero_trim_keeps_pressure_uptake_pairs_aligned() -> None:
 
     assert trimmed.loc[0, "pressure"] == [0.0, 0.0, 1.0, 2.0]
     assert trimmed.loc[0, "adsorbed_amount"] == [0.0, 1.0, 2.0, 3.0]
+
 
 ###############################################################################
 def test_long_series_are_subsampled_over_full_range_in_lockstep() -> None:

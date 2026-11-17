@@ -18,6 +18,7 @@ ProviderCapability = Literal[
     "references",
 ]
 
+
 ###############################################################################
 class PublicSourceSummary(BaseModel):
     key: str
@@ -35,9 +36,11 @@ class PublicSourceSummary(BaseModel):
     health_fresh: bool = False
     last_successful_sync_at: datetime | None = None
 
+
 ###############################################################################
 class PublicSourceListResponse(BaseModel):
     sources: list[PublicSourceSummary]
+
 
 ###############################################################################
 class PublicDataOverviewResponse(BaseModel):
@@ -55,6 +58,7 @@ class PublicDataOverviewResponse(BaseModel):
     active_sync_runs: int = Field(default=0, ge=0)
     failed_sync_runs: int = Field(default=0, ge=0)
     latest_successful_sync_at: datetime | None = None
+
 
 ###############################################################################
 SyncOperation = Literal[
@@ -75,6 +79,7 @@ SyncRunStatus = Literal[
     "cancelled",
     "interrupted",
 ]
+
 
 ###############################################################################
 class PublicDataSyncCreateRequest(BaseModel):
@@ -167,6 +172,7 @@ class PublicDataSyncCreateRequest(BaseModel):
                 del values[flag]
         return {key: value for key, value in values.items() if value is not None}
 
+
 ###############################################################################
 class PublicDataSyncRunView(BaseModel):
     id: str
@@ -186,10 +192,12 @@ class PublicDataSyncRunView(BaseModel):
     started_at: datetime | None = None
     finished_at: datetime | None = None
 
+
 ###############################################################################
 class PublicDataSyncRunListResponse(BaseModel):
     runs: list[PublicDataSyncRunView]
     total: int = Field(ge=0)
+
 
 ###############################################################################
 class PublicDataSyncFailureView(BaseModel):
@@ -200,16 +208,19 @@ class PublicDataSyncFailureView(BaseModel):
     retry_eligible_at: datetime | None = None
     created_at: datetime
 
+
 ###############################################################################
 class PublicDataSyncFailureListResponse(BaseModel):
     failures: list[PublicDataSyncFailureView]
     total: int = Field(ge=0)
+
 
 ###############################################################################
 class Pagination(BaseModel):
     page: int = Field(ge=1)
     page_size: int = Field(ge=1, le=100)
     total: int = Field(ge=0)
+
 
 ###############################################################################
 class ExternalIdentifierView(BaseModel):
@@ -219,10 +230,12 @@ class ExternalIdentifierView(BaseModel):
     retrieved_at: datetime | None = None
     source_version: str | None = None
 
+
 ###############################################################################
 class EntityReference(BaseModel):
     id: int
     name: str
+
 
 ###############################################################################
 class CODSearchResult(BaseModel):
@@ -244,13 +257,16 @@ class CODSearchResult(BaseModel):
     source_url: str
     cif_url: str
 
+
 ###############################################################################
 class CODSearchResponse(BaseModel):
     items: list[CODSearchResult]
 
+
 ###############################################################################
 class StructureMaterialLinkRequest(BaseModel):
     adsorbent_id: int | None = Field(default=None, ge=1)
+
 
 ###############################################################################
 class NISTCollectionView(BaseModel):
@@ -259,9 +275,11 @@ class NISTCollectionView(BaseModel):
     available_count: int | None = Field(default=None, ge=0)
     indexed_at: datetime | None = None
 
+
 ###############################################################################
 class NISTCollectionListResponse(BaseModel):
     collections: list[NISTCollectionView]
+
 
 ###############################################################################
 class NISTSearchItem(BaseModel):
@@ -274,10 +292,12 @@ class NISTSearchItem(BaseModel):
     temperature_k: float | None = None
     local: bool = False
 
+
 ###############################################################################
 class NISTSearchResponse(BaseModel):
     items: list[NISTSearchItem]
     total: int = Field(ge=0)
+
 
 ###############################################################################
 class ChemicalLookupItem(BaseModel):
@@ -291,13 +311,16 @@ class ChemicalLookupItem(BaseModel):
     structure_2d_url: str | None = None
     local_adsorbate_id: int | None = None
 
+
 ###############################################################################
 class ChemicalLookupResponse(BaseModel):
     items: list[ChemicalLookupItem]
 
+
 ###############################################################################
 class NISTEditedExperimentsResponse(BaseModel):
     count: int = Field(ge=0)
+
 
 ###############################################################################
 class StructureAtomView(BaseModel):
@@ -308,6 +331,7 @@ class StructureAtomView(BaseModel):
     fractional_y: float
     fractional_z: float
     occupancy: float | None = None
+
 
 ###############################################################################
 class StructureRecordView(BaseModel):
@@ -336,6 +360,7 @@ class StructureRecordView(BaseModel):
     reference_title: str | None = None
     retrieved_at: datetime | None = None
     atoms: list[StructureAtomView] = Field(default_factory=list)
+
 
 ###############################################################################
 class StructurePageResponse(BaseModel):

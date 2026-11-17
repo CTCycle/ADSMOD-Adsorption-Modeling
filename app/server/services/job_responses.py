@@ -13,9 +13,9 @@ from server.domain.jobs import (
     JobStatusResponse,
 )
 
+
 ###############################################################################
 class JobResponseFactory:
-
     # -------------------------------------------------------------------------
     @staticmethod
     def start(

@@ -16,6 +16,7 @@ from server.api.jobs import create_jobs_router
 from server.api.materials import create_material_router
 from server.api.public_data import create_public_data_router
 
+
 ###############################################################################
 def register_core_routes(
     app: FastAPI,
@@ -35,6 +36,7 @@ def register_core_routes(
     ):
         router = router_factory(container)
         app.include_router(router, prefix=prefix, include_in_schema=include_schema)
+
 
 ###############################################################################
 def register_ml_routes(

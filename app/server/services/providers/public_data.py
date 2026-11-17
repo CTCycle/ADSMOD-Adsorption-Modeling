@@ -23,6 +23,7 @@ _DECODED_BODY_HEADERS = frozenset(
     {"content-encoding", "content-length", "transfer-encoding"}
 )
 
+
 ###############################################################################
 class ProviderCapability(StrEnum):
     ADSORPTION = "adsorption"
@@ -31,21 +32,26 @@ class ProviderCapability(StrEnum):
     STRUCTURES = "structures"
     REFERENCES = "references"
 
+
 ###############################################################################
 class ProviderError(RuntimeError):
     """Base class for public-data provider failures."""
+
 
 ###############################################################################
 class ProviderNotFoundError(ProviderError):
     """Raised when a provider cannot resolve the requested record."""
 
+
 ###############################################################################
 class ProviderUnavailableError(ProviderError):
     """Raised for transient or invalid remote-service responses."""
 
+
 ###############################################################################
 class ProviderRateLimitError(ProviderUnavailableError):
     """Raised when a provider still throttles ADSMOD after retries."""
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -54,6 +60,7 @@ class ProviderHealth:
     detail: str | None
     checked_at: datetime
     request_stats: dict[str, int] = field(default_factory=dict)
+
 
 ###############################################################################
 class PublicDataProvider(ABC):
@@ -89,6 +96,7 @@ class PublicDataProvider(ABC):
     async def close(self) -> None:
         """Release provider-owned asynchronous resources."""
 
+
 ###############################################################################
 class RequestBudget:
     """Share request pacing safely across provider instances and event loops."""
@@ -109,6 +117,7 @@ class RequestBudget:
                     self._next_request_at = now + self.minimum_interval_seconds
                     return
             await asyncio.sleep(delay)
+
 
 ###############################################################################
 class RetryingHttpProvider(PublicDataProvider):
@@ -257,9 +266,7 @@ class RetryingHttpProvider(PublicDataProvider):
                 ) from exc
         if last_error is None:
             self._record_request_stat("failures")
-        reason = (
-            f" ({type(last_error).__name__})" if last_error is not None else ""
-        )
+        reason = f" ({type(last_error).__name__})" if last_error is not None else ""
         raise ProviderUnavailableError(
             f"{self.name} could not be reached after {self.max_attempts} attempts{reason}."
         ) from last_error
@@ -385,7 +392,7 @@ class RetryingHttpProvider(PublicDataProvider):
                         0.0,
                         (retry_at - datetime.now(timezone.utc)).total_seconds(),
                     )
-                except (TypeError, ValueError, OverflowError):
+                except TypeError, ValueError, OverflowError:
                     delay = None
         if delay is None:
             delay = max(0.5, self.minimum_retry_delay_seconds) * (2**attempt)

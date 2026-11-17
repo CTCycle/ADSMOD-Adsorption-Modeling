@@ -383,7 +383,9 @@ class IdentityResolver:
         index = self.adsorbates
         self._prefetch_adsorbates([record])
         name = record["name"]
-        inchi_key = record.get("inchi_key") if is_inchi_key(record.get("inchi_key")) else None
+        inchi_key = (
+            record.get("inchi_key") if is_inchi_key(record.get("inchi_key")) else None
+        )
         smiles = record.get("smiles")
         strong = self._adsorbate_by_identifier(index, record, key, inchi_key, smiles)
         if strong is not None:
@@ -391,7 +393,9 @@ class IdentityResolver:
 
         curated = curated_adsorbate(name) if not (inchi_key or smiles) else None
         if curated is not None and curated.inchi_key in index.by_strong:
-            return self._matched(index, record, index.by_strong[curated.inchi_key], "curated")
+            return self._matched(
+                index, record, index.by_strong[curated.inchi_key], "curated"
+            )
 
         named = index.named(name)
         compatible = [
@@ -399,7 +403,9 @@ class IdentityResolver:
             for entity_id in named
             if not self._strong_conflict(index.rows[entity_id], inchi_key)
         ]
-        if len(compatible) == 1 and not smiles_conflicts(index.rows[compatible[0]], smiles):
+        if len(compatible) == 1 and not smiles_conflicts(
+            index.rows[compatible[0]], smiles
+        ):
             return self._matched(index, record, compatible[0], "alias")
         if named:
             return Resolution(
@@ -451,7 +457,9 @@ class IdentityResolver:
         name = record["name"]
         external = record.get("external_identifier")
         if external and external in index.by_strong:
-            return self._matched(index, record, index.by_strong[external], "external_identifier")
+            return self._matched(
+                index, record, index.by_strong[external], "external_identifier"
+            )
         if key in index.by_key:
             return self._matched(index, record, index.by_key[key], "key")
         if external is None and is_generic_adsorbent(name):
@@ -831,7 +839,9 @@ def _merge_rows(
 ###############################################################################
 def _move_aliases(session: Session, kind: str, keep_id: int, remove: Any) -> None:
     alias_model = AdsorbateSynonym if kind == "adsorbate" else AdsorbentSynonym
-    owner = alias_model.adsorbate_id if kind == "adsorbate" else alias_model.adsorbent_id
+    owner = (
+        alias_model.adsorbate_id if kind == "adsorbate" else alias_model.adsorbent_id
+    )
     held = {
         (source, normalized, None if source is not None else origin)
         for source, normalized, origin in session.execute(
@@ -893,7 +903,9 @@ def _merge_adsorbates(session: Session, keep_id: int, remove_id: int) -> dict[st
     )
     for link in (AdsorbateSourceRecord, ChemicalProperty):
         session.execute(
-            update(link).where(link.adsorbate_id == remove_id).values(adsorbate_id=keep_id)
+            update(link)
+            .where(link.adsorbate_id == remove_id)
+            .values(adsorbate_id=keep_id)
         )
     _move_aliases(session, "adsorbate", keep_id, remove)
     # The unique InChIKey must leave the removed row before the survivor takes it.
@@ -923,7 +935,9 @@ def _merge_adsorbents(session: Session, keep_id: int, remove_id: int) -> dict[st
     )
     for link in (AdsorbentSourceRecord, Structure):
         session.execute(
-            update(link).where(link.adsorbent_id == remove_id).values(adsorbent_id=keep_id)
+            update(link)
+            .where(link.adsorbent_id == remove_id)
+            .values(adsorbent_id=keep_id)
         )
     _move_aliases(session, "adsorbent", keep_id, remove)
     # A second source identifier survives as the source-record link just moved.

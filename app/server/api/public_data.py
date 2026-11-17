@@ -31,9 +31,9 @@ from server.services.container import CoreServiceContainer
 from server.services.data.public_data import PublicDataService
 from server.services.data.public_data_sync import PublicDataSyncCoordinator
 
+
 ###############################################################################
 class PublicDataEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -108,9 +108,7 @@ class PublicDataEndpoint:
             alias="status",
             pattern="^(queued|running|completed|partially_completed|failed|cancelled|interrupted)$",
         ),
-        scope: str | None = Query(
-            default=None, pattern="^(active|history)$"
-        ),
+        scope: str | None = Query(default=None, pattern="^(active|history)$"),
     ) -> PublicDataSyncRunListResponse:
         runs, total = await self.sync.list(
             limit=limit,
@@ -214,7 +212,11 @@ class PublicDataEndpoint:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
             ) from exc
-        except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
+        except (
+            ProviderNotFoundError,
+            ProviderRateLimitError,
+            ProviderUnavailableError,
+        ) as exc:
             raise self._provider_error(exc) from exc
 
     # -------------------------------------------------------------------------
@@ -223,7 +225,11 @@ class PublicDataEndpoint:
             sdf, _ = await self.service.ensure_conformer(adsorbate_id)
         except LookupError as exc:
             raise self._lookup_error(exc) from exc
-        except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
+        except (
+            ProviderNotFoundError,
+            ProviderRateLimitError,
+            ProviderUnavailableError,
+        ) as exc:
             raise self._provider_error(exc) from exc
         return Response(content=sdf, media_type="chemical/x-mdl-sdfile")
 
@@ -245,7 +251,11 @@ class PublicDataEndpoint:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=str(exc),
             ) from exc
-        except (ProviderNotFoundError, ProviderRateLimitError, ProviderUnavailableError) as exc:
+        except (
+            ProviderNotFoundError,
+            ProviderRateLimitError,
+            ProviderUnavailableError,
+        ) as exc:
             raise self._provider_error(exc) from exc
 
     # -------------------------------------------------------------------------
@@ -425,6 +435,7 @@ class PublicDataEndpoint:
             methods=["GET"],
             response_class=Response,
         )
+
 
 ###############################################################################
 def create_public_data_router(container: CoreServiceContainer) -> APIRouter:

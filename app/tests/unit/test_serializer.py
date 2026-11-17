@@ -17,9 +17,9 @@ from server.domain.training import TrainingMetadata
 from server.models.training.serialization.model import ModelSerializer
 from server.models.training.serialization.training import TrainingDataSerializer
 
+
 ###############################################################################
 class FakeSnapshotAccess:
-
     # -------------------------------------------------------------------------
     def __init__(self, response_rows: list[dict[str, Any]] | None = None) -> None:
         self.response_rows = response_rows
@@ -29,7 +29,9 @@ class FakeSnapshotAccess:
     # -------------------------------------------------------------------------
     @staticmethod
     def _hash(rows: list[dict[str, Any]]) -> str:
-        payload = json.dumps(rows, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        payload = json.dumps(
+            rows, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     # -------------------------------------------------------------------------
@@ -47,7 +49,9 @@ class FakeSnapshotAccess:
         self.captured.append({"rows": frozen_rows, "metadata": dict(metadata or {})})
         content_hash = self._hash(frozen_rows)
         reference = SnapshotReference("snapshot-1", content_hash)
-        stored_rows = self.response_rows if self.response_rows is not None else frozen_rows
+        stored_rows = (
+            self.response_rows if self.response_rows is not None else frozen_rows
+        )
         self.snapshots[reference.snapshot_id] = SnapshotPayload(
             snapshot_id=reference.snapshot_id,
             content_hash=self._hash(stored_rows),
@@ -68,6 +72,7 @@ class FakeSnapshotAccess:
     def fetch_snapshot(self, snapshot_id: str) -> SnapshotPayload:
         return self.snapshots[snapshot_id]
 
+
 ###############################################################################
 def create_basis_metadata(**kwargs: object) -> TrainingMetadata:
     defaults: dict[str, object] = {
@@ -85,6 +90,7 @@ def create_basis_metadata(**kwargs: object) -> TrainingMetadata:
     defaults.update(kwargs)
     return TrainingMetadata(**defaults)
 
+
 ###############################################################################
 def _serializer(
     tmp_path: Path,
@@ -94,56 +100,80 @@ def _serializer(
     access = FakeSnapshotAccess(response_rows)
     return TrainingDataSerializer(access, tmp_path / "artifacts"), access
 
+
 ###############################################################################
 def test_validate_metadata_identical() -> None:
-    assert TrainingDataSerializer.validate_metadata(create_basis_metadata(), create_basis_metadata()) is True
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(), create_basis_metadata()
+        )
+        is True
+    )
+
 
 ###############################################################################
 def test_validate_metadata_rejects_parameter_and_vocabulary_changes() -> None:
-    assert TrainingDataSerializer.validate_metadata(
-        create_basis_metadata(sample_size=1.0),
-        create_basis_metadata(sample_size=0.5),
-    ) is False
-    assert TrainingDataSerializer.validate_metadata(
-        create_basis_metadata(smile_vocabulary={"A": 1}),
-        create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
-    ) is False
-    assert TrainingDataSerializer.validate_metadata(
-        create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
-        create_basis_metadata(smile_vocabulary={"A": 2, "B": 1}),
-    ) is False
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(sample_size=1.0),
+            create_basis_metadata(sample_size=0.5),
+        )
+        is False
+    )
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(smile_vocabulary={"A": 1}),
+            create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
+        )
+        is False
+    )
+    assert (
+        TrainingDataSerializer.validate_metadata(
+            create_basis_metadata(smile_vocabulary={"A": 1, "B": 2}),
+            create_basis_metadata(smile_vocabulary={"A": 2, "B": 1}),
+        )
+        is False
+    )
+
 
 ###############################################################################
 def test_compute_metadata_hash_is_deterministic() -> None:
     first = create_basis_metadata(smile_vocabulary={"A": 1, "B": 2})
     second = create_basis_metadata(smile_vocabulary={"B": 2, "A": 1})
-    assert TrainingDataSerializer.compute_metadata_hash(first) == TrainingDataSerializer.compute_metadata_hash(second)
+    assert TrainingDataSerializer.compute_metadata_hash(
+        first
+    ) == TrainingDataSerializer.compute_metadata_hash(second)
+
 
 ###############################################################################
-def test_save_training_dataset_deduplicates_rows_and_publishes_snapshot(tmp_path: Path) -> None:
+def test_save_training_dataset_deduplicates_rows_and_publishes_snapshot(
+    tmp_path: Path,
+) -> None:
     serializer, access = _serializer(tmp_path)
-    dataset = pd.DataFrame([
-        {
-            "dataset_name": "NIST ISODB",
-            "split": "train",
-            "temperature": 298.15,
-            "pressure": "[1.0,2.0]",
-            "adsorbed_amount": "[0.1,0.2]",
-            "encoded_adsorbent": 1,
-            "adsorbate_molecular_weight": 44.0,
-            "adsorbate_encoded_SMILE": "[1,2,3]",
-        },
-        {
-            "dataset_name": "NIST ISODB",
-            "split": "train",
-            "temperature": 298.15,
-            "pressure": "[1.0,2.0]",
-            "adsorbed_amount": "[0.1,0.2]",
-            "encoded_adsorbent": 1,
-            "adsorbate_molecular_weight": 44.0,
-            "adsorbate_encoded_SMILE": "[1,2,3]",
-        },
-    ])
+    dataset = pd.DataFrame(
+        [
+            {
+                "dataset_name": "NIST ISODB",
+                "split": "train",
+                "temperature": 298.15,
+                "pressure": "[1.0,2.0]",
+                "adsorbed_amount": "[0.1,0.2]",
+                "encoded_adsorbent": 1,
+                "adsorbate_molecular_weight": 44.0,
+                "adsorbate_encoded_SMILE": "[1,2,3]",
+            },
+            {
+                "dataset_name": "NIST ISODB",
+                "split": "train",
+                "temperature": 298.15,
+                "pressure": "[1.0,2.0]",
+                "adsorbed_amount": "[0.1,0.2]",
+                "encoded_adsorbent": 1,
+                "adsorbate_molecular_weight": 44.0,
+                "adsorbate_encoded_SMILE": "[1,2,3]",
+            },
+        ]
+    )
     serializer.save_training_dataset(dataset, "small_dataset", "a" * 64)
     rows = access.captured[0]["rows"]
     assert len(rows) == 1
@@ -151,19 +181,28 @@ def test_save_training_dataset_deduplicates_rows_and_publishes_snapshot(tmp_path
     assert rows[0]["adsorbed_amount"] == [0.1, 0.2]
     assert rows[0]["adsorbate_encoded_SMILE"] == [1, 2, 3]
 
+
 ###############################################################################
 def test_save_training_metadata_normalizes_json_mappings(tmp_path: Path) -> None:
     serializer, access = _serializer(tmp_path)
-    serializer.save_training_dataset(pd.DataFrame([{"split": "train"}]), "small_dataset", "a" * 64)
-    metadata = pd.DataFrame([{
-        "dataset_label": "small_dataset",
-        "dataset_hash": "a" * 64,
-        "smile_vocabulary": '{"C": 1}',
-        "adsorbent_vocabulary": '{"MOF-1": 0}',
-        "normalization_stats": '{"pressure_mean": 1.0}',
-    }])
+    serializer.save_training_dataset(
+        pd.DataFrame([{"split": "train"}]), "small_dataset", "a" * 64
+    )
+    metadata = pd.DataFrame(
+        [
+            {
+                "dataset_label": "small_dataset",
+                "dataset_hash": "a" * 64,
+                "smile_vocabulary": '{"C": 1}',
+                "adsorbent_vocabulary": '{"MOF-1": 0}',
+                "normalization_stats": '{"pressure_mean": 1.0}',
+            }
+        ]
+    )
     serializer.save_training_metadata(metadata, "small_dataset")
-    manifest = json.loads((tmp_path / "artifacts" / "training-manifest.json").read_text(encoding="utf-8"))
+    manifest = json.loads(
+        (tmp_path / "artifacts" / "training-manifest.json").read_text(encoding="utf-8")
+    )
     saved = manifest["small_dataset"]["metadata"]
     assert "dataset_label" not in saved
     assert saved["smile_vocabulary"] == {"C": 1}
@@ -174,31 +213,39 @@ def test_save_training_metadata_normalizes_json_mappings(tmp_path: Path) -> None
     assert loaded.smile_vocabulary == {"C": 1}
     assert len(access.captured) == 1
 
+
 ###############################################################################
 def test_training_dataset_requires_canonical_hash(tmp_path: Path) -> None:
     serializer, _ = _serializer(tmp_path)
     with pytest.raises(ValueError, match="dataset_hash"):
-        serializer.save_training_dataset(pd.DataFrame({"split": ["train"]}), "small_dataset", "")
+        serializer.save_training_dataset(
+            pd.DataFrame({"split": ["train"]}), "small_dataset", ""
+        )
+
 
 ###############################################################################
 def test_training_metadata_rejects_legacy_fields() -> None:
     with pytest.raises(ValidationError):
         TrainingMetadata(hashcode="a" * 64)
 
+
 ###############################################################################
 def test_training_data_read_requires_canonical_columns(tmp_path: Path) -> None:
     rows = [{"split": "train"}]
     serializer, access = _serializer(tmp_path, response_rows=rows)
     reference = access.create_snapshot(rows)
-    serializer._write_manifest({
-        "default": {
-            "snapshot_id": reference.snapshot_id,
-            "snapshot_hash": reference.content_hash,
-            "dataset_hash": "a" * 64,
+    serializer._write_manifest(
+        {
+            "default": {
+                "snapshot_id": reference.snapshot_id,
+                "snapshot_hash": reference.content_hash,
+                "dataset_hash": "a" * 64,
+            }
         }
-    })
+    )
     with pytest.raises(ValueError, match="dataset_label"):
         serializer.load_training_data("default")
+
 
 ###############################################################################
 def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path: Path) -> None:
@@ -211,6 +258,7 @@ def test_checkpoint_metadata_rejects_legacy_hash_alias(tmp_path: Path) -> None:
     (configuration_dir / "session_history.json").write_text("{}", encoding="utf-8")
     with pytest.raises(ValidationError):
         ModelSerializer(tmp_path).load_training_configuration(str(tmp_path))
+
 
 ###############################################################################
 def test_checkpoint_loader_allows_adsmod_owned_lambda_layers(

@@ -30,9 +30,9 @@ def test_unified_routes_expose_core_optional_ml_and_public_data_surface(
         assert client.get("/health/ready").json()["state"] == "ready"
         capabilities = client.get("/api/v1/system/capabilities").json()
         assert capabilities["features"]["datasets"] is True
-        assert capabilities["features"]["machine_learning"] is True, (
-            client.get("/api/v1/deep-learning/status").json()["reason"]
-        )
+        assert capabilities["features"]["machine_learning"] is True, client.get(
+            "/api/v1/deep-learning/status"
+        ).json()["reason"]
         assert client.get("/api/v1/datasets").status_code == 200
         dataset_configuration = client.get("/api/v1/datasets/supported-units")
         assert dataset_configuration.status_code == 200

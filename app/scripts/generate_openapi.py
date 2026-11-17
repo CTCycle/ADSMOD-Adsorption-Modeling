@@ -10,6 +10,7 @@ from pathlib import Path
 from server.app import create_app
 from server.configurations.runtime import load_runtime_configuration
 
+
 ###############################################################################
 def build_openapi_schema() -> dict[str, object]:
     """Build the canonical contract; training routes are mounted on every profile."""
@@ -20,9 +21,12 @@ def build_openapi_schema() -> dict[str, object]:
     finally:
         runtime.settings_store.database.dispose()
 
+
 ###############################################################################
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate OpenAPI JSON for the unified ADSMOD backend.")
+    parser = argparse.ArgumentParser(
+        description="Generate OpenAPI JSON for the unified ADSMOD backend."
+    )
     parser.add_argument("--output", required=True, help="Output JSON path")
     args = parser.parse_args()
     schema = build_openapi_schema()

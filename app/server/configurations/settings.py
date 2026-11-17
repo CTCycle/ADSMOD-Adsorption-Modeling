@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+
 ###############################################################################
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -30,6 +31,7 @@ MINIMIZE_MODEL_METRICS = frozenset(
     {"sse", "rmse", "mae", "chi_square", "aic", "aicc", "bic"}
 )
 
+
 ###############################################################################
 class RuntimeConfig(StrictModel):
     host: Literal["127.0.0.1", "localhost", "::1"] = "127.0.0.1"
@@ -43,7 +45,9 @@ class RuntimeConfig(StrictModel):
     cors_allow_methods: tuple[str, ...] = ("*",)
     cors_allow_headers: tuple[str, ...] = ("*",)
 
-    @field_validator("cors_origins", "cors_allow_methods", "cors_allow_headers", mode="before")
+    @field_validator(
+        "cors_origins", "cors_allow_methods", "cors_allow_headers", mode="before"
+    )
     @classmethod
     def normalize_csv_values(cls, value: Any) -> tuple[str, ...]:
         if isinstance(value, str):
@@ -51,14 +55,20 @@ class RuntimeConfig(StrictModel):
         elif isinstance(value, (list, tuple, set)):
             values = value
         else:
-            raise ValueError("CORS settings must be a comma-separated string or a sequence")
-        return tuple(dict.fromkeys(str(item).strip() for item in values if str(item).strip()))
+            raise ValueError(
+                "CORS settings must be a comma-separated string or a sequence"
+            )
+        return tuple(
+            dict.fromkeys(str(item).strip() for item in values if str(item).strip())
+        )
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
     def validate_runtime(self) -> "RuntimeConfig":
         if self.backend_port == self.frontend_port:
-            raise ValueError("runtime.backend_port and runtime.frontend_port must be distinct")
+            raise ValueError(
+                "runtime.backend_port and runtime.frontend_port must be distinct"
+            )
         for origin in self.cors_origins:
             try:
                 parsed = urlsplit(origin)
@@ -90,9 +100,11 @@ class RuntimeConfig(StrictModel):
         host = f"[{self.host}]" if ":" in self.host else self.host
         return f"http://{host}:{self.frontend_port}"
 
+
 ###############################################################################
 class StorageConfig(StrictModel):
     root: Path
+
 
 ###############################################################################
 class DatabaseConfig(StrictModel):
@@ -111,7 +123,9 @@ class DatabaseConfig(StrictModel):
     sqlite_path: str = "data/database.db"
 
     # -------------------------------------------------------------------------
-    @field_validator("host", "database_name", "username", "password", "ssl_ca", mode="before")
+    @field_validator(
+        "host", "database_name", "username", "password", "ssl_ca", mode="before"
+    )
     @classmethod
     def normalize_optional_strings(cls, value: Any) -> str | None:
         if value is None:
@@ -139,9 +153,12 @@ class DatabaseConfig(StrictModel):
             )
         return self
 
+
 ###############################################################################
 class DatasetConfig(StrictModel):
-    allowed_extensions: tuple[Literal[".csv", ".xls", ".xlsx"], ...] = DEFAULT_DATASET_ALLOWED_EXTENSIONS
+    allowed_extensions: tuple[Literal[".csv", ".xls", ".xlsx"], ...] = (
+        DEFAULT_DATASET_ALLOWED_EXTENSIONS
+    )
     column_detection_cutoff: float = Field(default=0.6, ge=0.0, le=1.0)
 
     # -------------------------------------------------------------------------
@@ -157,7 +174,11 @@ class DatasetConfig(StrictModel):
         else:
             raise ValueError("datasets.allowed_extensions must be a sequence or string")
         cleaned = tuple(
-            (part.strip().casefold() if part.strip().startswith(".") else f".{part.strip().casefold()}")
+            (
+                part.strip().casefold()
+                if part.strip().startswith(".")
+                else f".{part.strip().casefold()}"
+            )
             for part in values
             if str(part).strip()
         )
@@ -167,9 +188,11 @@ class DatasetConfig(StrictModel):
             raise ValueError("datasets.allowed_extensions cannot contain duplicates")
         return cleaned  # type: ignore[return-value]
 
+
 ###############################################################################
 class NISTConfig(StrictModel):
     parallel_tasks: int = Field(default=40, ge=1, le=100)
+
 
 ###############################################################################
 class PublicDataConfig(StrictModel):
@@ -201,12 +224,23 @@ class PublicDataConfig(StrictModel):
             raise ValueError("auto_sync_categories cannot contain duplicates.")
         return self
 
+
 ###############################################################################
 class FittingConfig(StrictModel):
     default_max_iterations: int = Field(default=1000, ge=10, le=1000000000)
     max_iterations_upper_bound: int = Field(default=1000000000, ge=10, le=1000000000)
     preview_row_limit: int = Field(default=20, ge=1, le=500)
-    best_model_metric: Literal["sse", "rmse", "mae", "r_squared", "adjusted_r_squared", "chi_square", "aic", "aicc", "bic"] = "aicc"
+    best_model_metric: Literal[
+        "sse",
+        "rmse",
+        "mae",
+        "r_squared",
+        "adjusted_r_squared",
+        "chi_square",
+        "aic",
+        "aicc",
+        "bic",
+    ] = "aicc"
 
     # -------------------------------------------------------------------------
     @model_validator(mode="after")
@@ -217,9 +251,11 @@ class FittingConfig(StrictModel):
             )
         return self
 
+
 ###############################################################################
 class JobConfig(StrictModel):
     polling_interval: float = Field(default=1.0, ge=0.1, le=60.0)
+
 
 ###############################################################################
 class TrainingConfig(StrictModel):
@@ -233,8 +269,11 @@ class TrainingConfig(StrictModel):
     @model_validator(mode="after")
     def validate_worker_settings(self) -> "TrainingConfig":
         if self.persistent_workers and self.dataloader_workers < 1:
-            raise ValueError("persistent_workers requires dataloader_workers to be greater than zero")
+            raise ValueError(
+                "persistent_workers requires dataloader_workers to be greater than zero"
+            )
         return self
+
 
 ###############################################################################
 class UserSettings(StrictModel):
@@ -247,6 +286,7 @@ class UserSettings(StrictModel):
     jobs: JobConfig = Field(default_factory=JobConfig)
     training: TrainingConfig = Field(default_factory=TrainingConfig)
 
+
 ###############################################################################
 class ApplicationConfig(StrictModel):
     database: DatabaseConfig
@@ -256,6 +296,7 @@ class ApplicationConfig(StrictModel):
     fitting: FittingConfig
     jobs: JobConfig
     training: TrainingConfig
+
 
 ###############################################################################
 class AdsmodConfig(StrictModel):

@@ -57,15 +57,16 @@ IMPORT_REMEDIATIONS = {
     "ambiguous_branch": "Map a branch column (adsorption/desorption) or split the cycles into separate experiments.",
 }
 
+
 ###############################################################################
 @dataclass
 class ValidationBundle:
     response: ImportValidationResponse
     experiments: list[dict[str, Any]]
 
+
 ###############################################################################
 class AdsorptionImportEngine:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -397,7 +398,10 @@ class AdsorptionImportEngine:
                 continue
             existing = metadata_by_group.get(group_key)
             if existing is None:
-                existing = metadata_by_group[group_key] = {**row_metadata, "species": {}}
+                existing = metadata_by_group[group_key] = {
+                    **row_metadata,
+                    "species": {},
+                }
             else:
                 for key in ("adsorbent", "temperature_k", "pressure_basis"):
                     if existing[key] != row_metadata[key]:
@@ -590,8 +594,12 @@ class AdsorptionImportEngine:
         if mapping.wide_pairs:
             return [
                 (
-                    parse_number(row.get(pair.pressure_column), mapping.decimal_separator),
-                    parse_number(row.get(pair.uptake_column), mapping.decimal_separator),
+                    parse_number(
+                        row.get(pair.pressure_column), mapping.decimal_separator
+                    ),
+                    parse_number(
+                        row.get(pair.uptake_column), mapping.decimal_separator
+                    ),
                 )
                 for pair in mapping.wide_pairs
             ]
@@ -651,9 +659,7 @@ class AdsorptionImportEngine:
             mapping.decimal_separator,
         )
         temperature_unit = self._unit_for("temperature", row, roles, mapping, detected)
-        temperature = catalog.convert_temperature(
-            temperature_value, temperature_unit
-        )
+        temperature = catalog.convert_temperature(temperature_value, temperature_unit)
 
         pressure_unit = self._unit_for("pressure", row, roles, mapping, detected)
         uptake_unit = self._unit_for("uptake", row, roles, mapping, detected)
@@ -699,9 +705,7 @@ class AdsorptionImportEngine:
             pressure = catalog.convert_pressure(
                 pressure_value, pressure_unit, mapping.pressure_basis
             )
-            uptake = catalog.convert_uptake(
-                uptake_value, uptake_unit, molar_mass_value
-            )
+            uptake = catalog.convert_uptake(uptake_value, uptake_unit, molar_mass_value)
             stddev = self._uptake_stddev(
                 row, roles, mapping, catalog, uptake_unit, molar_mass_value
             )

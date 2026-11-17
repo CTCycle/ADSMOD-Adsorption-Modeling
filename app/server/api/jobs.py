@@ -74,10 +74,18 @@ class JobsEndpoint:
     ) -> UnifiedJobListResponse:
         sync = self.container.public_data_sync
         active_runs, _ = await sync.list(
-            limit=100, offset=0, source_key=None, status_filter=None, status_scope="active"
+            limit=100,
+            offset=0,
+            source_key=None,
+            status_filter=None,
+            status_scope="active",
         )
         recent_runs, _ = await sync.list(
-            limit=limit, offset=0, source_key=None, status_filter=None, status_scope="history"
+            limit=limit,
+            offset=0,
+            source_key=None,
+            status_filter=None,
+            status_scope="history",
         )
         jobs = [acquisition_job(run) for run in (*active_runs, *recent_runs)]
 

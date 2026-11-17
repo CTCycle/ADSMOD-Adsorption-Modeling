@@ -7,12 +7,14 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+
 ###############################################################################
 class NumericBounds(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     minimum: int | float
     maximum: int | float
+
 
 ###############################################################################
 class DisplayUnitCapabilities(BaseModel):
@@ -22,6 +24,7 @@ class DisplayUnitCapabilities(BaseModel):
     uptake: tuple[str, ...]
     default_pressure: str
     default_uptake: str
+
 
 ###############################################################################
 class FittingConfigurationResponse(BaseModel):
@@ -36,6 +39,7 @@ class FittingConfigurationResponse(BaseModel):
     default_weighting: str
     display_units: DisplayUnitCapabilities
 
+
 ###############################################################################
 class RuntimeDeviceCapabilities(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -44,6 +48,7 @@ class RuntimeDeviceCapabilities(BaseModel):
     cuda_available: bool
     device_count: int
     devices: tuple[str, ...]
+
 
 ###############################################################################
 class TrainingConfigurationResponse(BaseModel):

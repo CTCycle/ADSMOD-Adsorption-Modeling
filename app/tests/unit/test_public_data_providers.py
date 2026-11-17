@@ -322,7 +322,10 @@ def test_nist_mapper_skips_experiment_with_unsupported_uptake_unit(caplog) -> No
         )
 
     records, _ = nist_experiments(
-        [payload("unsupported-volume", "% Volume Adsorbed"), payload("supported-molar", "mmol/g")]
+        [
+            payload("unsupported-volume", "% Volume Adsorbed"),
+            payload("supported-molar", "mmol/g"),
+        ]
     )
 
     assert [record["external_key"] for record in records] == ["supported-molar"]
@@ -340,7 +343,9 @@ def test_nist_mapper_skips_experiment_with_non_positive_temperature() -> None:
             temperature=temperature,
         )
 
-    records, skipped = nist_experiments([payload("below-zero", -200.0), payload("valid", 77.0)])
+    records, skipped = nist_experiments(
+        [payload("below-zero", -200.0), payload("valid", 77.0)]
+    )
 
     assert [record["external_key"] for record in records] == ["valid"]
     assert "positive number of kelvin" in skipped["below-zero"]
@@ -983,13 +988,17 @@ def _script_http_client(monkeypatch, script: list) -> tuple[list[float], list[in
 
 
 ###############################################################################
-def test_cod_provider_retries_dropped_connections_with_short_jittered_backoff(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_cod_provider_retries_dropped_connections_with_short_jittered_backoff(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
     url = "https://www.crystallography.net/cod/retry"
     request = httpx.Request("GET", url)
     sleeps, attempts = _script_http_client(
         monkeypatch,
         [
-            httpx.RemoteProtocolError("Server disconnected without sending a response."),
+            httpx.RemoteProtocolError(
+                "Server disconnected without sending a response."
+            ),
             httpx.ReadTimeout(""),
             httpx.Response(200, request=request, text="{}"),
         ],
@@ -1013,7 +1022,9 @@ def test_cod_provider_retries_dropped_connections_with_short_jittered_backoff(mo
 
 
 ###############################################################################
-def test_cod_provider_transport_retries_are_bounded_and_name_the_failure(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_cod_provider_transport_retries_are_bounded_and_name_the_failure(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
     url = "https://www.crystallography.net/cod/down"
     sleeps, attempts = _script_http_client(
         monkeypatch,
@@ -1039,7 +1050,9 @@ def test_cod_provider_transport_retries_are_bounded_and_name_the_failure(monkeyp
 
 
 ###############################################################################
-def test_cod_fetch_record_reuses_search_metadata_without_a_second_lookup(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_cod_fetch_record_reuses_search_metadata_without_a_second_lookup(
+    monkeypatch,
+) -> None:  # type: ignore[no-untyped-def]
     provider = CODProvider(
         request_timeout_seconds=1.0, retry_attempts=1, max_interactive_results=10
     )
@@ -1053,7 +1066,10 @@ def test_cod_fetch_record_reuses_search_metadata_without_a_second_lookup(monkeyp
         )
 
     monkeypatch.setattr(provider, "_request", fake_request)
-    metadata = {"cod_id": "1000000", "cif_url": "https://www.crystallography.net/cod/1000000.cif"}
+    metadata = {
+        "cod_id": "1000000",
+        "cif_url": "https://www.crystallography.net/cod/1000000.cif",
+    }
     result, cif_text = asyncio.run(provider.fetch_record("1000000", metadata))
 
     assert result is metadata
@@ -1262,7 +1278,9 @@ def test_navigation_filters_by_ids_and_structure_links_are_explicit() -> None:
         _, by_adsorbate = datasets.experiments(dataset_id, adsorbate_id=adsorbate_id)
         assert by_adsorbate == 1
 
-        material = MaterialService(materials, repository, IdentityRepository(repository.database)).get_material(material_id)
+        material = MaterialService(
+            materials, repository, IdentityRepository(repository.database)
+        ).get_material(material_id)
         assert material.isotherm_count == 1
         assert [item.id for item in material.structures] == [structure_id]
         assert [usage.id for usage in material.datasets] == [dataset_id]

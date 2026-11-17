@@ -25,9 +25,9 @@ from server.services.data.sequences import (
     SMILETokenization,
 )
 
+
 ###############################################################################
 class DatasetBuilderConfig:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -65,9 +65,9 @@ class DatasetBuilderConfig:
             "split_seed": self.split_seed,
         }
 
+
 ###############################################################################
 class DatasetBuilder:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -174,7 +174,8 @@ class DatasetBuilder:
 
         logger.info(
             "Saved training dataset: %s training and %s validation records",
-            len(train_samples), len(validation_samples),
+            len(train_samples),
+            len(validation_samples),
         )
 
         return {

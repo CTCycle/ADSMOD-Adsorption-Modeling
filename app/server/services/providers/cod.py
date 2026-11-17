@@ -24,6 +24,7 @@ _FRACTIONAL_COLUMNS = (
     "_atom_site_fract_z",
 )
 
+
 ###############################################################################
 class CODProvider(RetryingHttpProvider):
     key = "cod"
@@ -124,7 +125,9 @@ class CODProvider(RetryingHttpProvider):
     @staticmethod
     def _has_coordinates(row: dict[str, Any]) -> bool:
         flags = str(row.get("flags") or "").lower()
-        return "coordinates" in flags or str(row.get("has_coordinates") or "").lower() in {
+        return "coordinates" in flags or str(
+            row.get("has_coordinates") or ""
+        ).lower() in {
             "1",
             "true",
             "yes",
@@ -140,7 +143,9 @@ class CODProvider(RetryingHttpProvider):
             "name": self._text(row, "chemname", "mineral", "name", "text"),
             "formula": self._formula(row),
             "space_group": self._text(row, "sg", "spacegroup"),
-            "space_group_number": self._integer(row.get("sgNumber") or row.get("sg_number")),
+            "space_group_number": self._integer(
+                row.get("sgNumber") or row.get("sg_number")
+            ),
             "cell_a_angstrom": self._float(row.get("a")),
             "cell_b_angstrom": self._float(row.get("b")),
             "cell_c_angstrom": self._float(row.get("c")),
@@ -170,7 +175,9 @@ class CODProvider(RetryingHttpProvider):
         try:
             count = int(count_response.text.strip())
         except ValueError as exc:
-            raise ProviderUnavailableError("COD returned an invalid result count.") from exc
+            raise ProviderUnavailableError(
+                "COD returned an invalid result count."
+            ) from exc
         if count > self.max_interactive_results:
             raise ValueError(
                 f"COD query matches {count} records. Narrow the formula or text query "
@@ -213,12 +220,21 @@ class CODProvider(RetryingHttpProvider):
         except ValueError as exc:
             raise ProviderUnavailableError("COD returned malformed JSON.") from exc
         if isinstance(payload, dict):
-            rows = payload.get("data") or payload.get("results") or payload.get("records") or []
+            rows = (
+                payload.get("data")
+                or payload.get("results")
+                or payload.get("records")
+                or []
+            )
         else:
             rows = payload
         if not isinstance(rows, list):
-            raise ProviderUnavailableError("COD returned an unexpected JSON result shape.")
-        return [self.normalize_result(dict(row)) for row in rows if isinstance(row, dict)]
+            raise ProviderUnavailableError(
+                "COD returned an unexpected JSON result shape."
+            )
+        return [
+            self.normalize_result(dict(row)) for row in rows if isinstance(row, dict)
+        ]
 
     # -------------------------------------------------------------------------
     async def fetch_record(
@@ -238,7 +254,9 @@ class CODProvider(RetryingHttpProvider):
         )
         cif_text = cif_response.text
         if not cif_text.strip():
-            raise ProviderUnavailableError(f"COD entry {cod_id} returned an empty CIF file.")
+            raise ProviderUnavailableError(
+                f"COD entry {cod_id} returned an empty CIF file."
+            )
         return metadata, cif_text
 
     # -------------------------------------------------------------------------
@@ -308,7 +326,9 @@ class CODProvider(RetryingHttpProvider):
         positions = [lowered_headers.index(name) for name in _FRACTIONAL_COLUMNS]
         label_position = cls._header_position(lowered_headers, "_atom_site_label")
         type_position = cls._header_position(lowered_headers, "_atom_site_type_symbol")
-        occupancy_position = cls._header_position(lowered_headers, "_atom_site_occupancy")
+        occupancy_position = cls._header_position(
+            lowered_headers, "_atom_site_occupancy"
+        )
         while index < len(lines):
             current = lines[index].strip()
             if not current or current.startswith("#"):
@@ -326,17 +346,27 @@ class CODProvider(RetryingHttpProvider):
             x, y, z = (cls._float(values[position]) for position in positions)
             if x is None or y is None or z is None:
                 continue
-            label = values[label_position] if label_position is not None else f"A{len(atoms) + 1}"
+            label = (
+                values[label_position]
+                if label_position is not None
+                else f"A{len(atoms) + 1}"
+            )
             element = values[type_position] if type_position is not None else label
-            element_match = _ELEMENT_PREFIX.match(str(element)) or _ELEMENT_PREFIX.match(str(label))
+            element_match = _ELEMENT_PREFIX.match(
+                str(element)
+            ) or _ELEMENT_PREFIX.match(str(label))
             occupancy = (
-                cls._float(values[occupancy_position]) if occupancy_position is not None else None
+                cls._float(values[occupancy_position])
+                if occupancy_position is not None
+                else None
             )
             atoms.append(
                 {
                     "sequence_index": len(atoms),
                     "label": str(label),
-                    "element": element_match.group(0) if element_match else str(element)[:8],
+                    "element": element_match.group(0)
+                    if element_match
+                    else str(element)[:8],
                     "fractional_x": x,
                     "fractional_y": y,
                     "fractional_z": z,

@@ -14,6 +14,7 @@ from server.repositories.schemas.models import Base
 config = context.config
 target_metadata = Base.metadata
 
+
 ###############################################################################
 def include_object(
     object_: object,
@@ -29,6 +30,7 @@ def include_object(
         return False
     return True
 
+
 ###############################################################################
 def _configure(connection: Connection) -> None:
     context.configure(
@@ -43,6 +45,7 @@ def _configure(connection: Connection) -> None:
         transaction_per_migration=False,
     )
 
+
 ###############################################################################
 def _database_config() -> DatabaseConfig:
     database = config.attributes.get("database")
@@ -51,6 +54,7 @@ def _database_config() -> DatabaseConfig:
             "Alembic requires an explicit DatabaseConfig in config.attributes['database']."
         )
     return database
+
 
 ###############################################################################
 def run_migrations_offline() -> None:
@@ -73,11 +77,13 @@ def run_migrations_offline() -> None:
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def _run_online(connection: Connection) -> None:
     _configure(connection)
     with context.begin_transaction():
         context.run_migrations()
+
 
 ###############################################################################
 def run_migrations_online() -> None:

@@ -32,9 +32,9 @@ from server.models.training.scheduler import LinearDecayLRScheduler
 from server.common.utils.logger import logger
 from server.common.utils.security import resolve_checkpoint_path
 
+
 ###############################################################################
 class ModelSerializer:
-
     # -------------------------------------------------------------------------
     def __init__(self, checkpoints_dir: Path, model_name: str = "SCADS") -> None:
         self.model_name = model_name

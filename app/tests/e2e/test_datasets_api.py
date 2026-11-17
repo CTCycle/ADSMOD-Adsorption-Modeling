@@ -12,10 +12,12 @@ from typing import Any
 import pytest
 from playwright.sync_api import APIRequestContext
 
+
 ###############################################################################
 def _read_sample(sample_csv_path: str) -> bytes:
     with open(sample_csv_path, "rb") as handle:
         return handle.read()
+
 
 ###############################################################################
 def _build_mapping(
@@ -62,6 +64,7 @@ def _build_mapping(
     }
     return file_content, mapping
 
+
 ###############################################################################
 def _commit_sample(
     api_context: APIRequestContext,
@@ -96,6 +99,7 @@ def _commit_sample(
     )
     assert commit_response.ok, f"Commit failed: {commit_response.text()}"
     return commit_response.json()["dataset"]
+
 
 ###############################################################################
 class TestDatasetImport:
@@ -142,11 +146,10 @@ class TestDatasetImport:
         listing = api_context.get("/api/v1/datasets")
         assert listing.ok, listing.text()
         matching = [
-            item
-            for item in listing.json()["datasets"]
-            if item["name"] == dataset_name
+            item for item in listing.json()["datasets"] if item["name"] == dataset_name
         ]
         assert matching == [first]
+
 
 ###############################################################################
 class TestDatasetList:
@@ -160,6 +163,7 @@ class TestDatasetList:
         data = response.json()
         assert data["status"] == "success"
         assert isinstance(data["datasets"], list)
+
 
 ###############################################################################
 class TestDatasetExperiments:
@@ -190,6 +194,7 @@ class TestDatasetExperiments:
 
         assert response.status == 404
 
+
 ###############################################################################
 class TestDatasetDeletion:
     """Tests for deletion through the canonical dataset API."""
@@ -210,6 +215,7 @@ class TestDatasetDeletion:
         listing = api_context.get("/api/v1/datasets")
         assert listing.ok
         assert dataset["id"] not in {item["id"] for item in listing.json()["datasets"]}
+
 
 ###############################################################################
 class TestDatasetImportBoundaries:
@@ -286,7 +292,11 @@ class TestDatasetImportBoundaries:
         validation = response.json()
         assert validation["status"] == "invalid"
         issue_codes = {issue["code"] for issue in validation["issues"]}
-        assert {"missing_pressure", "missing_uptake", "missing_temperature"} <= issue_codes
+        assert {
+            "missing_pressure",
+            "missing_uptake",
+            "missing_temperature",
+        } <= issue_codes
         assert {"missing_adsorbate", "missing_adsorbent"} <= issue_codes
 
     # -------------------------------------------------------------------------

@@ -31,6 +31,7 @@ from server.repositories.schemas.types import normalize_identity
 NIST_DATASET_NAME = "NIST ISODB"
 NIST_ISOTHERM_URL = "https://adsorption.nist.gov/isodb/api/isotherm/{}.json"
 
+
 ###############################################################################
 class NISTRepository:
     """Own canonical NIST persistence and query operations."""
@@ -67,7 +68,9 @@ class NISTRepository:
             values = session.scalars(
                 select(SourceRecord.external_id)
                 .join(DataSource, DataSource.id == SourceRecord.source_id)
-                .where(DataSource.key == "nist", SourceRecord.record_type == record_type)
+                .where(
+                    DataSource.key == "nist", SourceRecord.record_type == record_type
+                )
             )
             return {str(value).casefold() for value in values}
 
@@ -165,7 +168,11 @@ class NISTRepository:
                 .join(Observation, Observation.isotherm_id == Isotherm.id)
                 .join(Adsorbate, Adsorbate.id == Observation.adsorbate_id)
                 .where(Dataset.source == "nist", Observation.branch == "adsorption")
-                .order_by(Isotherm.id, Observation.adsorbate_id, Observation.pressure_canonical)
+                .order_by(
+                    Isotherm.id,
+                    Observation.adsorbate_id,
+                    Observation.pressure_canonical,
+                )
             ).mappings()
             guests = session.scalars(
                 select(Adsorbate)
@@ -279,7 +286,9 @@ class NISTRepository:
     # -------------------------------------------------------------------------
     def edited_experiment_ids(self) -> set[str]:
         dataset_id = self.nist_dataset_id()
-        return set() if dataset_id is None else self.edits.edited_external_keys(dataset_id)
+        return (
+            set() if dataset_id is None else self.edits.edited_external_keys(dataset_id)
+        )
 
     # -------------------------------------------------------------------------
     def edited_experiment_count(self) -> int:

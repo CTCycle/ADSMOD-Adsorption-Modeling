@@ -16,9 +16,9 @@ from server.common.utils.logger import logger
 
 # [CUSTOM DATASET FOR TORCH DATALOADERS]
 
+
 ###############################################################################
 class TorchDictDataset(Dataset):
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -47,9 +47,9 @@ class TorchDictDataset(Dataset):
 
 # [CUSTOM DATA GENERATOR FOR TRAINING]
 
+
 ###############################################################################
 class DataLoaderProcessor:
-
     # -------------------------------------------------------------------------
     def __init__(self, configuration: dict[str, Any], metadata: dict) -> None:
         self.normalization_config = metadata.get("normalization_stats", {})
@@ -190,9 +190,9 @@ class DataLoaderProcessor:
             padded[idx, :length] = array[:length]
         return padded.tolist()
 
+
 ###############################################################################
 class SCADSDataLoader:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -313,9 +313,9 @@ class SCADSDataLoader:
 
         return DataLoader(dataset, **loader_settings)
 
+
 ###############################################################################
 class SCADSAtomicDataLoader:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,

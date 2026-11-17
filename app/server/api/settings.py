@@ -21,9 +21,7 @@ from server.configurations.settings import (
 from server.configurations.store import ApplicationSettingsStore
 from server.configurations.settings import AdsmodConfig
 
-RESTART_REQUIRED_FIELDS = (
-    "public_data.sync_resume_on_startup",
-)
+RESTART_REQUIRED_FIELDS = ("public_data.sync_resume_on_startup",)
 
 
 ###############################################################################
@@ -49,7 +47,9 @@ class SettingsUpdateRequest(UserSettings):
         }
         for section, model in section_models.items():
             raw_section = value.get(section)
-            if not isinstance(raw_section, dict) or set(raw_section) != set(model.model_fields):
+            if not isinstance(raw_section, dict) or set(raw_section) != set(
+                model.model_fields
+            ):
                 raise ValueError(f"A complete {section} settings section is required.")
         return value
 
@@ -82,7 +82,10 @@ def _response(request: Request, current: UserSettings) -> dict[str, Any]:
     runtime = request.app.state.runtime
     startup_settings = runtime.startup_settings
     restart_fields = []
-    if current.public_data.sync_resume_on_startup != startup_settings.public_data.sync_resume_on_startup:
+    if (
+        current.public_data.sync_resume_on_startup
+        != startup_settings.public_data.sync_resume_on_startup
+    ):
         restart_fields.append("public_data.sync_resume_on_startup")
     return {
         "status": "success",
@@ -140,7 +143,9 @@ def get_settings(request: Request) -> dict[str, Any]:
     try:
         return _response(request, _current_settings(request))
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(status_code=503, detail="Settings are unavailable.") from exc
+        raise HTTPException(
+            status_code=503, detail="Settings are unavailable."
+        ) from exc
 
 
 ###############################################################################
@@ -181,8 +186,12 @@ async def reset_settings(request: Request) -> dict[str, Any]:
 ###############################################################################
 def create_settings_router() -> APIRouter:
     router = APIRouter(prefix="/settings", tags=["settings"])
-    router.add_api_route("", get_settings, methods=["GET"], response_model=SettingsResponse)
-    router.add_api_route("", update_settings, methods=["PUT"], response_model=SettingsResponse)
+    router.add_api_route(
+        "", get_settings, methods=["GET"], response_model=SettingsResponse
+    )
+    router.add_api_route(
+        "", update_settings, methods=["PUT"], response_model=SettingsResponse
+    )
     router.add_api_route(
         "/reset", reset_settings, methods=["POST"], response_model=SettingsResponse
     )

@@ -33,9 +33,9 @@ if TYPE_CHECKING:
     from server.services.ml_lazy import LazyMlContainer
     from server.services.training import TrainingService
 
+
 ###############################################################################
 class TrainingEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: TrainingService) -> None:
         self.router = router
@@ -381,6 +381,7 @@ class TrainingEndpoint:
             response_model=TrainingStatusResponse,
             status_code=status.HTTP_200_OK,
         )
+
 
 ###############################################################################
 def create_training_router(container: LazyMlContainer) -> APIRouter:

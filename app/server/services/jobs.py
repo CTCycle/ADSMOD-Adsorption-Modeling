@@ -22,9 +22,9 @@ from typing import Any
 from server.common.utils.encoding import normalize_error_text
 from server.common.utils.logger import logger as shared_logger
 
+
 ###############################################################################
 class _JobState:
-
     # -------------------------------------------------------------------------
     def __init__(self, job_id: str, job_type: str, status: str) -> None:
         self.job_id = job_id
@@ -63,9 +63,9 @@ class _JobState:
                 "completed_at_utc": self.completed_at_utc,
             }
 
+
 ###############################################################################
 class _JobExecutionConfig:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -82,9 +82,9 @@ class _JobExecutionConfig:
         self.process_message_handler = process_message_handler
         self.completion_handler = completion_handler
 
+
 ###############################################################################
 class _ProcessJobState:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -99,6 +99,7 @@ class _ProcessJobState:
         self.result_queue = result_queue
         self.message_queue = message_queue
         self.created_at = monotonic()
+
 
 ###############################################################################
 def run_process_runner(
@@ -134,6 +135,7 @@ def run_process_runner(
             message_queue.put_nowait({"type": "error", "error": error_msg})
         except Exception:
             pass
+
 
 ###############################################################################
 class JobManager:
@@ -203,7 +205,9 @@ class JobManager:
                 self._logger.warning("Failed to stop process during shutdown: %s", exc)
 
     # -------------------------------------------------------------------------
-    def _force_terminate_processes(self, process_states: list[_ProcessJobState]) -> None:
+    def _force_terminate_processes(
+        self, process_states: list[_ProcessJobState]
+    ) -> None:
         for process_state in process_states:
             try:
                 if process_state.process.is_alive():
@@ -761,6 +765,7 @@ class JobManager:
                 self.job_configs.pop(job_id, None)
                 self.thread_stop_events.pop(job_id, None)
                 self.threads.pop(job_id, None)
+
 
 ###############################################################################
 def format_error_message(exc: Exception) -> str:

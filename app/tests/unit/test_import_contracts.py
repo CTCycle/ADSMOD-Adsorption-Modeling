@@ -86,7 +86,8 @@ def _wide_species_mapping(engine: AdsorptionImportEngine, payload: bytes):
         structure="atomic",
         column_roles={
             column.name: "ignore"
-            if column.name in {item.uptake_column for item in preview.proposed_species_columns}
+            if column.name
+            in {item.uptake_column for item in preview.proposed_species_columns}
             else column.proposed_role
             for column in preview.columns
         },
@@ -109,7 +110,10 @@ def test_wide_species_columns_become_one_multi_species_experiment() -> None:
     preview, mapping = _wide_species_mapping(engine, payload)
     bundle = engine.validate(payload, "mixture.csv", mapping)
 
-    assert [item.adsorbate for item in preview.proposed_species_columns] == ["CO2", "N2"]
+    assert [item.adsorbate for item in preview.proposed_species_columns] == [
+        "CO2",
+        "N2",
+    ]
     assert bundle.response.status == "valid"
     assert bundle.response.experiment_count == 1
     assert bundle.response.experiments[0].adsorbates == ["CO2", "N2"]
@@ -193,7 +197,9 @@ def test_wide_species_columns_with_different_units_are_rejected() -> None:
     bundle = engine.validate(payload, "mixture.csv", mapping)
 
     assert bundle.response.status == "invalid"
-    assert any(issue.code == "species_unit_mismatch" for issue in bundle.response.issues)
+    assert any(
+        issue.code == "species_unit_mismatch" for issue in bundle.response.issues
+    )
 
 
 ###############################################################################
@@ -304,7 +310,9 @@ UNIT_PAYLOAD = b"experiment_id,Pressure [bar],Uptake [mmol/g],Temperature [K],Ad
 ###############################################################################
 def test_unknown_unit_override_gives_one_upfront_error_not_one_per_row() -> None:
     engine = AdsorptionImportEngine()
-    mapping = _atomic_mapping(engine, UNIT_PAYLOAD, unit_overrides={"uptake": "furlong"})
+    mapping = _atomic_mapping(
+        engine, UNIT_PAYLOAD, unit_overrides={"uptake": "furlong"}
+    )
 
     issues = engine.validate(UNIT_PAYLOAD, "sample.csv", mapping).response.issues
 
@@ -337,7 +345,11 @@ def test_custom_unit_with_factor_and_override_warning() -> None:
         UNIT_PAYLOAD,
         unit_overrides={"pressure": "cmHg"},
         unit_definitions=[
-            {"quantity": "pressure", "symbol": "cmHg", "factor_to_canonical": 1333.22387415}
+            {
+                "quantity": "pressure",
+                "symbol": "cmHg",
+                "factor_to_canonical": 1333.22387415,
+            }
         ],
     )
 

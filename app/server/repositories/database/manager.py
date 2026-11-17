@@ -22,10 +22,12 @@ from server.common.utils.logger import logger
 from server.repositories.database.utils import normalize_postgres_engine
 from server.repositories.database.sqlite_lock import sqlite_write_lock
 
+
 ###############################################################################
 def _expand_path(value: str) -> Path:
     expanded = os.path.expandvars(os.path.expanduser(value))
     return Path(expanded)
+
 
 ###############################################################################
 def resolve_sqlite_path(
@@ -46,6 +48,7 @@ def resolve_sqlite_path(
     base = storage_root.resolve() if storage_root is not None else Path.cwd().resolve()
     return (base / configured_path).resolve()
 
+
 ###############################################################################
 class _LeasedSession(Session):
     _release_lease: Any | None = None
@@ -63,7 +66,6 @@ class _LeasedSession(Session):
 
 ###############################################################################
 class _SessionFactory:
-
     # -------------------------------------------------------------------------
     def __init__(self, manager: "DatabaseManager") -> None:
         self.manager = manager
@@ -91,6 +93,7 @@ class DatabaseSnapshot:
     backend: str
     transaction_lock: Any
     engine: Engine
+
 
 ###############################################################################
 class DatabaseManager:
@@ -173,7 +176,9 @@ class DatabaseManager:
         )
         with self._lease_condition:
             if self._accepting_sessions:
-                raise RuntimeError("Database session admission must be closed before switching.")
+                raise RuntimeError(
+                    "Database session admission must be closed before switching."
+                )
             self.database = candidate.database
             self.backend = candidate.backend
             self._transaction_lock = candidate._transaction_lock
@@ -188,7 +193,9 @@ class DatabaseManager:
         """Restore the old connection after a failed runtime activation."""
         with self._lease_condition:
             if self._accepting_sessions or self._active_sessions:
-                raise RuntimeError("Database session admission must be closed and idle for rollback.")
+                raise RuntimeError(
+                    "Database session admission must be closed and idle for rollback."
+                )
             failed_engine = self.engine
             self.database = snapshot.database
             self.backend = snapshot.backend

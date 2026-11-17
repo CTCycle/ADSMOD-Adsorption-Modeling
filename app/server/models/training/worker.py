@@ -14,9 +14,9 @@ import time
 
 from server.common.utils.logger import logger
 
+
 ###############################################################################
 class WorkerChannels:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -53,9 +53,9 @@ class WorkerChannels:
         except Exception as exc:  # noqa: BLE001
             logger.debug("Failed to send worker message: %s", exc)
 
+
 ###############################################################################
 class ProcessWorker:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -121,7 +121,7 @@ class ProcessWorker:
             message = self.progress_queue.get(timeout=timeout)
         except queue.Empty:
             return None
-        except (EOFError, OSError):
+        except EOFError, OSError:
             return None
         if isinstance(message, dict):
             return message
@@ -134,7 +134,7 @@ class ProcessWorker:
                 self.progress_queue.get_nowait()
             except queue.Empty:
                 return
-            except (EOFError, OSError):
+            except EOFError, OSError:
                 return
 
     # -------------------------------------------------------------------------
@@ -143,7 +143,7 @@ class ProcessWorker:
             payload = self.result_queue.get_nowait()
         except queue.Empty:
             return None
-        except (EOFError, OSError):
+        except EOFError, OSError:
             return None
         if isinstance(payload, dict):
             return payload
@@ -191,6 +191,7 @@ class ProcessWorker:
         if self.process is None:
             return None
         return self.process.exitcode
+
 
 ###############################################################################
 def process_target(

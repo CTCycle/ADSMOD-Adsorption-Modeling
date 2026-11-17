@@ -12,6 +12,7 @@ from server.common.utils.encoding import sanitize_dataframe_strings
 from server.services.data.conversion import PressureConversion, UptakeConversion
 from server.services.data.sanitizer import AggregateDatasets, DataSanitizer
 
+
 ###############################################################################
 def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
     frame = pd.DataFrame({"name": ["zeolite\u200b-a", "na\u00a0y"]}).astype("string")
@@ -22,6 +23,7 @@ def test_sanitize_dataframe_strings_handles_pandas_string_dtype() -> None:
     assert sanitized.loc[0, "name"] == "zeolite-a"
     assert sanitized.loc[1, "name"] == "na y"
 
+
 ###############################################################################
 def test_pressure_conversion_returns_frame_without_unit_column() -> None:
     converter = PressureConversion()
@@ -31,6 +33,7 @@ def test_pressure_conversion_returns_frame_without_unit_column() -> None:
 
     assert "pressure_units" not in converted.columns
     assert converted.loc[0, "pressure"] == 100000.0
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -43,6 +46,7 @@ def test_pressure_conversion_uses_canonical_registry(unit: str) -> None:
     converted = PressureConversion().convert_pressure_units(frame)
 
     assert converted.loc[0, "pressure"] == 2.0 * UnitRegistry.PRESSURE_TO_PA[resolved]
+
 
 ###############################################################################
 @pytest.mark.parametrize(
@@ -76,6 +80,7 @@ def test_uptake_conversion_uses_canonical_registry(unit: str) -> None:
     assert converted.loc[0, "adsorbed_amount"] == pytest.approx(expected)
     assert "adsorption_units" not in converted.columns
 
+
 ###############################################################################
 def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
     sanitizer = DataSanitizer({"max_pressure": 10, "max_uptake": 20})
@@ -93,6 +98,7 @@ def test_exclude_oob_values_uses_copy_safe_assignment() -> None:
     assert filtered.iloc[0]["pressure"] == [0.0]
     assert filtered.iloc[0]["adsorbed_amount"] == [1.0]
     assert frame.loc[0, "pressure"] == [0.0, 12_000_000.0, 5.0]
+
 
 ###############################################################################
 def test_aggregate_preserves_uploaded_adsorbate_features() -> None:
@@ -115,6 +121,7 @@ def test_aggregate_preserves_uploaded_adsorbate_features() -> None:
 
     assert aggregated.loc[0, "adsorbate_SMILE"] == "O=C=O"
     assert aggregated.loc[0, "adsorbate_molecular_weight"] == 44.01
+
 
 ###############################################################################
 def test_aggregate_excludes_multi_adsorbate_experiments() -> None:

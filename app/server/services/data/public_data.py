@@ -90,14 +90,18 @@ class PublicDataService:
     def list_sources(self) -> PublicSourceListResponse:
         persisted = {row["key"]: row for row in self.repository.source_rows()}
         items: list[PublicSourceSummary] = []
-        for key, provider in sorted(self.providers.items(), key=lambda item: item[1].name):
+        for key, provider in sorted(
+            self.providers.items(), key=lambda item: item[1].name
+        ):
             row = persisted.get(key, {})
             items.append(
                 PublicSourceSummary(
                     key=key,
                     name=provider.name,
                     description=provider.description,
-                    capabilities=[capability.value for capability in provider.capabilities],
+                    capabilities=[
+                        capability.value for capability in provider.capabilities
+                    ],
                     homepage_url=provider.homepage_url,
                     license_name=provider.license_name,
                     license_url=provider.license_url,
@@ -124,7 +128,9 @@ class PublicDataService:
 
     # -------------------------------------------------------------------------
     def get_overview(self) -> PublicDataOverviewResponse:
-        return PublicDataOverviewResponse.model_validate(self.repository.overview_counts())
+        return PublicDataOverviewResponse.model_validate(
+            self.repository.overview_counts()
+        )
 
     # -------------------------------------------------------------------------
     async def resolve_pubchem(
@@ -349,18 +355,27 @@ class PublicDataService:
         exact = [row for row in rows if _cod_row_matches(row, key)]
         if not exact:
             candidates = ", ".join(str(row["cod_id"]) for row in rows[:5])
-            return None, False, (
-                f"Ambiguous: {len(rows)} COD candidates, no exact name match "
-                f"(e.g. {candidates}); choose one manually."
+            return (
+                None,
+                False,
+                (
+                    f"Ambiguous: {len(rows)} COD candidates, no exact name match "
+                    f"(e.g. {candidates}); choose one manually."
+                ),
             )
         suitable = [row for row in exact if row.get("has_coordinates")] or exact
         if len(suitable) != 1:
             candidates = ", ".join(
-                str(row["cod_id"]) for row in sorted(suitable, key=lambda r: int(r["cod_id"]))
+                str(row["cod_id"])
+                for row in sorted(suitable, key=lambda r: int(r["cod_id"]))
             )
-            return None, False, (
-                f"Ambiguous: {len(suitable)} COD entries match the name exactly "
-                f"({candidates}); choose one manually."
+            return (
+                None,
+                False,
+                (
+                    f"Ambiguous: {len(suitable)} COD entries match the name exactly "
+                    f"({candidates}); choose one manually."
+                ),
             )
         selected = suitable[0]
         # The search row already carries the metadata, so the import need not

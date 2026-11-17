@@ -131,28 +131,46 @@ class DeepLearningManager:
     # -------------------------------------------------------------------------
     def _nvidia(self) -> _NvidiaInfo:
         now = time.monotonic()
-        if self._nvidia_cache is not None and now - self._nvidia_cache[0] < CHECK_INTERVAL_SECONDS:
+        if (
+            self._nvidia_cache is not None
+            and now - self._nvidia_cache[0] < CHECK_INTERVAL_SECONDS
+        ):
             return self._nvidia_cache[1]
         info = _NvidiaInfo()
         executable = shutil.which("nvidia-smi")
         if executable is not None:
             try:
                 query = subprocess.run(  # noqa: S603
-                    [executable, "--query-gpu=name,driver_version", "--format=csv,noheader"],
-                    capture_output=True, text=True, timeout=15, check=False,
+                    [
+                        executable,
+                        "--query-gpu=name,driver_version",
+                        "--format=csv,noheader",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=False,
                 )
                 for line in query.stdout.splitlines():
                     name, _, driver = line.partition(",")
                     if name.strip():
                         info.gpu_names.append(name.strip())
-                        info.driver_version = info.driver_version or driver.strip() or None
+                        info.driver_version = (
+                            info.driver_version or driver.strip() or None
+                        )
                 summary = subprocess.run(  # noqa: S603
-                    [executable], capture_output=True, text=True, timeout=15, check=False
+                    [executable],
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                    check=False,
                 )
                 match = re.search(r"CUDA (?:UMD )?Version:\s*([\d.]+)", summary.stdout)
                 info.cuda_level = match.group(1) if match else None
-            except (OSError, subprocess.SubprocessError):
-                logger.warning("nvidia-smi could not be queried for deep learning diagnostics.")
+            except OSError, subprocess.SubprocessError:
+                logger.warning(
+                    "nvidia-smi could not be queried for deep learning diagnostics."
+                )
         self._nvidia_cache = (now, info)
         return info
 
@@ -182,10 +200,17 @@ class DeepLearningManager:
             self._fingerprint = fingerprint
             self._probe = _Probe()
         complete = len(fingerprint) == len(DEEP_LEARNING_PACKAGES)
-        if complete and not self._probe.running and self._probe.fingerprint != fingerprint:
+        if (
+            complete
+            and not self._probe.running
+            and self._probe.fingerprint != fingerprint
+        ):
             self._probe = _Probe(fingerprint=fingerprint, running=True)
             threading.Thread(
-                target=self._run_probe, args=(fingerprint,), name="adsmod-dl-probe", daemon=True
+                target=self._run_probe,
+                args=(fingerprint,),
+                name="adsmod-dl-probe",
+                daemon=True,
             ).start()
 
     # -------------------------------------------------------------------------
@@ -207,7 +232,9 @@ class DeepLearningManager:
     # Persisted lifecycle state
     ###########################################################################
     def _read_state(self) -> dict[str, Any]:
-        return runner.read_json(self.state_path) or {"schema_version": STATE_SCHEMA_VERSION}
+        return runner.read_json(self.state_path) or {
+            "schema_version": STATE_SCHEMA_VERSION
+        }
 
     # -------------------------------------------------------------------------
     @staticmethod
@@ -218,10 +245,12 @@ class DeepLearningManager:
             return time.time() - float(started) < SPAWN_GRACE_SECONDS
         try:
             process = psutil.Process(int(pid))
-            return abs(process.create_time() - float(operation.get("pid_started", 0))) < 2.0 and (
+            return abs(
+                process.create_time() - float(operation.get("pid_started", 0))
+            ) < 2.0 and (
                 process.is_running() and process.status() != psutil.STATUS_ZOMBIE
             )
-        except (psutil.Error, ValueError):
+        except psutil.Error, ValueError:
             return False
 
     # -------------------------------------------------------------------------
@@ -251,7 +280,10 @@ class DeepLearningManager:
     ###########################################################################
     @staticmethod
     def platform_supported() -> bool:
-        return sys.platform == "win32" and platform.machine().upper() in {"AMD64", "X86_64"}
+        return sys.platform == "win32" and platform.machine().upper() in {
+            "AMD64",
+            "X86_64",
+        }
 
     # -------------------------------------------------------------------------
     def status(self) -> DeepLearningStatusResponse:
@@ -263,15 +295,25 @@ class DeepLearningManager:
         name, reason = self._derive(operation, fingerprint, probe)
         result = probe.result or {}
         nvidia = self._nvidia()
-        warnings = list(operation.get("warnings", [])) if operation and name == "installed" else []
-        if name == "installed" and not result.get("cuda_available") and nvidia.gpu_names:
+        warnings = (
+            list(operation.get("warnings", []))
+            if operation and name == "installed"
+            else []
+        )
+        if (
+            name == "installed"
+            and not result.get("cuda_available")
+            and nvidia.gpu_names
+        ):
             message = (
                 "An NVIDIA GPU was detected but PyTorch cannot use CUDA; training will run on the CPU. "
                 "Update the NVIDIA driver (ADSMOD never changes drivers)."
             )
             if message not in warnings:
                 warnings.append(message)
-        versions = result.get("versions") or {key: value[0] for key, value in fingerprint.items()}
+        versions = result.get("versions") or {
+            key: value[0] for key, value in fingerprint.items()
+        }
         environment = DeepLearningEnvironment(
             python_version=platform.python_version(),
             platform=f"{sys.platform}/{platform.machine()}",
@@ -292,7 +334,9 @@ class DeepLearningManager:
             warnings=warnings,
             environment=environment,
             operation=self._operation_model(operation),
-            last_validated_at=probe.completed_at if probe.result and probe.result.get("ok") else None,
+            last_validated_at=probe.completed_at
+            if probe.result and probe.result.get("ok")
+            else None,
             log_path=str(self.log_path),
         )
 
@@ -305,12 +349,19 @@ class DeepLearningManager:
     ) -> tuple[DeepLearningStatusName, str | None]:
         if operation and operation.get("status") == "running":
             return "installing", f"The {operation.get('kind')} operation is running."
-        failure = operation.get("error") if operation and operation.get("status") == "failed" else None
+        failure = (
+            operation.get("error")
+            if operation and operation.get("status") == "failed"
+            else None
+        )
         failed_kind = operation.get("kind") if failure else None
         missing = [name for name in DEEP_LEARNING_PACKAGES if name not in fingerprint]
         if len(missing) == len(DEEP_LEARNING_PACKAGES):
             if not self.platform_supported():
-                return "incompatible", "Deep learning packages are only available for Windows x64."
+                return (
+                    "incompatible",
+                    "Deep learning packages are only available for Windows x64.",
+                )
             if failure and failed_kind != "uninstall":
                 return "failed", str(failure.get("summary"))
             return "not_installed", None
@@ -319,12 +370,16 @@ class DeepLearningManager:
         if probe.result is None:
             return "verifying", "Verifying the installed packages."
         if not probe.result.get("ok"):
-            return "failed", str(probe.result.get("error") or "The import check failed.")
+            return "failed", str(
+                probe.result.get("error") or "The import check failed."
+            )
         return "installed", None
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _operation_model(operation: dict[str, Any] | None) -> DeepLearningOperation | None:
+    def _operation_model(
+        operation: dict[str, Any] | None,
+    ) -> DeepLearningOperation | None:
         if operation is None:
             return None
         error = operation.get("error")
@@ -364,7 +419,11 @@ class DeepLearningManager:
     # -------------------------------------------------------------------------
     def _installation_type(self) -> str:
         state = runner.read_json(self.venv_dir / ".adsmod-dependency-state.json") or {}
-        return "Development" if state.get("installationType") == "Development" else "Standard"
+        return (
+            "Development"
+            if state.get("installationType") == "Development"
+            else "Standard"
+        )
 
     # -------------------------------------------------------------------------
     def _installed_names(self) -> set[str]:
@@ -377,20 +436,40 @@ class DeepLearningManager:
     # -------------------------------------------------------------------------
     def _dry_run_install(self, uv: str) -> list[str]:
         command = [
-            uv, "sync", "--locked", "--inexact", "--dry-run", "--extra", runner.EXTRA_NAME,
-            "--python", str(Path(sys.base_prefix) / "python.exe"),
-            *(["--group", "dev"] if self._installation_type() == "Development" else ["--no-dev"]),
+            uv,
+            "sync",
+            "--locked",
+            "--inexact",
+            "--dry-run",
+            "--extra",
+            runner.EXTRA_NAME,
+            "--python",
+            str(Path(sys.base_prefix) / "python.exe"),
+            *(
+                ["--group", "dev"]
+                if self._installation_type() == "Development"
+                else ["--no-dev"]
+            ),
         ]
         environment = {**os.environ, "UV_PROJECT_ENVIRONMENT": str(self.venv_dir)}
         completed = subprocess.run(  # noqa: S603
-            command, cwd=self.project_dir, env=environment, capture_output=True, text=True,
-            timeout=120, check=False,
+            command,
+            cwd=self.project_dir,
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
         )
         if completed.returncode != 0:
             raise RuntimeError(completed.stderr.strip() or "uv dry run failed")
         return [
             runner.normalize(match.group(1))
-            for match in re.finditer(r"^\s*\+\s+([A-Za-z0-9_.\-]+)==", completed.stdout + completed.stderr, re.M)
+            for match in re.finditer(
+                r"^\s*\+\s+([A-Za-z0-9_.\-]+)==",
+                completed.stdout + completed.stderr,
+                re.M,
+            )
         ]
 
     # -------------------------------------------------------------------------
@@ -421,7 +500,7 @@ class DeepLearningManager:
             with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310
                 length = response.headers.get("Content-Length")
             return int(length) if length else None
-        except (urllib.error.URLError, OSError, ValueError):
+        except urllib.error.URLError, OSError, ValueError:
             return None
 
     # -------------------------------------------------------------------------
@@ -432,47 +511,110 @@ class DeepLearningManager:
         def add(name: str, status: str, detail: str) -> None:
             checks.append(DeepLearningCheck(name=name, status=status, detail=detail))  # type: ignore[arg-type]
 
-        add("Python", "ok", f"CPython {platform.python_version()} in the project virtual environment.")
-        add("Platform", "ok" if self.platform_supported() else "blocked",
-            f"{sys.platform}/{platform.machine()}" + ("" if self.platform_supported() else " is not supported; Windows x64 is required."))
+        add(
+            "Python",
+            "ok",
+            f"CPython {platform.python_version()} in the project virtual environment.",
+        )
+        add(
+            "Platform",
+            "ok" if self.platform_supported() else "blocked",
+            f"{sys.platform}/{platform.machine()}"
+            + (
+                ""
+                if self.platform_supported()
+                else " is not supported; Windows x64 is required."
+            ),
+        )
         uv = self._uv_executable()
-        add("Package manager", "ok" if uv else "blocked", "uv is available." if uv else "uv was not found; run the launcher setup first.")
-        add("Lock file", "ok" if self.lock_path.is_file() else "blocked", "Locked dependency set found." if self.lock_path.is_file() else "uv.lock is missing.")
+        add(
+            "Package manager",
+            "ok" if uv else "blocked",
+            "uv is available."
+            if uv
+            else "uv was not found; run the launcher setup first.",
+        )
+        add(
+            "Lock file",
+            "ok" if self.lock_path.is_file() else "blocked",
+            "Locked dependency set found."
+            if self.lock_path.is_file()
+            else "uv.lock is missing.",
+        )
         valid_states = {
             "install": {"not_installed", "failed"},
             "uninstall": {"installed", "failed"},
             "repair": {"installed", "failed"},
         }
         if current.status not in valid_states[action]:
-            add("State", "blocked", f"'{action}' is not available while the status is '{current.status}'.")
+            add(
+                "State",
+                "blocked",
+                f"'{action}' is not available while the status is '{current.status}'.",
+            )
         else:
             add("State", "ok", f"Status is '{current.status}'.")
         busy = self.is_busy()
-        add("Running jobs", "blocked" if busy else "ok",
-            "Wait for active jobs to finish." if busy else "No jobs are running.")
+        add(
+            "Running jobs",
+            "blocked" if busy else "ok",
+            "Wait for active jobs to finish." if busy else "No jobs are running.",
+        )
         if action != "uninstall":
             free = shutil.disk_usage(self.venv_dir).free
-            add("Disk space", "ok" if free >= MIN_FREE_BYTES else "blocked",
-                f"{free / 1024**3:.1f} GB free; about {MIN_FREE_BYTES // 1024**3} GB required.")
+            add(
+                "Disk space",
+                "ok" if free >= MIN_FREE_BYTES else "blocked",
+                f"{free / 1024**3:.1f} GB free; about {MIN_FREE_BYTES // 1024**3} GB required.",
+            )
             nvidia = self._nvidia()
             if not nvidia.gpu_names:
-                add("GPU", "warning", "No NVIDIA GPU detected; training will run on the CPU.")
+                add(
+                    "GPU",
+                    "warning",
+                    "No NVIDIA GPU detected; training will run on the CPU.",
+                )
             else:
-                level = tuple(int(part) for part in (nvidia.cuda_level or "0").split(".")[:2] if part.isdigit())
+                level = tuple(
+                    int(part)
+                    for part in (nvidia.cuda_level or "0").split(".")[:2]
+                    if part.isdigit()
+                )
                 if level < MIN_DRIVER_CUDA:
-                    add("GPU", "warning",
+                    add(
+                        "GPU",
+                        "warning",
                         f"{nvidia.gpu_names[0]}: driver supports CUDA {nvidia.cuda_level or 'unknown'}, "
-                        "13.0 is required for GPU training. Update the NVIDIA driver (ADSMOD never changes drivers); CPU training still works.")
+                        "13.0 is required for GPU training. Update the NVIDIA driver (ADSMOD never changes drivers); CPU training still works.",
+                    )
                 else:
-                    add("GPU", "ok", f"{nvidia.gpu_names[0]}, driver {nvidia.driver_version}, CUDA {nvidia.cuda_level}. "
-                        "GPU use is confirmed by PyTorch after installation.")
-        exclusive = runner.exclusive_packages(self.lock_path, include_dev=self._installation_type() == "Development") if self.lock_path.is_file() else set()
+                    add(
+                        "GPU",
+                        "ok",
+                        f"{nvidia.gpu_names[0]}, driver {nvidia.driver_version}, CUDA {nvidia.cuda_level}. "
+                        "GPU use is confirmed by PyTorch after installation.",
+                    )
+        exclusive = (
+            runner.exclusive_packages(
+                self.lock_path, include_dev=self._installation_type() == "Development"
+            )
+            if self.lock_path.is_file()
+            else set()
+        )
         installed = self._installed_names()
-        if action == "install" and uv and not any(check.status == "blocked" for check in checks):
+        if (
+            action == "install"
+            and uv
+            and not any(check.status == "blocked" for check in checks)
+        ):
             try:
                 packages = sorted(set(self._dry_run_install(uv)) & exclusive)
             except (RuntimeError, subprocess.SubprocessError, OSError) as exc:
-                add("Dependency plan", "blocked", f"The dependency plan could not be computed: {exc}")
+                add(
+                    "Dependency plan",
+                    "blocked",
+                    f"The dependency plan could not be computed: {exc}",
+                )
                 packages = []
         else:
             packages = sorted(exclusive & installed)
@@ -481,8 +623,12 @@ class DeepLearningManager:
             size, estimated = self._download_size(packages)
         allowed = not any(check.status == "blocked" for check in checks)
         return DeepLearningPlanResponse(
-            action=action, allowed=allowed, checks=checks, packages=packages,
-            download_bytes=size, download_estimated=estimated,
+            action=action,
+            allowed=allowed,
+            checks=checks,
+            packages=packages,
+            download_bytes=size,
+            download_estimated=estimated,
         )
 
     ###########################################################################
@@ -494,13 +640,27 @@ class DeepLearningManager:
         health = f"{self.config.runtime.backend_url}/health/ready"
         if launcher and Path(launcher).is_file() and pwsh:
             return {
-                "command": [pwsh, "-NoLogo", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                            "-File", launcher, "-Launch", "-NoBrowser"],
-                "cwd": str(REPOSITORY_ROOT), "new_console": True, "health_url": health, "env": {},
+                "command": [
+                    pwsh,
+                    "-NoLogo",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    launcher,
+                    "-Launch",
+                    "-NoBrowser",
+                ],
+                "cwd": str(REPOSITORY_ROOT),
+                "new_console": True,
+                "health_url": health,
+                "env": {},
             }
         return {
             "command": [sys.executable, "-m", "server.cli"],
-            "cwd": str(REPOSITORY_ROOT), "new_console": False, "health_url": health,
+            "cwd": str(REPOSITORY_ROOT),
+            "new_console": False,
+            "health_url": health,
             "env": {"PYTHONPATH": str(REPOSITORY_ROOT / "app")},
         }
 
@@ -509,48 +669,85 @@ class DeepLearningManager:
         """Validate, persist and spawn the detached worker; return the operation id."""
         plan = self.plan(action)
         if not plan.allowed:
-            blocked = "; ".join(f"{check.name}: {check.detail}" for check in plan.checks if check.status == "blocked")
+            blocked = "; ".join(
+                f"{check.name}: {check.detail}"
+                for check in plan.checks
+                if check.status == "blocked"
+            )
             raise DeepLearningOperationError(409, blocked)
         with self._lock:
             current = self._operation()
             if current and current.get("status") == "running":
-                raise DeepLearningOperationError(409, "Another deep learning operation is already running.")
+                raise DeepLearningOperationError(
+                    409, "Another deep learning operation is already running."
+                )
             uv = self._uv_executable()
             assert uv is not None
             operation_id = uuid.uuid4().hex[:12]
             now = time.time()
             self.directory.mkdir(parents=True, exist_ok=True)
-            self.log_path.write_text(f"{runner.utc_now()} {action} requested ({operation_id})\n", encoding="utf-8")
+            self.log_path.write_text(
+                f"{runner.utc_now()} {action} requested ({operation_id})\n",
+                encoding="utf-8",
+            )
             worker_plan = {
-                "operation_id": operation_id, "kind": action, "backend_pid": os.getpid(),
-                "venv_dir": str(self.venv_dir), "project_dir": str(self.project_dir),
-                "repo_root": str(REPOSITORY_ROOT), "uv_exe": uv,
+                "operation_id": operation_id,
+                "kind": action,
+                "backend_pid": os.getpid(),
+                "venv_dir": str(self.venv_dir),
+                "project_dir": str(self.project_dir),
+                "repo_root": str(REPOSITORY_ROOT),
+                "uv_exe": uv,
                 "python_exe": str(Path(sys.base_prefix) / "python.exe"),
-                "state_file": str(self.state_path), "log_file": str(self.log_path),
+                "state_file": str(self.state_path),
+                "log_file": str(self.log_path),
                 "restart": self._restart_spec(),
             }
             runner.write_json_atomic(self.plan_path, worker_plan)
-            runner.write_json_atomic(self.state_path, {
-                "schema_version": STATE_SCHEMA_VERSION,
-                "operation": {
-                    "id": operation_id, "kind": action, "status": "running", "phase": "starting",
-                    "pid": None, "pid_started": None, "started_at": runner.utc_now(),
-                    "started_at_epoch": now, "finished_at": None, "error": None, "warnings": [],
+            runner.write_json_atomic(
+                self.state_path,
+                {
+                    "schema_version": STATE_SCHEMA_VERSION,
+                    "operation": {
+                        "id": operation_id,
+                        "kind": action,
+                        "status": "running",
+                        "phase": "starting",
+                        "pid": None,
+                        "pid_started": None,
+                        "started_at": runner.utc_now(),
+                        "started_at_epoch": now,
+                        "finished_at": None,
+                        "error": None,
+                        "warnings": [],
+                    },
                 },
-            })
+            )
             try:
                 process = self._spawn_runner()
             except OSError as exc:
-                runner.write_json_atomic(self.state_path, {
-                    "schema_version": STATE_SCHEMA_VERSION,
-                    "operation": {
-                        "id": operation_id, "kind": action, "status": "failed", "phase": "done",
-                        "started_at": runner.utc_now(), "finished_at": runner.utc_now(),
-                        "error": {"code": "spawn_failed", "summary": f"The installer could not be started: {exc}",
-                                  "hint": "Check that the portable Python runtime exists, then retry."},
+                runner.write_json_atomic(
+                    self.state_path,
+                    {
+                        "schema_version": STATE_SCHEMA_VERSION,
+                        "operation": {
+                            "id": operation_id,
+                            "kind": action,
+                            "status": "failed",
+                            "phase": "done",
+                            "started_at": runner.utc_now(),
+                            "finished_at": runner.utc_now(),
+                            "error": {
+                                "code": "spawn_failed",
+                                "summary": f"The installer could not be started: {exc}",
+                                "hint": "Check that the portable Python runtime exists, then retry.",
+                            },
+                        },
                     },
-                })
-                raise DeepLearningOperationError(500, f"The installer could not be started: {exc}") from exc
+                )
+                raise DeepLearningOperationError(
+                    500, f"The installer could not be started: {exc}"
+                ) from exc
             state = self._read_state()
             operation = state["operation"]
             try:
@@ -564,15 +761,29 @@ class DeepLearningManager:
 
     # -------------------------------------------------------------------------
     def _spawn_runner(self) -> subprocess.Popen[bytes]:
-        command = [str(Path(sys.base_prefix) / "python.exe"), "-I", str(RUNNER_PATH), "run", "--plan", str(self.plan_path)]
-        environment = {key: value for key, value in os.environ.items() if key != "PYTHONHOME"}
+        command = [
+            str(Path(sys.base_prefix) / "python.exe"),
+            "-I",
+            str(RUNNER_PATH),
+            "run",
+            "--plan",
+            str(self.plan_path),
+        ]
+        environment = {
+            key: value for key, value in os.environ.items() if key != "PYTHONHOME"
+        }
         base_flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
         with self.log_path.open("ab") as log:
             for flags in (base_flags | CREATE_BREAKAWAY_FROM_JOB, base_flags):
                 try:
                     return subprocess.Popen(  # noqa: S603
-                        command, env=environment, stdin=subprocess.DEVNULL, stdout=log,
-                        stderr=subprocess.STDOUT, creationflags=flags, close_fds=True,
+                        command,
+                        env=environment,
+                        stdin=subprocess.DEVNULL,
+                        stdout=log,
+                        stderr=subprocess.STDOUT,
+                        creationflags=flags,
+                        close_fds=True,
                     )
                 except PermissionError:
                     continue
@@ -581,7 +792,9 @@ class DeepLearningManager:
     # -------------------------------------------------------------------------
     def log_tail(self, lines: int) -> list[str]:
         try:
-            content = self.log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+            content = self.log_path.read_text(
+                encoding="utf-8", errors="replace"
+            ).splitlines()
         except OSError:
             return []
         return content[-lines:]

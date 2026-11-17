@@ -12,6 +12,7 @@ from server.app import create_app
 from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings
 from server.repositories.schemas.models import Dataset
 
+
 ###############################################################################
 def _temporary_config(storage_root: Path):
     return AdsmodConfig.assemble(
@@ -19,6 +20,7 @@ def _temporary_config(storage_root: Path):
         storage_root=storage_root,
         settings=UserSettings(),
     )
+
 
 ###############################################################################
 def test_app_restart_preserves_persisted_dataset(tmp_path: Path) -> None:
@@ -35,9 +37,7 @@ def test_app_restart_preserves_persisted_dataset(tmp_path: Path) -> None:
         database = restarted_client.app.state.core_container.database
         with database.session() as session:
             dataset = session.execute(
-                select(Dataset).where(
-                    Dataset.normalized_name == "restart persistence"
-                )
+                select(Dataset).where(Dataset.normalized_name == "restart persistence")
             ).scalar_one()
 
         assert dataset.name == "Restart persistence"

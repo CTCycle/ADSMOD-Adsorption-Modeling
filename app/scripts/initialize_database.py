@@ -17,7 +17,9 @@ def main() -> int:
     logger.info(
         "Database initialization completed in %.2f seconds (backend=%s).",
         time.perf_counter() - started_at,
-        "sqlite" if runtime.config.application.database.embedded_database else "postgres",
+        "sqlite"
+        if runtime.config.application.database.embedded_database
+        else "postgres",
     )
     return 0
 

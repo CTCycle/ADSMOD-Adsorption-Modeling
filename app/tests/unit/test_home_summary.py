@@ -32,18 +32,29 @@ def test_home_summary_counts_stored_entities_and_represented_sources(
         assert empty["species"] == 0 and empty["sources"] == []
 
         public_data = PublicDataRepository(manager)
-        public_data.ensure_sources([cls.source_definition() for cls in PROVIDER_CLASSES])
+        public_data.ensure_sources(
+            [cls.source_definition() for cls in PROVIDER_CLASSES]
+        )
         public_data.upsert_pubchem_compound(
-            {"cid": "297", "name": "Methane", "inchi_key": "VNWKTOKETHGBQD-UHFFFAOYSA-N"}
+            {
+                "cid": "297",
+                "name": "Methane",
+                "inchi_key": "VNWKTOKETHGBQD-UHFFFAOYSA-N",
+            }
         )
         summary = home.summary()
         assert summary["species"] == 1
-        assert [(s["key"], s["record_count"]) for s in summary["sources"]] == [("pubchem", 1)]
+        assert [(s["key"], s["record_count"]) for s in summary["sources"]] == [
+            ("pubchem", 1)
+        ]
         assert summary["fitting_sessions"] == 0
         # The Sources tiles filter with source=any: every provider-backed species, none for a local-only one.
         materials = MaterialRepository(manager)
         materials.upsert_adsorbates([{"key": "local", "name": "Local gas"}])
-        assert [row["name"] for row in materials.list_species(page=1, page_size=10, source="any")[0]] == ["Methane"]
+        assert [
+            row["name"]
+            for row in materials.list_species(page=1, page_size=10, source="any")[0]
+        ] == ["Methane"]
         assert materials.list_species(page=1, page_size=10)[1] == 2
     finally:
         manager.dispose()

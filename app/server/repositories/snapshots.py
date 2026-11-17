@@ -18,6 +18,7 @@ from server.repositories.schemas.models import (
     TrainingSnapshotRow,
 )
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class SnapshotRecord:
@@ -25,6 +26,7 @@ class SnapshotRecord:
     content_hash: str
     created_at: str
     row_count: int
+
 
 ###############################################################################
 @dataclass(frozen=True)
@@ -35,6 +37,7 @@ class SnapshotPage:
     page_size: int
     total_rows: int
     rows: tuple[dict[str, Any], ...]
+
 
 ###############################################################################
 class SnapshotHasher:
@@ -50,7 +53,9 @@ class SnapshotHasher:
         encoded = json.dumps(
             row, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         )
-        self._digest.update(("" if self._empty else ",").encode() + encoded.encode("utf-8"))
+        self._digest.update(
+            ("" if self._empty else ",").encode() + encoded.encode("utf-8")
+        )
         self._empty = False
 
     # -------------------------------------------------------------------------
@@ -58,6 +63,7 @@ class SnapshotHasher:
         digest = self._digest.copy()
         digest.update(b"]")
         return digest.hexdigest()
+
 
 ###############################################################################
 class SnapshotStore:

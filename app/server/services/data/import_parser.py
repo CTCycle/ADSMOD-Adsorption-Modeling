@@ -201,6 +201,7 @@ SPECIES_HEADER_NOISE = {
     "for",
 }
 
+
 ###############################################################################
 def normalize_header(value: object) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
@@ -210,6 +211,7 @@ def normalize_header(value: object) -> str:
     text = re.sub(r"[^a-z0-9/°%]+", " ", text)
     return " ".join(text.split())
 
+
 ###############################################################################
 def safe_cell(value: Any) -> Any:
     if value is None or (isinstance(value, float) and math.isnan(value)):
@@ -218,9 +220,11 @@ def safe_cell(value: Any) -> Any:
         return value
     return str(value)
 
+
 ###############################################################################
 def source_hash(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
+
 
 ###############################################################################
 def normalize_extensions(allowed_extensions: Collection[str]) -> set[str]:
@@ -231,6 +235,7 @@ def normalize_extensions(allowed_extensions: Collection[str]) -> set[str]:
         for extension in allowed_extensions
         if extension.strip()
     }
+
 
 ###############################################################################
 def decode_frame(
@@ -261,7 +266,9 @@ def decode_frame(
         decoded = json.loads(payload.decode(encoding if encoding else "utf-8-sig"))
         if isinstance(decoded, dict):
             decoded = decoded.get("records", decoded.get("data"))
-        if not isinstance(decoded, list) or not all(isinstance(row, dict) for row in decoded):
+        if not isinstance(decoded, list) or not all(
+            isinstance(row, dict) for row in decoded
+        ):
             raise ValueError("JSON datasets must contain an array of row objects.")
         return pd.DataFrame.from_records(decoded)
     if suffix in {".csv", ".txt", ".tsv", ""}:
@@ -275,6 +282,7 @@ def decode_frame(
             keep_default_na=True,
         )
     raise ValueError(f"Unsupported file type '{suffix or 'unknown'}'.")
+
 
 ###############################################################################
 def read_tabular(
@@ -318,6 +326,7 @@ def read_tabular(
         raise ValueError("Uploaded dataset contains duplicate column headers.")
     return frame
 
+
 ###############################################################################
 def parse_serialized_array(text: str) -> list[Any]:
     try:
@@ -331,6 +340,7 @@ def parse_serialized_array(text: str) -> list[Any]:
         raise ValueError("Serialized measurement cells must contain an array.")
     return list(raw)
 
+
 ###############################################################################
 def resolve_delimiter(text: str, delimiter: str | None) -> str | None:
     if delimiter is not None:
@@ -341,6 +351,7 @@ def resolve_delimiter(text: str, delimiter: str | None) -> str | None:
     if len(candidates) != 1:
         raise ValueError("Delimited series require an explicit, unambiguous delimiter.")
     return candidates[0]
+
 
 ###############################################################################
 def parse_series_cell(
@@ -368,6 +379,7 @@ def parse_series_cell(
             raw = [item.strip() for item in text.split(selected)]
     return [parse_number(item, decimal_separator) for item in raw]
 
+
 ###############################################################################
 def is_array_like(value: Any) -> bool:
     if isinstance(value, (list, tuple)):
@@ -378,6 +390,7 @@ def is_array_like(value: Any) -> bool:
     return (text.startswith("[") and text.endswith("]")) or sum(
         token in text for token in (";", "|", "\t")
     ) == 1
+
 
 ###############################################################################
 def score_header_aliases(
@@ -397,6 +410,7 @@ def score_header_aliases(
                 best = score
                 evidence = [f"header contains scientific alias '{alias}'"]
     return best, evidence
+
 
 ###############################################################################
 def apply_value_evidence(
@@ -420,6 +434,7 @@ def apply_value_evidence(
             bonus += 0.05
             evidence.append("values repeat and can define groups")
     return bonus
+
 
 ###############################################################################
 def infer_column(column: str, series: pd.Series) -> ColumnDetection:
@@ -475,6 +490,7 @@ def infer_column(column: str, series: pd.Series) -> ColumnDetection:
         array_like=array_ratio >= 0.5,
     )
 
+
 ###############################################################################
 def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
     pressure = next(
@@ -503,6 +519,7 @@ def detect_structure(columns: list[ColumnDetection]) -> tuple[str, float]:
         return "atomic", 0.95
     return "ambiguous", 0.25
 
+
 ###############################################################################
 def propose_species_columns(columns: list[ColumnDetection]) -> list[SpeciesColumn]:
     """Propose per-species uptake columns (e.g. ``uptake_CO2``, ``uptake_N2``).
@@ -510,7 +527,10 @@ def propose_species_columns(columns: list[ColumnDetection]) -> list[SpeciesColum
     Only proposed for numeric columns whose header names the uptake quantity
     followed or preceded by a species token, when the file has no adsorbate column.
     """
-    if any(column.proposed_role == "adsorbate" and column.confidence >= 0.6 for column in columns):
+    if any(
+        column.proposed_role == "adsorbate" and column.confidence >= 0.6
+        for column in columns
+    ):
         return []
     proposals: list[SpeciesColumn] = []
     for column in columns:
@@ -533,6 +553,7 @@ def propose_species_columns(columns: list[ColumnDetection]) -> list[SpeciesColum
             )
     species = {item.adsorbate.casefold() for item in proposals}
     return proposals if len(proposals) >= 2 and len(species) == len(proposals) else []
+
 
 ###############################################################################
 def infer_pressure_basis(columns: list[ColumnDetection]) -> str | None:

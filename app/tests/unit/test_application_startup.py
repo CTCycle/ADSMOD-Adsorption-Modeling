@@ -41,9 +41,9 @@ def test_unified_runtime_contracts(tmp_path: Path, wait_for_deep_learning) -> No
             assert client.get("/health/ready").json()["state"] == "ready"
             capabilities = client.get("/api/v1/system/capabilities").json()
             assert capabilities["features"]["datasets"] is True
-            assert capabilities["features"]["machine_learning"] is True, (
-                client.get("/api/v1/deep-learning/status").json()["reason"]
-            )
+            assert capabilities["features"]["machine_learning"] is True, client.get(
+                "/api/v1/deep-learning/status"
+            ).json()["reason"]
             assert client.get("/api/v1/system/configuration").status_code == 200
             assert client.get("/api/v1/training/configuration").status_code == 200
 
@@ -75,7 +75,10 @@ def test_missing_deep_learning_packages_gate_training_but_keep_core(
 ) -> None:  # type: ignore[no-untyped-def]
     monkeypatch.setattr(DeepLearningManager, "_read_fingerprint", staticmethod(dict))
     with TestClient(create_app(_temporary_config(str(tmp_path)))) as client:
-        assert client.get("/api/v1/deep-learning/status").json()["status"] == "not_installed"
+        assert (
+            client.get("/api/v1/deep-learning/status").json()["status"]
+            == "not_installed"
+        )
         features = client.get("/api/v1/system/capabilities").json()["features"]
         assert features["machine_learning"] is False
         assert features["training"] is False
@@ -89,8 +92,12 @@ def test_missing_deep_learning_packages_gate_training_but_keep_core(
 def test_broken_deep_learning_install_is_reported_as_failed(
     monkeypatch, tmp_path: Path, wait_for_deep_learning
 ) -> None:  # type: ignore[no-untyped-def]
-    installed = {name: ("1.0", 1) for name in deep_learning_module.DEEP_LEARNING_PACKAGES}
-    monkeypatch.setattr(DeepLearningManager, "_read_fingerprint", staticmethod(lambda: installed))
+    installed = {
+        name: ("1.0", 1) for name in deep_learning_module.DEEP_LEARNING_PACKAGES
+    }
+    monkeypatch.setattr(
+        DeepLearningManager, "_read_fingerprint", staticmethod(lambda: installed)
+    )
     monkeypatch.setattr(
         deep_learning_module.runner,
         "run_probe",
@@ -100,7 +107,12 @@ def test_broken_deep_learning_install_is_reported_as_failed(
         status = wait_for_deep_learning(client)
         assert status["status"] == "failed"
         assert "DLL load failed" in status["reason"]
-        assert client.get("/api/v1/system/capabilities").json()["features"]["machine_learning"] is False
+        assert (
+            client.get("/api/v1/system/capabilities").json()["features"][
+                "machine_learning"
+            ]
+            is False
+        )
         assert client.get("/api/v1/training/status").status_code == 503
 
 

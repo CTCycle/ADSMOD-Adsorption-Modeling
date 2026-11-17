@@ -214,7 +214,9 @@ def test_series_never_mix_pressure_bases_and_convert_display_units() -> None:
 
     response = service.series(
         SeriesRequest(
-            filter=AnalyticsFilter(pressure_basis="absolute", include_multi_species=True),
+            filter=AnalyticsFilter(
+                pressure_basis="absolute", include_multi_species=True
+            ),
             pressure_unit="bar",
             uptake_unit="mg/g",
         )
@@ -365,7 +367,11 @@ def test_distribution_and_overview_keep_pressure_bases_apart() -> None:
     assert relative.stats.max == pytest.approx(0.5)
 
     overview = service.overview()
-    assert (overview.isotherms, overview.observations, overview.multi_species_isotherms) == (
+    assert (
+        overview.isotherms,
+        overview.observations,
+        overview.multi_species_isotherms,
+    ) == (
         4,
         11,
         1,

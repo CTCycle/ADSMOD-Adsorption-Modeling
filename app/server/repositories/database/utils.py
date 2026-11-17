@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+
 ###############################################################################
 def normalize_postgres_engine(engine: str | None) -> str:
     if not engine:

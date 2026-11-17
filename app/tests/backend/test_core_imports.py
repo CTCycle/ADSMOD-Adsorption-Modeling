@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+
 ###############################################################################
 def test_core_app_import_does_not_load_ml_runtime() -> None:
     script = (

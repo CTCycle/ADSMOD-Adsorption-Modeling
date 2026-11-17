@@ -41,6 +41,7 @@ from server.domain.jobs import (
 from server.services.job_responses import JobResponseFactory
 from server.services.jobs import JobManager
 
+
 ###############################################################################
 def get_training_process_stop_timeout_seconds(config: AdsmodConfig) -> float:
     return max(
@@ -48,9 +49,9 @@ def get_training_process_stop_timeout_seconds(config: AdsmodConfig) -> float:
         float(config.application.jobs.polling_interval),
     )
 
+
 ###############################################################################
 class TrainingSession:
-
     # -------------------------------------------------------------------------
     def __init__(self, training_manager: TrainingManager) -> None:
         self.training_manager = training_manager
@@ -92,6 +93,7 @@ class TrainingSession:
         self.worker = None
         self.current_job_id = None
 
+
 CHECKPOINT_ACCURACY_KEYS = (
     "accuracy",
     "MaskedR2",
@@ -100,11 +102,13 @@ CHECKPOINT_ACCURACY_KEYS = (
     "val_accuracy",
 )
 
+
 ###############################################################################
 def last_number(values: Any) -> float | None:
     if isinstance(values, list) and values and isinstance(values[-1], (int, float)):
         return float(values[-1])
     return None
+
 
 ###############################################################################
 def summarize_checkpoint_session(
@@ -137,6 +141,7 @@ def summarize_checkpoint_session(
             break
     return epochs_trained, final_loss, final_accuracy
 
+
 ###############################################################################
 def determine_checkpoint_compatibility(
     checkpoint_name: str,
@@ -165,9 +170,9 @@ def determine_checkpoint_compatibility(
 
     return checkpoint_hash in dataset_hashes
 
+
 ###############################################################################
 class TrainingJobRunner:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -315,6 +320,7 @@ class TrainingJobRunner:
                 worker.join(timeout=5)
             worker.cleanup()
             self.session.finish_session()
+
 
 ###############################################################################
 class TrainingService:
@@ -494,7 +500,11 @@ class TrainingService:
     def list_dataset_jobs(self) -> JobListResponse:
         all_jobs = self.job_manager.list_jobs(self.DATASET_JOB_TYPE)
         active_job = next(
-            (job for job in all_jobs if job.get("status") not in {"completed", "failed", "cancelled"}),
+            (
+                job
+                for job in all_jobs
+                if job.get("status") not in {"completed", "failed", "cancelled"}
+            ),
             None,
         )
         return JobResponseFactory.list(
@@ -559,7 +569,7 @@ class TrainingService:
         try:
             self.training_manager.data_serializer.clear_training_dataset(resolved_label)
             success = True
-        except (OSError, RuntimeError, ValueError):
+        except OSError, RuntimeError, ValueError:
             success = False
         if success:
             message = (
@@ -594,8 +604,8 @@ class TrainingService:
                         checkpoint_path
                     )
                 )
-                epochs_trained, final_loss, final_accuracy = summarize_checkpoint_session(
-                    training_configuration, session
+                epochs_trained, final_loss, final_accuracy = (
+                    summarize_checkpoint_session(training_configuration, session)
                 )
 
             except Exception as exc:  # noqa: BLE001

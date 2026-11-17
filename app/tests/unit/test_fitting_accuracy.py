@@ -12,7 +12,9 @@ from server.services.modeling.models import MODEL_SPECS, langmuir
 PRESSURE_PA = np.array([2e2, 1e3, 5e3, 2e4, 6e4, 1.5e5, 4e5, 1e6])
 
 
-def _fit(spec, pressure, uptake, *, sigma=None, weighting="unweighted", basis="absolute"):
+def _fit(
+    spec, pressure, uptake, *, sigma=None, weighting="unweighted", basis="absolute"
+):
     return ModelSolver().fit(
         spec=spec,
         pressure=pressure,
@@ -45,7 +47,9 @@ def test_weighting_mode_controls_objective_not_uncertainty_availability() -> Non
     )
     assert not np.allclose(unweighted.parameters, weighted.parameters, rtol=1e-3)
     assert unweighted.metrics.values["sse"] < weighted.metrics.values["sse"]
-    assert weighted.metrics.values["chi_square"] < unweighted.metrics.values["chi_square"]
+    assert (
+        weighted.metrics.values["chi_square"] < unweighted.metrics.values["chi_square"]
+    )
 
 
 ###############################################################################

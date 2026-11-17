@@ -40,9 +40,9 @@ from server.repositories.datasets import DatasetRepository
 from server.repositories.identity import IdentityRepository
 from server.repositories.units import UnitRepository
 
+
 ###############################################################################
 class DatasetService:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -171,9 +171,7 @@ class DatasetService:
         )
 
     # -------------------------------------------------------------------------
-    def import_inspection(
-        self, dataset_id: int
-    ) -> DatasetImportInspectionResponse:
+    def import_inspection(self, dataset_id: int) -> DatasetImportInspectionResponse:
         return DatasetImportInspectionResponse(
             **self.repository.import_inspection(dataset_id)
         )

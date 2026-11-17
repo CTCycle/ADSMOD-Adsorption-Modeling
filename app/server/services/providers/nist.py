@@ -12,6 +12,7 @@ from server.services.providers.public_data import (
 )
 from server.services.data.nist_service import NISTDataService
 
+
 ###############################################################################
 class NISTPublicDataProvider(PublicDataProvider):
     key = "nist"
@@ -45,7 +46,12 @@ class NISTPublicDataProvider(PublicDataProvider):
                 status="unavailable",
                 detail=f"NIST adsorption endpoint check failed: {exc}",
                 checked_at=checked_at,
-                request_stats={"requests": 1, "retries": 0, "rate_limits": 0, "failures": 1},
+                request_stats={
+                    "requests": 1,
+                    "retries": 0,
+                    "rate_limits": 0,
+                    "failures": 1,
+                },
             )
         if bool(status.get("server_ok", False)):
             return ProviderHealth(

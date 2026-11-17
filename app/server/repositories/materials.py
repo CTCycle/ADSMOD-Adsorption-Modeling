@@ -53,7 +53,6 @@ class EntityInUseError(RuntimeError):
 
 ###############################################################################
 class MaterialRepository:
-
     # -------------------------------------------------------------------------
     def __init__(self, database: DatabaseManager) -> None:
         self.database = database
@@ -270,7 +269,9 @@ class MaterialRepository:
         structure_counts = counts_by(
             session, Structure.adsorbent_id, Structure.id, row_ids
         )
-        isotherm_counts = counts_by(session, Isotherm.adsorbent_id, Isotherm.id, row_ids)
+        isotherm_counts = counts_by(
+            session, Isotherm.adsorbent_id, Isotherm.id, row_ids
+        )
         provenance = provenance_entries(session, "adsorbent", row_ids)
         aliases: dict[int, list[str]] = {}
         for owner, synonym in session.execute(
@@ -474,7 +475,11 @@ class MaterialRepository:
     ) -> dict[str, Any]:
         property_map = {prop.key: prop for prop, _ in properties}
         pubchem = next(
-            (identifier for identifier in identifiers if identifier["source"] == "pubchem"),
+            (
+                identifier
+                for identifier in identifiers
+                if identifier["source"] == "pubchem"
+            ),
             None,
         )
         cid = pubchem["external_id"] if pubchem else None

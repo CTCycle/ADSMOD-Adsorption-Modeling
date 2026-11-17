@@ -67,6 +67,7 @@ HISTORY_KEY_ALIASES = {
     "val_masked_r_squared": "val_masked_r2",
 }
 
+
 ###############################################################################
 def put_worker_result(result_queue: Any | None, payload: dict[str, Any]) -> None:
     if result_queue is None:
@@ -79,9 +80,9 @@ def put_worker_result(result_queue: Any | None, payload: dict[str, Any]) -> None
         except Exception:
             return
 
+
 ###############################################################################
 class TrainingProcessRunner:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -341,6 +342,7 @@ class TrainingProcessRunner:
             checkpoint_path, history, train_config, model_metadata
         )
 
+
 ###############################################################################
 def run_training_process(
     configuration: dict[str, Any] | None,
@@ -363,13 +365,23 @@ def run_training_process(
         # Deferred on purpose: server.models must not statically import the
         # repository-backed services (enforced by the dependency-boundary tests).
         from server.services.training_data import open_training_data_service
+
         runtime_config = AdsmodConfig.model_validate(config_payload)
         snapshot_access = open_training_data_service(runtime_config)
-        runner = TrainingProcessRunner(worker=worker, snapshot_access=snapshot_access, artifact_root=Path(artifact_root), checkpoints_dir=Path(checkpoints_dir))
+        runner = TrainingProcessRunner(
+            worker=worker,
+            snapshot_access=snapshot_access,
+            artifact_root=Path(artifact_root),
+            checkpoints_dir=Path(checkpoints_dir),
+        )
         if checkpoint:
-            runner.log(f"Resuming training from checkpoint {checkpoint} for {additional_epochs} additional epochs.")
+            runner.log(
+                f"Resuming training from checkpoint {checkpoint} for {additional_epochs} additional epochs."
+            )
             runner.resume_training(checkpoint, additional_epochs)
-            put_worker_result(result_queue, {"result": {"success": True, "checkpoint": checkpoint}})
+            put_worker_result(
+                result_queue, {"result": {"success": True, "checkpoint": checkpoint}}
+            )
             return
         if configuration is None:
             raise ValueError("Training configuration is required.")
@@ -384,9 +396,9 @@ def run_training_process(
         if snapshot_access is not None:
             snapshot_access.close()
 
+
 ###############################################################################
 class TrainingManager:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -396,10 +408,14 @@ class TrainingManager:
         artifact_root: Path | None = None,
         checkpoints_dir: Path | None = None,
     ) -> None:
-        resolved_artifact_root = artifact_root or resolve_storage_root(config) / "training"
+        resolved_artifact_root = (
+            artifact_root or resolve_storage_root(config) / "training"
+        )
         resolved_checkpoints_dir = checkpoints_dir or resolve_checkpoint_root(config)
         self.state = TrainingState()
-        self.data_serializer = TrainingDataSerializer(snapshot_access, resolved_artifact_root)
+        self.data_serializer = TrainingDataSerializer(
+            snapshot_access, resolved_artifact_root
+        )
         self.model_serializer = ModelSerializer(resolved_checkpoints_dir)
 
     # -------------------------------------------------------------------------
@@ -471,7 +487,11 @@ class TrainingManager:
         epoch = message.get("epoch")
         total_epochs = message.get("total_epochs")
         logs = message.get("logs")
-        if isinstance(epoch, int) and isinstance(total_epochs, int) and isinstance(logs, dict):
+        if (
+            isinstance(epoch, int)
+            and isinstance(total_epochs, int)
+            and isinstance(logs, dict)
+        ):
             self._on_epoch_end(epoch, total_epochs, logs)
 
     # -------------------------------------------------------------------------
@@ -559,7 +579,11 @@ class TrainingManager:
         }
         metrics = {"loss": loss, "val_loss": val_loss}
         metrics.update(
-            {name: value for name, value in optional_metrics.items() if value is not None}
+            {
+                name: value
+                for name, value in optional_metrics.items()
+                if value is not None
+            }
         )
         self.state.update(metrics=metrics)
 

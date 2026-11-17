@@ -39,6 +39,7 @@ PROGRESS_WRITE_SECONDS = 2.0
 ProgressCallback = Callable[[dict[str, Any]], Awaitable[None]]
 CancelCheck = Callable[[], Awaitable[bool]]
 
+
 ###############################################################################
 class _Throttle:
     """Allow an action on the first call, then every N units or T seconds."""
@@ -261,9 +262,7 @@ class PublicDataSyncCoordinator:
                 raise RuntimeError(
                     "Database switching is in progress; retry the sync request shortly."
                 )
-            run = await asyncio.to_thread(
-                self.repository.resume_sync_run, run_id
-            )
+            run = await asyncio.to_thread(self.repository.resume_sync_run, run_id)
             self._wake.set()
             return run
 
@@ -312,9 +311,7 @@ class PublicDataSyncCoordinator:
     async def nist_collections(self) -> list[dict[str, Any]]:
         """Local NIST counts with the latest remote availability seen by a run."""
         local_counts = await self.nist.local_counts()
-        availability = await asyncio.to_thread(
-            self.repository.latest_nist_availability
-        )
+        availability = await asyncio.to_thread(self.repository.latest_nist_availability)
         return [
             {
                 "category": category,
@@ -391,7 +388,9 @@ class PublicDataSyncCoordinator:
         except Exception:  # noqa: BLE001
             # Run failures are recorded by _execute_with_settings; this only
             # catches errors while recording them, so the worker loop survives.
-            logger.exception("Public-data sync run %s failed unexpectedly.", run.get("id"))
+            logger.exception(
+                "Public-data sync run %s failed unexpectedly.", run.get("id")
+            )
         finally:
             self._executing.discard(worker)
 
@@ -411,8 +410,8 @@ class PublicDataSyncCoordinator:
         parameters = dict(run["parameters"])
         state: dict[str, Any] = {
             "counts": {
-            key: int(run.get(f"{key}_count", 0))
-            for key in ("processed", "imported", "skipped", "failed")
+                key: int(run.get(f"{key}_count", 0))
+                for key in ("processed", "imported", "skipped", "failed")
             },
             "checkpoint": dict(run.get("checkpoint", {})),
             "progress": float(run.get("progress", 0.0)),
@@ -427,9 +426,7 @@ class PublicDataSyncCoordinator:
         provider = public_data.providers.get(source_key)
         state["statistics_reader"] = getattr(provider, "request_statistics", None)
         state["statistics_before"] = (
-            state["statistics_reader"]()
-            if callable(state["statistics_reader"])
-            else {}
+            state["statistics_reader"]() if callable(state["statistics_reader"]) else {}
         )
 
         update = partial(self._update_run, run_id)
@@ -496,8 +493,10 @@ class PublicDataSyncCoordinator:
         counts = state["counts"]
         values = {
             "progress": state["progress"],
-            "processed_count": counts["processed"] + int(payload.get("processed_count", 0)),
-            "imported_count": counts["imported"] + int(payload.get("imported_count", 0)),
+            "processed_count": counts["processed"]
+            + int(payload.get("processed_count", 0)),
+            "imported_count": counts["imported"]
+            + int(payload.get("imported_count", 0)),
             "skipped_count": counts["skipped"] + int(payload.get("skipped_count", 0)),
             "failed_count": counts["failed"] + int(payload.get("failed_count", 0)),
             "checkpoint": state["checkpoint"],
@@ -545,9 +544,7 @@ class PublicDataSyncCoordinator:
             state["checkpoint"]["request_stats"] = self._statistics_delta(
                 statistics_reader(), state["statistics_before"]
             )
-        terminal_status = self._terminal_status(
-            counts, cancelled=await should_cancel()
-        )
+        terminal_status = self._terminal_status(counts, cancelled=await should_cancel())
         finished_at = datetime.now(timezone.utc)
         if counts["imported"]:
             await asyncio.to_thread(
@@ -557,9 +554,7 @@ class PublicDataSyncCoordinator:
             )
         await update(
             status=terminal_status,
-            progress=(
-                state["progress"] if terminal_status == "cancelled" else 100.0
-            ),
+            progress=(state["progress"] if terminal_status == "cancelled" else 100.0),
             **{f"{key}_count": value for key, value in counts.items()},
             checkpoint=state["checkpoint"],
             finished_at=finished_at,
@@ -624,7 +619,10 @@ class PublicDataSyncCoordinator:
             detail=health.detail,
             checked_at=health.checked_at,
         )
-        return {"processed_count": 1, "checkpoint": {"request_stats": health.request_stats}}
+        return {
+            "processed_count": 1,
+            "checkpoint": {"request_stats": health.request_stats},
+        }
 
     # -------------------------------------------------------------------------
     async def _run_nist_index(self, run: dict[str, Any]) -> dict[str, Any]:
@@ -676,7 +674,9 @@ class PublicDataSyncCoordinator:
         excluded = (
             set()
             if parameters.get("identifiers")
-            else await asyncio.to_thread(self.repository.permanent_exclusions, source_key)
+            else await asyncio.to_thread(
+                self.repository.permanent_exclusions, source_key
+            )
         )
         result = await nist.sync_category_records(
             category=str(parameters["category"]),
@@ -810,7 +810,9 @@ class PublicDataSyncCoordinator:
 
     # -------------------------------------------------------------------------
     @staticmethod
-    def _capped(eligible: list[dict[str, Any]], cap: int | None) -> list[dict[str, Any]]:
+    def _capped(
+        eligible: list[dict[str, Any]], cap: int | None
+    ) -> list[dict[str, Any]]:
         return eligible if cap is None else eligible[: max(1, cap)]
 
     # -------------------------------------------------------------------------
@@ -845,8 +847,7 @@ class PublicDataSyncCoordinator:
         requested_ids = parameters.get("cod_ids") or [parameters["cod_id"]]
         config, public_data, _ = self._active_settings()
         selected_ids = [
-            str(cod_id)
-            for cod_id in requested_ids[: config.sync_max_records_per_run]
+            str(cod_id) for cod_id in requested_ids[: config.sync_max_records_per_run]
         ]
         run_id = str(run["id"])
         checkpoint = dict(run.get("checkpoint", {}))
@@ -901,7 +902,11 @@ class PublicDataSyncCoordinator:
         return {
             **{f"{key}_count": value for key, value in counts.items()},
             "checkpoint": {
-                **({"entity_id": entity_ids[0]} if len(requested_ids) == 1 and entity_ids else {}),
+                **(
+                    {"entity_id": entity_ids[0]}
+                    if len(requested_ids) == 1 and entity_ids
+                    else {}
+                ),
                 "entity_ids": entity_ids,
                 "last_external_id": last_external_id,
                 "pending_count": max(
@@ -946,7 +951,11 @@ class PublicDataSyncCoordinator:
                 break
             first = group[0]
             try:
-                structure_id, imported, reason = await public_data.import_cod_for_material(
+                (
+                    structure_id,
+                    imported,
+                    reason,
+                ) = await public_data.import_cod_for_material(
                     int(first["id"]), str(first["name"])
                 )
             except (ProviderError, ValueError, LookupError) as exc:

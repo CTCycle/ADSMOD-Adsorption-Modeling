@@ -39,6 +39,7 @@ from server.domain.jobs import (
 
 SessionStatus = Literal["running", "completed", "warning", "failed", "cancelled"]
 
+
 ###############################################################################
 def _start_of_day(value: date | None, *, next_day: bool = False) -> datetime | None:
     if value is None:
@@ -46,9 +47,9 @@ def _start_of_day(value: date | None, *, next_day: bool = False) -> datetime | N
     moment = datetime.combine(value, time.min, tzinfo=timezone.utc)
     return moment + timedelta(days=1) if next_day else moment
 
+
 ###############################################################################
 class FittingEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(self, router: APIRouter, service: FittingService) -> None:
         self.router = router
@@ -185,7 +186,12 @@ class FittingEndpoint:
                 "GET",
                 FittingDatasetReadiness,
             ),
-            (FITTING_SESSIONS_ENDPOINT, self.list_sessions, "GET", FittingSessionListResponse),
+            (
+                FITTING_SESSIONS_ENDPOINT,
+                self.list_sessions,
+                "GET",
+                FittingSessionListResponse,
+            ),
             (
                 FITTING_SESSIONS_ENDPOINT,
                 self.start_session,
@@ -194,7 +200,12 @@ class FittingEndpoint:
             ),
             (FITTING_SESSION_ENDPOINT, self.get_session, "GET", FittingSessionDetail),
             (FITTING_JOBS_ENDPOINT, self.list_jobs, "GET", JobListResponse),
-            (FITTING_JOB_STATUS_ENDPOINT, self.get_job_status, "GET", JobStatusResponse),
+            (
+                FITTING_JOB_STATUS_ENDPOINT,
+                self.get_job_status,
+                "GET",
+                JobStatusResponse,
+            ),
             (FITTING_JOB_STATUS_ENDPOINT, self.cancel_job, "DELETE", JobCancelResponse),
         )
         for path, endpoint, method, response_model in routes:
@@ -208,6 +219,7 @@ class FittingEndpoint:
             status_code=status.HTTP_204_NO_CONTENT,
             response_class=Response,
         )
+
 
 ###############################################################################
 def create_fitting_router(container: CoreServiceContainer) -> APIRouter:

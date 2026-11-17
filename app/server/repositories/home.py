@@ -32,9 +32,13 @@ class HomeRepository:
             totals = session.execute(
                 select(
                     select(func.count(Dataset.id)).scalar_subquery().label("datasets"),
-                    select(func.count(Isotherm.id)).scalar_subquery().label("experiments"),
+                    select(func.count(Isotherm.id))
+                    .scalar_subquery()
+                    .label("experiments"),
                     select(func.count(Adsorbate.id)).scalar_subquery().label("species"),
-                    select(func.count(Adsorbent.id)).scalar_subquery().label("materials"),
+                    select(func.count(Adsorbent.id))
+                    .scalar_subquery()
+                    .label("materials"),
                 )
             ).one()
             sources = session.execute(
@@ -45,9 +49,9 @@ class HomeRepository:
             ).all()
             by_status = dict(
                 session.execute(
-                    select(FittingSession.status, func.count(FittingSession.id)).group_by(
-                        FittingSession.status
-                    )
+                    select(
+                        FittingSession.status, func.count(FittingSession.id)
+                    ).group_by(FittingSession.status)
                 ).all()
             )
             latest = session.scalar(select(func.max(FittingSession.created_at)))

@@ -90,7 +90,9 @@ def _import_inspect_reload_and_delete(
     cell.fill("0.5")
     cell.press("Enter")
     with page.expect_response(
-        lambda response: response.request.method == "PATCH" and "/api/v1/datasets/" in response.url
+        lambda response: (
+            response.request.method == "PATCH" and "/api/v1/datasets/" in response.url
+        )
     ) as save_response:
         page.get_by_role("button", name="Save changes").click()
     assert save_response.value.status == 200

@@ -12,7 +12,12 @@ from typing import Any
 import httpx
 import pytest
 
-from server.configurations.settings import AdsmodConfig, DatabaseConfig, PublicDataConfig, UserSettings
+from server.configurations.settings import (
+    AdsmodConfig,
+    DatabaseConfig,
+    PublicDataConfig,
+    UserSettings,
+)
 from server.domain.public_data import PublicDataSyncCreateRequest
 from server.repositories.database.manager import DatabaseManager
 from server.repositories.public_data import PublicDataRepository
@@ -33,7 +38,10 @@ from server.services.providers.public_data import (
 )
 from server.services.providers import PROVIDER_CLASSES
 
-PUBLIC_SOURCE_DEFINITIONS = [provider.source_definition() for provider in PROVIDER_CLASSES]
+PUBLIC_SOURCE_DEFINITIONS = [
+    provider.source_definition() for provider in PROVIDER_CLASSES
+]
+
 
 ###############################################################################
 def _database(path: Path) -> DatabaseManager:
@@ -46,6 +54,7 @@ def _database(path: Path) -> DatabaseManager:
     )
     Base.metadata.create_all(manager.engine)
     return manager
+
 
 ###############################################################################
 class _Provider(PublicDataProvider):
@@ -64,13 +73,14 @@ class _Provider(PublicDataProvider):
             status="available", detail=None, checked_at=datetime.now(timezone.utc)
         )
 
+
 ###############################################################################
 class _Nist:
-
     # -------------------------------------------------------------------------
     async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
         del kwargs
         raise NotImplementedError
+
 
 ###############################################################################
 async def _wait_for_terminal(
@@ -83,6 +93,7 @@ async def _wait_for_terminal(
         await asyncio.sleep(0.01)
     raise AssertionError(f"Sync run {run_id} did not reach a terminal state.")
 
+
 ###############################################################################
 def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
     tmp_path: Path,
@@ -90,7 +101,6 @@ def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
 
     ###############################################################################
     class PartialNist:
-
         # -------------------------------------------------------------------------
         async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
             await kwargs["on_failure"]("upstream-404", "NIST record request failed.")
@@ -154,16 +164,20 @@ def test_coordinator_persists_checkpoints_partial_failures_and_skip_reasons(
                 "upstream-404",
                 "unsupported-1",
             }
-            assert next(
-                failure["reason"]
-                for failure in failures
-                if failure["external_id"] == "unsupported-1"
-            ) == "Unsupported uptake unit: foo."
+            assert (
+                next(
+                    failure["reason"]
+                    for failure in failures
+                    if failure["external_id"] == "unsupported-1"
+                )
+                == "Unsupported uptake unit: foo."
+            )
         finally:
             await coordinator.close()
             manager.dispose()
 
     asyncio.run(scenario())
+
 
 ###############################################################################
 def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
@@ -172,7 +186,6 @@ def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
 
         ###############################################################################
         class BlockingNist:
-
             # -------------------------------------------------------------------------
             async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
                 started.set()
@@ -183,7 +196,12 @@ def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
                     "imported_count": 0,
                     "skipped_count": 0,
                     "failed_count": 0,
-                    "request_stats": {"requests": 1, "retries": 0, "rate_limits": 0, "failures": 0},
+                    "request_stats": {
+                        "requests": 1,
+                        "retries": 0,
+                        "rate_limits": 0,
+                        "failures": 0,
+                    },
                 }
 
         manager = _database(tmp_path)
@@ -213,6 +231,7 @@ def test_coordinator_cancels_between_nist_batches(tmp_path: Path) -> None:
             manager.dispose()
 
     asyncio.run(scenario())
+
 
 ###############################################################################
 def test_coordinator_reuses_local_pubchem_identity_without_a_provider_call(
@@ -267,6 +286,7 @@ def test_coordinator_reuses_local_pubchem_identity_without_a_provider_call(
 
     asyncio.run(scenario())
 
+
 ###############################################################################
 def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -> None:
     async def scenario() -> None:
@@ -305,9 +325,7 @@ def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -
                 parameters=request.parameters(),
             )
             run = await _wait_for_terminal(coordinator, queued["id"])
-            failures, total = await coordinator.failures(
-                run["id"], limit=10, offset=0
-            )
+            failures, total = await coordinator.failures(run["id"], limit=10, offset=0)
 
             assert run["status"] == "partially_completed"
             assert run["processed_count"] == 2
@@ -325,6 +343,7 @@ def test_cod_batch_import_is_bounded_and_keeps_record_failures(tmp_path: Path) -
 
     asyncio.run(scenario())
 
+
 ###############################################################################
 def test_cod_batch_request_rejects_duplicates_and_more_than_fifty_ids() -> None:
     valid = PublicDataSyncCreateRequest.model_validate(
@@ -336,7 +355,10 @@ def test_cod_batch_request_rejects_duplicates_and_more_than_fifty_ids() -> None:
     )
     assert valid.cod_ids == ["9012345", "9012346"]
 
-    for cod_ids in (["9012345", "9012345"], [str(9000000 + index) for index in range(51)]):
+    for cod_ids in (
+        ["9012345", "9012345"],
+        [str(9000000 + index) for index in range(51)],
+    ):
         try:
             PublicDataSyncCreateRequest.model_validate(
                 {
@@ -348,6 +370,7 @@ def test_cod_batch_request_rejects_duplicates_and_more_than_fifty_ids() -> None:
         except ValueError:
             continue
         raise AssertionError("Invalid COD batch request was accepted.")
+
 
 ###############################################################################
 def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -> None:
@@ -376,6 +399,7 @@ def test_concurrent_sync_run_creation_serializes_sqlite_writes(tmp_path: Path) -
         assert all(run["status"] == "queued" for run in runs)
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_identical_active_requests_reuse_the_existing_sync_run(
@@ -434,6 +458,7 @@ def test_identical_active_requests_reuse_the_existing_sync_run(
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def test_sync_run_scopes_and_overview_exclude_availability_probes(
     tmp_path: Path,
@@ -478,12 +503,8 @@ def test_sync_run_scopes_and_overview_exclude_availability_probes(
         repository.update_sync_run(index["id"], status="completed")
         repository.update_sync_run(failed_index["id"], status="failed")
 
-        active_runs, active_total = repository.list_sync_runs(
-            status_scope="active"
-        )
-        history_runs, history_total = repository.list_sync_runs(
-            status_scope="history"
-        )
+        active_runs, active_total = repository.list_sync_runs(status_scope="active")
+        history_runs, history_total = repository.list_sync_runs(status_scope="history")
 
         assert active_total == 1
         assert [run["id"] for run in active_runs] == [active["id"]]
@@ -502,6 +523,7 @@ def test_sync_run_scopes_and_overview_exclude_availability_probes(
         assert overview["latest_successful_sync_at"] is None
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_nist_availability_survives_failed_refresh(tmp_path: Path) -> None:
@@ -526,7 +548,9 @@ def test_nist_availability_survives_failed_refresh(tmp_path: Path) -> None:
             parameters={"category": "guest"},
         )
         repository.update_sync_run(
-            failed["id"], status="failed", finished_at=datetime(2026, 1, 2, tzinfo=timezone.utc)
+            failed["id"],
+            status="failed",
+            finished_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
         )
 
         cached = repository.latest_nist_availability()["guest"]
@@ -535,6 +559,7 @@ def test_nist_availability_survives_failed_refresh(tmp_path: Path) -> None:
         assert cached["indexed_at"] == datetime(2026, 1, 1, tzinfo=timezone.utc)
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_resume_interrupted_sync_run_preserves_checkpoint_and_counters(
@@ -595,6 +620,7 @@ def test_resume_interrupted_sync_run_preserves_checkpoint_and_counters(
     finally:
         manager.dispose()
 
+
 ###############################################################################
 def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
     tmp_path: Path,
@@ -624,7 +650,6 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
 
         ###############################################################################
         class ResumingNist:
-
             # -------------------------------------------------------------------------
             async def sync_category_records(self, **kwargs: Any) -> dict[str, Any]:
                 observed.update(
@@ -681,6 +706,7 @@ def test_nist_restart_resumes_after_checkpoint_without_recounting_prior_batches(
             manager.dispose()
 
     asyncio.run(scenario())
+
 
 ###############################################################################
 def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
@@ -748,17 +774,24 @@ def test_cod_restart_continues_after_checkpoint_without_reimporting_saved_ids(
             await public_data.close()
             manager.dispose()
 
+
 ###############################################################################
-def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path) -> None:
+def test_restart_policy_preserves_runs_and_exposes_resume_choice(
+    tmp_path: Path,
+) -> None:
     manager = _database(tmp_path)
     try:
         repository = PublicDataRepository(manager)
         repository.ensure_sources(PUBLIC_SOURCE_DEFINITIONS)
         queued = repository.create_sync_run(
-            source_key="nist", operation="nist_category", parameters={"category": "guest"}
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "guest"},
         )
         running = repository.create_sync_run(
-            source_key="nist", operation="nist_category", parameters={"category": "host"}
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "host"},
         )
         repository.update_sync_run(running["id"], status="running", progress=35.0)
 
@@ -767,7 +800,9 @@ def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path)
         assert repository.get_sync_run(running["id"])["status"] == "interrupted"
 
         resumable = repository.create_sync_run(
-            source_key="nist", operation="nist_category", parameters={"category": "experiments"}
+            source_key="nist",
+            operation="nist_category",
+            parameters={"category": "experiments"},
         )
         repository.update_sync_run(resumable["id"], status="running", progress=35.0)
         assert repository.mark_unfinished_sync_runs(resume=True) == 1
@@ -776,6 +811,7 @@ def test_restart_policy_preserves_runs_and_exposes_resume_choice(tmp_path: Path)
         assert restored["progress"] == 35.0
     finally:
         manager.dispose()
+
 
 ###############################################################################
 def test_pubchem_request_budget_is_shared_across_provider_instances(
@@ -800,6 +836,7 @@ def test_pubchem_request_budget_is_shared_across_provider_instances(
 
     asyncio.run(scenario())
     assert delays == [0.22]
+
 
 ###############################################################################
 def test_optional_scheduler_enqueues_only_configured_nist_collections(
@@ -835,6 +872,7 @@ def test_optional_scheduler_enqueues_only_configured_nist_collections(
     assert all(run["parameters"]["fraction"] == 0.5 for run in scheduled)
     assert all(run["parameters"]["trigger"] == "scheduled" for run in scheduled)
 
+
 ###############################################################################
 def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
     monkeypatch,
@@ -848,7 +886,6 @@ def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
 
     ###############################################################################
     class _Stream:
-
         # -------------------------------------------------------------------------
         def __init__(self, response: Any) -> None:
             self.response = response
@@ -863,7 +900,6 @@ def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
 
     ###############################################################################
     class _Client:
-
         # -------------------------------------------------------------------------
         def stream(self, *_args: Any, **_kwargs: Any) -> _Stream:
             return _Stream(responses.pop(0))
@@ -884,12 +920,12 @@ def test_nist_streaming_client_retries_with_retry_after_and_records_statistics(
         "failures": 0,
     }
 
+
 ###############################################################################
 def test_nist_streaming_client_rejects_oversized_response() -> None:
 
     ###############################################################################
     class _Stream:
-
         # -------------------------------------------------------------------------
         async def __aenter__(self) -> httpx.Response:
             return httpx.Response(
@@ -906,7 +942,6 @@ def test_nist_streaming_client_rejects_oversized_response() -> None:
 
     ###############################################################################
     class _Client:
-
         # -------------------------------------------------------------------------
         def stream(self, *_args: Any, **_kwargs: Any) -> _Stream:
             return _Stream()
@@ -915,12 +950,14 @@ def test_nist_streaming_client_rejects_oversized_response() -> None:
     assert (
         asyncio.run(
             client.fetch_json(
-                _Client(), "https://adsorption.nist.gov/isodb/api/gases/test.json"  # type: ignore[arg-type]
+                _Client(),
+                "https://adsorption.nist.gov/isodb/api/gases/test.json",  # type: ignore[arg-type]
             )
         )
         is None
     )
     assert client.request_statistics()["failures"] == 1
+
 
 ###############################################################################
 def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> None:  # type: ignore[no-untyped-def]
@@ -928,7 +965,6 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
 
     ###############################################################################
     class _Stream:
-
         # -------------------------------------------------------------------------
         async def __aenter__(self) -> httpx.Response:
             return httpx.Response(
@@ -945,15 +981,12 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
 
     ###############################################################################
     class _Client:
-
         # -------------------------------------------------------------------------
         def __init__(self, **_kwargs: Any) -> None:
             pass
 
         # -------------------------------------------------------------------------
-        def stream(
-            self, method: str, url: str, *, headers: dict[str, str]
-        ) -> _Stream:
+        def stream(self, method: str, url: str, *, headers: dict[str, str]) -> _Stream:
             calls.append((method, url, headers))
             return _Stream()
 
@@ -986,6 +1019,7 @@ def test_nist_health_probe_requests_only_a_single_byte_range(monkeypatch) -> Non
         )
     ]
 
+
 ###############################################################################
 def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:
     claim_started = threading.Event()
@@ -994,7 +1028,6 @@ def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:
 
     ###############################################################################
     class _BlockingRepository:
-
         # -------------------------------------------------------------------------
         def mark_unfinished_sync_runs(self, *, resume: bool) -> int:
             del resume
@@ -1031,6 +1064,7 @@ def test_coordinator_close_waits_for_in_flight_claim_and_requeues_it() -> None:
     assert updates == [
         ("run-claimed-at-shutdown", {"status": "queued", "started_at": None})
     ]
+
 
 ###############################################################################
 def test_nist_search_joins_indexes_by_name_synonym_and_experiment() -> None:
@@ -1100,6 +1134,7 @@ def test_nist_search_joins_indexes_by_name_synonym_and_experiment() -> None:
 
     asyncio.run(scenario())
 
+
 ###############################################################################
 def test_targeted_nist_request_replaces_fraction_with_identifiers() -> None:
     request = PublicDataSyncCreateRequest.model_validate(
@@ -1131,9 +1166,7 @@ def _scripted_nist_service(
     """NIST service whose index, storage and HTTP outcomes are scripted."""
     pd = __import__("pandas")
     service = NISTDataService(None, None, None)  # type: ignore[arg-type]
-    api_client = type(
-        "Api", (), {"request_statistics": lambda self: {}}
-    )()
+    api_client = type("Api", (), {"request_statistics": lambda self: {}})()
     service._api_client = lambda: api_client  # type: ignore[method-assign,return-value]
     service._request_timeout = lambda **_: None  # type: ignore[method-assign,return-value]
     fetched: list[list[str]] = []
@@ -1249,7 +1282,10 @@ def test_failure_retry_times_gate_candidate_selection(tmp_path: Path) -> None:
         with manager.transaction() as session:
             for name in ("permanent", "pending", "expired", "transient-due", "fresh"):
                 session.add(Adsorbate(key=name, name=name))
-        ids = {item["name"]: item["id"] for item in repository.pubchem_enrichment_candidates(10)}
+        ids = {
+            item["name"]: item["id"]
+            for item in repository.pubchem_enrichment_candidates(10)
+        }
         run = repository.create_sync_run(
             source_key="pubchem", operation="pubchem_enrich", parameters={}
         )
@@ -1268,10 +1304,14 @@ def test_failure_retry_times_gate_candidate_selection(tmp_path: Path) -> None:
                 retry_eligible_at=retry_at,
             )
 
-        remaining = [item["name"] for item in repository.pubchem_enrichment_candidates(10)]
+        remaining = [
+            item["name"] for item in repository.pubchem_enrichment_candidates(10)
+        ]
         # Permanent and not-yet-due outcomes stay out; expired ones are reconsidered.
         assert remaining == ["expired", "transient-due", "fresh"]
-        assert repository.permanent_exclusions("pubchem") == {f"adsorbate:{ids['permanent']}"}
+        assert repository.permanent_exclusions("pubchem") == {
+            f"adsorbate:{ids['permanent']}"
+        }
     finally:
         manager.dispose()
 
@@ -1289,7 +1329,10 @@ def test_negative_results_expire_and_transient_failures_retry_soon() -> None:
     assert transient is not None and transient - now <= timedelta(seconds=31)
     for negative in (ProviderNotFoundError("none"), IdentityReviewRequired("review")):
         retry_at = coordinator._retry_time(negative)
-        assert retry_at is not None and retry_at - now >= NEGATIVE_RESULT_TTL - timedelta(seconds=5)
+        assert (
+            retry_at is not None
+            and retry_at - now >= NEGATIVE_RESULT_TTL - timedelta(seconds=5)
+        )
     assert coordinator._retry_time(LookupError("bad record")) is None
 
 
@@ -1301,14 +1344,18 @@ def test_nist_targeted_unknown_identifiers_are_reported_as_failures() -> None:
         reported.append(identifier)
 
     result = asyncio.run(
-        _run_scripted_sync(service, [], identifiers=["a", "ghost"], on_failure=on_failure)
+        _run_scripted_sync(
+            service, [], identifiers=["a", "ghost"], on_failure=on_failure
+        )
     )
     assert reported == ["ghost"]
     assert result["failed_count"] == 1
     assert fetched == [["a"]]
 
 
-def test_nist_builder_keeps_rows_missing_optional_metadata_and_invents_nothing() -> None:
+def test_nist_builder_keeps_rows_missing_optional_metadata_and_invents_nothing() -> (
+    None
+):
     pd = __import__("pandas")
     from server.services.data.nistads import NISTDatasetBuilder
 
@@ -1380,11 +1427,14 @@ def test_nist_builder_keeps_rows_missing_optional_metadata_and_invents_nothing()
         ["co2", 2.0, 1.0],
         ["n2", 2.0, 2.0],
     ]
-    assert rows["T1"][["adsorbate", "adsorbed_amount", "gas_mole_fraction"]].values.tolist() == [
+    assert rows["T1"][
+        ["adsorbate", "adsorbed_amount", "gas_mole_fraction"]
+    ].values.tolist() == [
         ["co2", 1.5, 0.5],
         ["n2", 0.4, 0.3],
         ["ch4", 0.3, 0.2],
     ]
+
 
 ###############################################################################
 def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
@@ -1510,6 +1560,7 @@ def test_cod_bulk_imports_only_exact_matches_and_remembers_the_rest(
 
     asyncio.run(scenario())
 
+
 ###############################################################################
 def test_conformer_download_is_cached_and_bulk_run_skips_cached_species(
     monkeypatch, tmp_path: Path
@@ -1569,6 +1620,7 @@ def test_conformer_download_is_cached_and_bulk_run_skips_cached_species(
             manager.dispose()
 
     asyncio.run(scenario())
+
 
 ###############################################################################
 def test_conformers_flag_applies_only_to_pubchem_enrichment() -> None:
@@ -1666,7 +1718,8 @@ def test_manual_runs_are_capped_and_report_pending_records() -> None:
     )
     result, _ = asyncio.run(
         _collect_run(
-            coordinator._run_pubchem_enrich, {"id": "r", "parameters": {"fraction": 1.0}}
+            coordinator._run_pubchem_enrich,
+            {"id": "r", "parameters": {"fraction": 1.0}},
         )
     )
     assert result["processed_count"] == 2
@@ -1695,7 +1748,8 @@ def test_uploaded_species_resolution_is_scoped_to_the_upload(tmp_path: Path) -> 
         asyncio.run(coordinator.queue_uploaded_species_resolution(1))
         assert [item["parameters"] for item in queued] == [{"adsorbate_ids": [2]}]
         assert [
-            row["id"] for row in repository.pubchem_enrichment_candidates(None, 1.0, [2])
+            row["id"]
+            for row in repository.pubchem_enrichment_candidates(None, 1.0, [2])
         ] == [2]
         # The scope is part of the request identity, ignoring order.
         assert normalized_sync_parameters({"adsorbate_ids": [3, 2]}) == (

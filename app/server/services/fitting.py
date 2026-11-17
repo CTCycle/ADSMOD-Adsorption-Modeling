@@ -70,6 +70,7 @@ METRIC_NAMES = (
 TERMINAL_JOB_STATES = {"completed", "failed", "cancelled"}
 INTERRUPTED_MESSAGE = "Interrupted by application restart."
 
+
 ###############################################################################
 @dataclass(frozen=True)
 class DatasetExperiment:
@@ -77,6 +78,7 @@ class DatasetExperiment:
     name: str
     series: dict[str, Any] | None
     reason: str | None
+
 
 ###############################################################################
 class FittingService:
@@ -114,7 +116,9 @@ class FittingService:
             raise LookupError(str(exc)) from exc
 
     # -------------------------------------------------------------------------
-    def _stored_bounds(self) -> tuple[dict[str, bool], dict[str, dict[str, ParameterBounds]]]:
+    def _stored_bounds(
+        self,
+    ) -> tuple[dict[str, bool], dict[str, dict[str, ParameterBounds]]]:
         stored = self.model_settings.all()
         enabled = {key: item.enabled for key, item in stored.items()}
         bounds = {
@@ -277,7 +281,11 @@ class FittingService:
     # -------------------------------------------------------------------------
     def _resolve_models(
         self, payload: FittingSessionRequest
-    ) -> tuple[list[str], dict[str, dict[str, ParameterBounds]], dict[str, dict[str, ParameterBounds]]]:
+    ) -> tuple[
+        list[str],
+        dict[str, dict[str, ParameterBounds]],
+        dict[str, dict[str, ParameterBounds]],
+    ]:
         enabled, global_bounds = self._stored_bounds()
         keys: list[str] = []
         for model in payload.models:
@@ -312,7 +320,9 @@ class FittingService:
         return keys, effective, overrides
 
     # -------------------------------------------------------------------------
-    def start_session(self, payload: FittingSessionRequest) -> FittingSessionStartResponse:
+    def start_session(
+        self, payload: FittingSessionRequest
+    ) -> FittingSessionStartResponse:
         fitting_config = self.config.application.fitting
         poll_interval = self.config.application.jobs.polling_interval
         if payload.max_evaluations > fitting_config.max_iterations_upper_bound:
@@ -328,7 +338,9 @@ class FittingService:
                 raise ValueError("The selected dataset has no experiments to fit.")
             ineligible = [item for item in experiments if item.series is None]
             if ineligible and not payload.skip_ineligible:
-                details = "; ".join(f"{item.name}: {item.reason}" for item in ineligible)
+                details = "; ".join(
+                    f"{item.name}: {item.reason}" for item in ineligible
+                )
                 raise ValueError(
                     f"{len(ineligible)} experiment(s) cannot be fitted. {details}"
                 )
@@ -343,7 +355,9 @@ class FittingService:
                         for key in blocked
                     )
                 )
-            series_list = [item.series for item in experiments if item.series is not None]
+            series_list = [
+                item.series for item in experiments if item.series is not None
+            ]
             if payload.weighting == "inverse_sigma" and not all(
                 self._uncertainty_complete(series) for series in series_list
             ):
@@ -370,11 +384,19 @@ class FittingService:
                 "best_model_metric": fitting_config.best_model_metric,
                 "model_version": MODEL_VERSION,
                 "experiments": [
-                    {"isotherm_id": series["isotherm_id"], "name": series["isotherm_name"], "input_sha256": digest}
+                    {
+                        "isotherm_id": series["isotherm_id"],
+                        "name": series["isotherm_name"],
+                        "input_sha256": digest,
+                    }
                     for series, digest in zip(series_list, hashes, strict=True)
                 ],
                 "skipped_experiments": [
-                    {"isotherm_id": item.isotherm_id, "name": item.name, "reason": item.reason}
+                    {
+                        "isotherm_id": item.isotherm_id,
+                        "name": item.name,
+                        "reason": item.reason,
+                    }
                     for item in ineligible
                 ],
             }
@@ -384,7 +406,9 @@ class FittingService:
                 dataset_name=dataset_name,
                 isotherm_ids=[series["isotherm_id"] for series in series_list],
                 models=keys,
-                input_sha256=hashlib.sha256("".join(hashes).encode("ascii")).hexdigest(),
+                input_sha256=hashlib.sha256(
+                    "".join(hashes).encode("ascii")
+                ).hexdigest(),
                 optimizer=payload.optimizer,
                 weighting=payload.weighting,
                 max_evaluations=payload.max_evaluations,
@@ -518,7 +542,9 @@ class FittingService:
         if job_id is None:
             return
         self.job_manager.update_progress(job_id, progress)
-        self.job_manager.update_result(job_id, {"session_id": session_id, "log": list(log)})
+        self.job_manager.update_result(
+            job_id, {"session_id": session_id, "log": list(log)}
+        )
 
     # -------------------------------------------------------------------------
     def _run_session_sync(
@@ -532,7 +558,13 @@ class FittingService:
         request = ExperimentFitRequest.model_validate(
             {
                 key: configuration[key]
-                for key in ("models", "optimizer", "max_evaluations", "weighting", "model_bounds")
+                for key in (
+                    "models",
+                    "optimizer",
+                    "max_evaluations",
+                    "weighting",
+                    "model_bounds",
+                )
             }
         )
         metric = configuration["best_model_metric"]
@@ -546,7 +578,9 @@ class FittingService:
         try:
             for index, series in enumerate(series_list, start=1):
                 raise_if_cancelled(stop_event)
-                log.append(f"[INFO] ({index}/{len(series_list)}) {series['isotherm_name']}")
+                log.append(
+                    f"[INFO] ({index}/{len(series_list)}) {series['isotherm_name']}"
+                )
                 self._publish_progress(
                     job_id, session_id, log, 100.0 * (index - 1) / len(series_list)
                 )
@@ -561,9 +595,13 @@ class FittingService:
                     statuses.append(item.status)
                     if item.status == "failed":
                         log.append(f"[WARN]   {item.spec.name}: {item.message}")
-                best = next((item.spec.name for item in computations if item.rank == 1), None)
+                best = next(
+                    (item.spec.name for item in computations if item.rank == 1), None
+                )
                 log.append(f"[INFO]   Best model: {best or 'none'}")
-                records.extend(self._persistence_record(item, series) for item in computations)
+                records.extend(
+                    self._persistence_record(item, series) for item in computations
+                )
             status, summary = self._session_outcome(statuses, len(series_list))
             log.append(f"[{'ERROR' if status == 'failed' else 'INFO'}] {summary}")
             with self._lifecycle_lock:
@@ -572,7 +610,12 @@ class FittingService:
                     session_id, status=status, message=summary, results=records, log=log
                 )
             self._publish_progress(job_id, session_id, log, 100.0)
-            return {"session_id": session_id, "status": status, "summary": summary, "log": log}
+            return {
+                "session_id": session_id,
+                "status": status,
+                "summary": summary,
+                "log": log,
+            }
         except FittingCancelledError as exc:
             log.append(f"[WARN] {exc}")
             with self._lifecycle_lock:
@@ -641,7 +684,9 @@ class FittingService:
     def cancel_job(self, job_id: str) -> JobCancelResponse:
         with self._lifecycle_lock:
             session_id = self._session_ids_by_job_id.get(job_id)
-            if session_id is not None and not self.results.is_session_running(session_id):
+            if session_id is not None and not self.results.is_session_running(
+                session_id
+            ):
                 raise ValueError(
                     f"Job {job_id} cannot be cancelled (not found or already completed)."
                 )
@@ -685,7 +730,9 @@ class FittingService:
             "weighting": record.weighting,
             "max_evaluations": record.max_evaluations,
             "created_at": record.created_at.isoformat(),
-            "completed_at": record.completed_at.isoformat() if record.completed_at else None,
+            "completed_at": record.completed_at.isoformat()
+            if record.completed_at
+            else None,
             "duration_seconds": duration,
             "best_models": self._best_models(record),
         }
@@ -712,9 +759,14 @@ class FittingService:
         result: FitResult, pressure_unit: str, uptake_unit: str
     ) -> SessionModelResult:
         spec = AdsorptionModels.get_spec(result.model_name)
-        relative = bool(result.predicted_curve) and result.predicted_curve[0].get("pressure_unit") == "1"
+        relative = (
+            bool(result.predicted_curve)
+            and result.predicted_curve[0].get("pressure_unit") == "1"
+        )
         shown_pressure = "1" if relative else pressure_unit
-        p_factor = pressure_factor(shown_pressure, "relative" if relative else "absolute")
+        p_factor = pressure_factor(
+            shown_pressure, "relative" if relative else "absolute"
+        )
         _, q_factor, _ = UnitRegistry.uptake_factor_to_mol_kg(uptake_unit, None)
         stored = {item.name: item for item in result.parameters}
         related_param = stored.get("n") or stored.get("beta")
@@ -756,7 +808,9 @@ class FittingService:
             rank=result.rank,
             observation_count=result.observation_count,
             parameters=parameters,
-            metrics=FitMetrics(**{name: getattr(result, name) for name in METRIC_NAMES}),
+            metrics=FitMetrics(
+                **{name: getattr(result, name) for name in METRIC_NAMES}
+            ),
             warnings=list(result.warnings),
         )
 
@@ -765,7 +819,9 @@ class FittingService:
         record = self.results.get_session(session_id)
         grouped: dict[str, list[FitResult]] = {}
         identities: dict[str, int | None] = {}
-        fitted_order = [item.get("name") for item in record.configuration.get("experiments", [])]
+        fitted_order = [
+            item.get("name") for item in record.configuration.get("experiments", [])
+        ]
         for result in sorted(
             record.results,
             key=lambda item: (
@@ -784,12 +840,21 @@ class FittingService:
                 pressure_unit=record.pressure_display_unit,
                 uptake_unit=record.uptake_display_unit,
                 observation_count=results[0].observation_count,
-                best_model=next((item.model_name for item in results if item.rank == 1), None),
+                best_model=next(
+                    (item.model_name for item in results if item.rank == 1), None
+                ),
                 results=[
                     self._display_result(
                         item, record.pressure_display_unit, record.uptake_display_unit
                     )
-                    for item in sorted(results, key=lambda item: (item.rank is None, item.rank or 0, item.model_name))
+                    for item in sorted(
+                        results,
+                        key=lambda item: (
+                            item.rank is None,
+                            item.rank or 0,
+                            item.model_name,
+                        ),
+                    )
                 ],
             )
             for name, results in grouped.items()
@@ -814,7 +879,7 @@ class FittingService:
                 series = self.datasets.fitting_series(
                     record.dataset_id, int(stored["isotherm_id"])
                 )
-            except (LookupError, ValueError):
+            except LookupError, ValueError:
                 return True, f"Experiment '{name}' is no longer available or fittable."
             if self.pipeline.input_hash(series) != stored.get("input_sha256"):
                 return True, (
@@ -826,4 +891,3 @@ class FittingService:
     # -------------------------------------------------------------------------
     def delete_session(self, session_id: int) -> None:
         self.results.delete_session(session_id)
-

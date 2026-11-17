@@ -65,7 +65,11 @@ def _import(client: TestClient, name: str = "Two zeolites") -> int:
         files=files,
     ).json()
     mapping["confirmed_issue_codes"] = sorted(
-        {issue["code"] for issue in validation["issues"] if issue["severity"] == "confirmation"}
+        {
+            issue["code"]
+            for issue in validation["issues"]
+            if issue["severity"] == "confirmation"
+        }
     )
     response = client.post(
         "/api/v1/datasets/import/commit",
@@ -127,7 +131,9 @@ def test_global_model_defaults_validate_persist_and_restore(client: TestClient) 
     )
     assert saved.status_code == 200, saved.text
     stored = _model(client, "langmuir")
-    k = next(parameter for parameter in stored["parameters"] if parameter["name"] == "k")
+    k = next(
+        parameter for parameter in stored["parameters"] if parameter["name"] == "k"
+    )
     assert stored["enabled"] is False
     assert (k["lower"], k["upper"], k["customized"]) == (1e-9, 1e-3, True)
 
@@ -178,9 +184,15 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
     assert detail["name"] == "Zeolite screening"
     assert detail["status"] in {"completed", "warning"}
     assert detail["experiment_count"] == 2
-    assert sorted(item["experiment_name"] for item in detail["experiments"]) == ["A", "B"]
+    assert sorted(item["experiment_name"] for item in detail["experiments"]) == [
+        "A",
+        "B",
+    ]
     for experiment in detail["experiments"]:
-        assert {result["model"] for result in experiment["results"]} == {"langmuir", "toth"}
+        assert {result["model"] for result in experiment["results"]} == {
+            "langmuir",
+            "toth",
+        }
         assert experiment["best_model"] in {"langmuir", "toth"}
     snapshot = detail["configuration"]["model_bounds"]
     assert snapshot["langmuir"]["qsat"] == {"lower": 0.5, "upper": 50.0}
@@ -188,7 +200,9 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
     assert detail["configuration"]["session_overrides"] == {
         "toth": {"t": {"lower": 0.2, "upper": 3.0}}
     }
-    assert not any(parameter["customized"] for parameter in _model(client, "toth")["parameters"])
+    assert not any(
+        parameter["customized"] for parameter in _model(client, "toth")["parameters"]
+    )
     assert detail["log"][-1].startswith("[INFO]")
     assert detail["stale"] is False
 
@@ -208,7 +222,8 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
 
     _run(client, {**base, "name": "Freundlich only", "models": ["freundlich"]})
     listing = client.get(
-        "/api/v1/fitting/sessions", params={"page_size": 1, "sort": "name", "direction": "asc"}
+        "/api/v1/fitting/sessions",
+        params={"page_size": 1, "sort": "name", "direction": "asc"},
     ).json()
     assert listing["total"] == 2
     assert [item["name"] for item in listing["items"]] == ["Freundlich only"]
@@ -216,9 +231,12 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
         "/api/v1/fitting/sessions", params={"model": "toth", "query": "zeolite"}
     ).json()
     assert [item["id"] for item in filtered["items"]] == [detail["id"]]
-    assert client.get(
-        "/api/v1/fitting/sessions", params={"status": "failed"}
-    ).json()["total"] == 0
+    assert (
+        client.get("/api/v1/fitting/sessions", params={"status": "failed"}).json()[
+            "total"
+        ]
+        == 0
+    )
 
     assert client.delete(f"/api/v1/fitting/sessions/{detail['id']}").status_code == 204
     assert client.get(f"/api/v1/fitting/sessions/{detail['id']}").status_code == 404
@@ -245,7 +263,12 @@ def test_ineligible_experiments_can_be_skipped_explicitly(
     assert readiness["ready"] is False
     assert readiness["eligible_count"] == 1
 
-    base = {"dataset_id": dataset_id, "name": "Skip", "models": ["langmuir"], "max_evaluations": 500}
+    base = {
+        "dataset_id": dataset_id,
+        "name": "Skip",
+        "models": ["langmuir"],
+        "max_evaluations": 500,
+    }
     blocked = client.post("/api/v1/fitting/sessions", json=base)
     assert blocked.status_code == 400
     assert "cannot be fitted" in blocked.json()["detail"]
@@ -290,7 +313,9 @@ def test_ranking_falls_back_to_rmse_when_the_chosen_metric_is_undefined() -> Non
 
     def computation(rmse: float) -> Any:
         return SimpleNamespace(
-            status="completed", rank=None, metrics=SimpleNamespace(values={"aicc": None, "rmse": rmse})
+            status="completed",
+            rank=None,
+            metrics=SimpleNamespace(values={"aicc": None, "rmse": rmse}),
         )
 
     items = [computation(0.5), computation(0.1)]

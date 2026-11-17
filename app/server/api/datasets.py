@@ -42,9 +42,9 @@ from server.services.data.dataset_editing import DatasetEditValidationError
 from server.services.data.datasets import DatasetService
 from server.common.constants import DATASETS_ROUTER_PREFIX, MAX_UPLOAD_SIZE_BYTES
 
+
 ###############################################################################
 class DatasetEndpoint:
-
     # -------------------------------------------------------------------------
     def __init__(
         self,
@@ -366,6 +366,7 @@ class DatasetEndpoint:
             methods=["DELETE"],
             status_code=status.HTTP_204_NO_CONTENT,
         )
+
 
 ###############################################################################
 def create_dataset_router(container: CoreServiceContainer) -> APIRouter:
