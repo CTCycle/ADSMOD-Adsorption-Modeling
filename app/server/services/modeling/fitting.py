@@ -404,13 +404,18 @@ class ModelSolver:
         for parameter, value, low, high in zip(
             spec.parameters, optimal, lower, upper, strict=True
         ):
-            tolerance = 1e-6 * max(abs(high - low), np.finfo(float).tiny)
-            if value - low <= tolerance or high - value <= tolerance:
-                side = "lower" if value - low <= tolerance else "upper"
-                warnings.append(
-                    f"Parameter '{parameter.name}' reached its {side} bound; "
-                    "the estimate is constrained by the search interval."
-                )
+            # Affinity intervals span many decades, so closeness is judged
+            # relative to the bound itself, not to the interval width.
+            span = max(abs(high - low), np.finfo(float).tiny)
+            for side, bound in (("lower", low), ("upper", high)):
+                scale = abs(bound) if bound != 0 else span
+                if abs(value - bound) <= 1e-6 * scale:
+                    warnings.append(
+                        f"Parameter '{parameter.name}' reached its {side} search "
+                        f"bound ({bound:.6g}); the estimate is constrained by "
+                        "the search interval."
+                    )
+                    break
         return warnings
 
     # -------------------------------------------------------------------------

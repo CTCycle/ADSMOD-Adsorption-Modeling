@@ -107,3 +107,24 @@ def test_parameter_on_bound_is_reported() -> None:
     result = _fit(spec, PRESSURE_PA, uptake)
 
     assert any("qsat" in warning and "bound" in warning for warning in result.warnings)
+
+
+###############################################################################
+def test_interior_affinity_far_above_a_decades_wide_bound_is_not_flagged() -> None:
+    # k = 0.15 bar^-1 sits many decades above its ~1e-12 lower bound.
+    uptake = langmuir(PRESSURE_PA, 2e-5, 1.5e-6)
+
+    result = _fit(MODEL_SPECS["langmuir"], PRESSURE_PA, uptake)
+
+    assert not any("bound" in warning for warning in result.warnings)
+
+
+###############################################################################
+def test_temkin_warning_states_the_effective_data_derived_bound() -> None:
+    # Temkin affinity is raised to 1/p_min, a bound the model catalog never shows.
+    pressure = np.array([2e2, 1e3, 5e3, 2e4, 6e4, 1.5e5, 4e5, 1e6])
+    uptake = 0.4 * np.log1p(1e-6 * pressure) + 0.05
+
+    result = _fit(MODEL_SPECS["temkin"], pressure, uptake)
+
+    assert any(f"({1 / pressure.min():.6g})" in warning for warning in result.warnings)

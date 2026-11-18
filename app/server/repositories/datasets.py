@@ -415,6 +415,17 @@ class DatasetRepository:
     # -------------------------------------------------------------------------
     def delete(self, dataset_id: int) -> None:
         with self.database.transaction() as session:
+            running = session.scalar(
+                select(func.count(FittingSession.id)).where(
+                    FittingSession.dataset_id == dataset_id,
+                    FittingSession.status == "running",
+                )
+            )
+            if running:
+                raise ValueError(
+                    "A fitting session is running on this dataset; wait for it "
+                    "to finish or cancel it before deleting the dataset."
+                )
             result = session.execute(delete(Dataset).where(Dataset.id == dataset_id))
             if not result.rowcount:
                 raise LookupError(f"Dataset {dataset_id} does not exist.")

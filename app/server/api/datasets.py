@@ -270,6 +270,10 @@ class DatasetEndpoint:
             self.service.delete(dataset_id)
         except LookupError as exc:
             raise self.not_found(exc) from exc
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail=str(exc)
+            ) from exc
 
     # -------------------------------------------------------------------------
     def add_routes(self) -> None:

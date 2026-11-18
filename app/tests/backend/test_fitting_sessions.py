@@ -299,12 +299,17 @@ def test_sessions_left_running_are_failed_on_restart(client: TestClient) -> None
         configuration={},
     )
     assert client.delete(f"/api/v1/fitting/sessions/{session_id}").status_code == 409
+    blocked = client.delete(f"/api/v1/datasets/{dataset_id}")
+    assert blocked.status_code == 409
+    assert "running" in blocked.json()["detail"]
+    assert client.get(f"/api/v1/datasets/{dataset_id}").status_code == 200
 
     assert service.fail_interrupted_sessions() == 1
     detail = client.get(f"/api/v1/fitting/sessions/{session_id}").json()
     assert detail["status"] == "failed"
     assert detail["message"] == "Interrupted by application restart."
     assert detail["completed_at"] is not None
+    assert client.delete(f"/api/v1/datasets/{dataset_id}").status_code == 204
 
 
 ###############################################################################
