@@ -6,6 +6,7 @@ import { Router, RouterLink } from '@angular/router';
 import type { AnalyticsOverviewResponse, FacetCount } from '../../../models/analytics.model';
 import { fetchAnalyticsOverview } from '../../../services/analytics.service';
 import { MetricCardComponent } from '../../../shared/components/metric-card/metric-card.component';
+import { APP_LOCALE } from '../../../shared/utils/locale';
 import type { ChartPointEvent } from '../components/chart.component';
 import { ChartComponent } from '../components/chart.component';
 import { buildHistogramOption, buildRankingOption, CATEGORICAL_PALETTE, formatValue, pressureLabel } from '../dashboard-charts';
@@ -117,7 +118,7 @@ export class OverviewViewComponent {
     }
 
     protected count(value: number): string {
-        return value.toLocaleString();
+        return value.toLocaleString(APP_LOCALE);
     }
 
     protected format(value: number | null): string {

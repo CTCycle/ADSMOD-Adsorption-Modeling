@@ -3,6 +3,7 @@
 
 import { Component, computed, input, output } from '@angular/core';
 import type { InfoModalData, InfoModalValue } from '../../../models/json.model';
+import { APP_LOCALE } from '../../utils/locale';
 
 interface ModalEntry {
     key: string;
@@ -78,7 +79,7 @@ export class InfoModalComponent {
 
     protected formatValue(value: InfoModalValue): string {
         if (typeof value === 'number' && !Number.isInteger(value)) {
-            return value.toLocaleString(undefined, { maximumFractionDigits: 4 });
+            return value.toLocaleString(APP_LOCALE, { maximumFractionDigits: 4 });
         }
         return `${value}`;
     }

@@ -1,6 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
+import { APP_LOCALE } from './locale';
 import type { UnifiedJob } from '../../models/job.model';
 import type { NISTCategory, PublicDataSyncRun } from '../../models/public-data.model';
 
@@ -91,7 +92,7 @@ export function formatPercent(value: number): string {
 export function formatDate(value: string | null): string {
     if (!value) return '—';
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(APP_LOCALE, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 /** Time of day for today's events, short date and time otherwise. */
@@ -100,7 +101,7 @@ export function formatShort(value: string | null): string {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
     const sameDay = date.toDateString() === new Date().toDateString();
-    return new Intl.DateTimeFormat(undefined, sameDay ? { timeStyle: 'short' } : { dateStyle: 'short', timeStyle: 'short' }).format(date);
+    return new Intl.DateTimeFormat(APP_LOCALE, sameDay ? { timeStyle: 'short' } : { dateStyle: 'short', timeStyle: 'short' }).format(date);
 }
 
 export function formatBytes(bytes: number): string {

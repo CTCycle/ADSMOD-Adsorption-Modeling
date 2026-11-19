@@ -25,6 +25,7 @@ import {
     structureFileUrl,
 } from '../../services/public-data.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { APP_LOCALE } from '../../shared/utils/locale';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
 import { AcquireViewComponent } from './acquire-view.component';
 import { EntityPickerComponent, type PickedEntity } from '../../shared/components/entity-picker/entity-picker.component';
@@ -531,7 +532,7 @@ export class SourcesPageComponent {
         this.structureLinkCandidate.set(null);
     }
 
-    protected formatNumber(value: number): string { return new Intl.NumberFormat(undefined, { maximumSignificantDigits: 5 }).format(value); }
+    protected formatNumber(value: number): string { return new Intl.NumberFormat(APP_LOCALE, { maximumSignificantDigits: 5 }).format(value); }
     protected valueOrDash(value: number | null): string { return value === null ? '—' : this.formatNumber(value); }
-    protected formatDate(value: string | null): string { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(date); }
+    protected formatDate(value: string | null): string { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(APP_LOCALE, { dateStyle: 'medium', timeStyle: 'short' }).format(date); }
 }

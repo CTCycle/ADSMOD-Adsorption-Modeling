@@ -1,6 +1,7 @@
 // Copyright © 2023 Thomas Virdis
 // Licensed under the MIT License.
 
+import { APP_LOCALE } from '../../../shared/utils/locale';
 import type { FittingSessionStatus, FittingWeighting, OptimizationMethod } from '../../../models/fitting.model';
 
 export const SESSION_STATUS_LABELS: Record<FittingSessionStatus, string> = {
@@ -24,7 +25,7 @@ export const WEIGHTING_LABELS: Record<FittingWeighting, string> = {
 export function formatNumber(value: number | null | undefined): string {
     return value === null || value === undefined || !Number.isFinite(value)
         ? '—'
-        : new Intl.NumberFormat(undefined, {
+        : new Intl.NumberFormat(APP_LOCALE, {
               maximumSignificantDigits: 6,
               notation: value !== 0 && (Math.abs(value) < 1e-3 || Math.abs(value) >= 1e6) ? 'scientific' : 'standard',
           }).format(value);

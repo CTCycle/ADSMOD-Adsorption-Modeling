@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import type { NISTSearchItem } from '../../models/public-data.model';
 import { searchNistIsotherms } from '../../services/public-data.service';
 import { DataPaginationComponent } from '../../shared/components/data-pagination/data-pagination.component';
+import { APP_LOCALE } from '../../shared/utils/locale';
 
 const MAX_SELECTION = 100;
 const PAGE_SIZE = 25;
@@ -65,7 +66,7 @@ const PAGE_SIZE = 25;
             </div>
             <adsmod-data-pagination [page]="page()" [pageSize]="pageSize" [total]="total()" itemLabel="isotherm" [pageSizes]="[pageSize]" [disabled]="searching()" (pageChange)="search($event)" />
             <div class="targeted-actions">
-                <span>{{ total().toLocaleString() }} matching isotherms · fetching also stores their compound and material records.</span>
+                <span>{{ total().toLocaleString(locale) }} matching isotherms · fetching also stores their compound and material records.</span>
                 <span class="targeted-submit">
                     @if (selected().length) {
                         <span>{{ selected().length }} selected across pages</span>
@@ -98,6 +99,7 @@ const PAGE_SIZE = 25;
     `,
 })
 export class NistTargetedSearchComponent {
+    protected readonly locale = APP_LOCALE;
     readonly submitting = input(false);
     readonly fetchSelected = output<string[]>();
     readonly failed = output<string>();

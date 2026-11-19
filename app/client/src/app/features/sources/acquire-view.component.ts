@@ -35,6 +35,7 @@ import { DataPaginationComponent } from '../../shared/components/data-pagination
 import { EntityPickerComponent, type PickedEntity } from '../../shared/components/entity-picker/entity-picker.component';
 import { SegmentedControlComponent, type SegmentedOption } from '../../shared/components/segmented-control/segmented-control.component';
 import { formatDate, isActiveStatus, NIST_COLLECTIONS } from '../../shared/utils/job-presentation';
+import { APP_LOCALE } from '../../shared/utils/locale';
 import { AcquireActivityComponent } from './acquire-activity.component';
 import { NistTargetedSearchComponent } from './nist-targeted-search.component';
 
@@ -137,10 +138,10 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                                 <td>
                                     <div class="collection-count">
                                         @if (state.available_count === null) {
-                                            <strong>{{ state.local_count.toLocaleString() }} stored</strong>
+                                            <strong>{{ state.local_count.toLocaleString(locale) }} stored</strong>
                                             <span>Availability not checked</span>
                                         } @else {
-                                            <strong>{{ state.local_count.toLocaleString() }} / {{ state.available_count.toLocaleString() }} records</strong>
+                                            <strong>{{ state.local_count.toLocaleString(locale) }} / {{ state.available_count.toLocaleString(locale) }} records</strong>
                                             @if (state.available_count > 0) {
                                                 <div class="coverage-meter">
                                                     <progress max="100" [value]="coveragePercent(state)" [attr.aria-label]="collection.label + ' local coverage'"></progress>
@@ -169,7 +170,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                                     @if (isShareInvalid(shareKey)) {
                                         <span class="share-preview invalid">Enter 1 to 100</span>
                                     } @else if (state.available_count) {
-                                        <span class="share-preview">First {{ shareCount(fractions()[collection.category], state.available_count).toLocaleString() }} of {{ state.available_count.toLocaleString() }}</span>
+                                        <span class="share-preview">First {{ shareCount(fractions()[collection.category], state.available_count).toLocaleString(locale) }} of {{ state.available_count.toLocaleString(locale) }}</span>
                                     }
                                 </td>
                                 <td>
@@ -197,7 +198,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                 </div>
                 <p class="acq-stats">
                     @if (overview(); as stats) {
-                        <span><strong>{{ stats.species_enriched.toLocaleString() }} / {{ stats.species_total.toLocaleString() }}</strong> species enriched from PubChem</span>
+                        <span><strong>{{ stats.species_enriched.toLocaleString(locale) }} / {{ stats.species_total.toLocaleString(locale) }}</strong> species enriched from PubChem</span>
                         @if (stats.species_total > 0) {
                             <progress max="100" [value]="percent(stats.species_enriched, stats.species_total)" aria-label="Enriched species coverage"></progress>
                             <span>{{ percent(stats.species_enriched, stats.species_total) }}%</span>
@@ -243,7 +244,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                     <p class="run-note bulk-hint" [class.invalid]="isShareInvalid('bulk:pubchem')">{{ isShareInvalid('bulk:pubchem') ? 'Enter a share from 1 to 100.' : enrichHint() }}</p>
                     <details class="how-it-works">
                         <summary>How this works</summary>
-                        <p>Looks up stored species that have no PubChem identity yet{{ overview() ? ' (' + (overview()!.species_total - overview()!.species_enriched).toLocaleString() + ' remaining)' : '' }}. Species already enriched or confirmed unresolvable are skipped. “Fetch 3D structures” downloads the 3D conformer for enriched species that have one but no local copy yet; it can also be fetched one species at a time from the Datasets detail panel.</p>
+                        <p>Looks up stored species that have no PubChem identity yet{{ overview() ? ' (' + (overview()!.species_total - overview()!.species_enriched).toLocaleString(locale) + ' remaining)' : '' }}. Species already enriched or confirmed unresolvable are skipped. “Fetch 3D structures” downloads the 3D conformer for enriched species that have one but no local copy yet; it can also be fetched one species at a time from the Datasets detail panel.</p>
                     </details>
                 }
                 <adsmod-acquire-activity source="pubchem" [sessionRunIds]="sessionRunIds()" />
@@ -259,7 +260,7 @@ const persistFraction = (category: NISTCategory, value: number): void => {
                 </div>
                 <p class="acq-stats">
                     @if (overview(); as stats) {
-                        <span><strong>{{ stats.materials_with_structure.toLocaleString() }} / {{ stats.materials_total.toLocaleString() }}</strong> materials with a structure · {{ stats.structures.toLocaleString() }} from COD</span>
+                        <span><strong>{{ stats.materials_with_structure.toLocaleString(locale) }} / {{ stats.materials_total.toLocaleString(locale) }}</strong> materials with a structure · {{ stats.structures.toLocaleString(locale) }} from COD</span>
                         @if (stats.materials_total > 0) {
                             <progress max="100" [value]="percent(stats.materials_with_structure, stats.materials_total)" aria-label="Materials with a structure"></progress>
                             <span>{{ percent(stats.materials_with_structure, stats.materials_total) }}%</span>
@@ -354,6 +355,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     private readonly targeted = viewChild<NistTargetedSearchComponent>('targeted');
     private destroyed = false;
 
+    protected readonly locale = APP_LOCALE;
     protected readonly collectionRows = NIST_COLLECTIONS;
     protected readonly modeOptions = MODE_OPTIONS;
     protected readonly collections = signal<NISTCollectionView[]>([]);
@@ -504,7 +506,7 @@ export class AcquireViewComponent implements OnInit, AfterViewInit {
     /** Names the batch only when it is a partial share; a full share needs no count restated. */
     private shareHint(fraction: number, remaining: number, noun: string): string {
         const count = this.shareCount(fraction, remaining);
-        return count >= remaining ? '' : `Next ${count.toLocaleString()} of ${remaining.toLocaleString()} ${noun}.`;
+        return count >= remaining ? '' : `Next ${count.toLocaleString(APP_LOCALE)} of ${remaining.toLocaleString(APP_LOCALE)} ${noun}.`;
     }
 
     protected isShareInvalid(key: string): boolean {
