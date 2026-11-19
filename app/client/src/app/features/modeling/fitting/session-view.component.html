@@ -88,7 +88,7 @@
         </div>
     </section>
 
-    @for (experiment of session.experiments; track experiment.experiment_name) {
+    @for (experiment of pagedExperiments(); track experiment.experiment_name) {
         <section class="fitting-result-panel" [attr.aria-labelledby]="'experiment-' + $index">
             <div class="fitting-result-header">
                 <div>
@@ -156,5 +156,16 @@
         @if (!running()) {
             <p class="note">This session has no fitted results{{ session.status === 'cancelled' ? ' because it was cancelled' : '' }}.</p>
         }
+    }
+    @if (session.experiments.length > experimentPageSizes[0]) {
+        <adsmod-data-pagination
+            [page]="experimentPage()"
+            [pageSize]="experimentPageSize()"
+            [pageSizes]="experimentPageSizes"
+            [total]="session.experiments.length"
+            itemLabel="experiment"
+            (pageChange)="experimentPage.set($event)"
+            (pageSizeChange)="experimentPageSize.set($event); experimentPage.set(1)"
+        />
     }
 }

@@ -8,16 +8,18 @@ import { ModelingStore } from '../../../core/state/modeling.store';
 import type { ExperimentFitResult, FittingSessionDetail } from '../../../models/fitting.model';
 import { pollJobStatus, resolvePollingIntervalMs } from '../../../services/job.service';
 import { cancelFittingJob, fetchFittingSession } from '../../../services/fitting.service';
+import { DataPaginationComponent } from '../../../shared/components/data-pagination/data-pagination.component';
 import { ProgressBarComponent } from '../../../shared/components/progress-bar/progress-bar.component';
 import { OPTIMIZER_LABELS, SESSION_STATUS_LABELS, WEIGHTING_LABELS, formatDuration, formatNumber } from './session-format';
 
 const FALLBACK_POLL_MS = 1500;
+const EXPERIMENT_PAGE_SIZES = [5, 10, 25] as const;
 
 /** Execution log and persisted results for one fitting session. */
 @Component({
     selector: 'adsmod-session-view',
     standalone: true,
-    imports: [DatePipe, ProgressBarComponent, RouterLink],
+    imports: [DataPaginationComponent, DatePipe, ProgressBarComponent, RouterLink],
     templateUrl: './session-view.component.html',
     styleUrl: './session-view.component.css',
 })
@@ -36,6 +38,17 @@ export class SessionViewComponent implements OnInit {
     protected readonly progress = signal(0);
     protected readonly cancelling = signal(false);
     protected readonly actionError = signal<string | null>(null);
+    protected readonly experimentPageSizes = EXPERIMENT_PAGE_SIZES;
+    protected readonly experimentPage = signal(1);
+    protected readonly experimentPageSize = signal<number>(10);
+    /** Only one page of experiments is rendered: large sessions hold thousands of fits. */
+    protected readonly pagedExperiments = computed(() => {
+        const experiments = this.session()?.experiments ?? [];
+        const size = this.experimentPageSize();
+        const lastPage = Math.max(1, Math.ceil(experiments.length / size));
+        const page = Math.min(this.experimentPage(), lastPage);
+        return experiments.slice((page - 1) * size, page * size);
+    });
 
     protected readonly running = computed(() => this.session()?.status === 'running');
     protected readonly log = computed(() => (this.liveLog() ?? this.session()?.log ?? []).join('\n'));
