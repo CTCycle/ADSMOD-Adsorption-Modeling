@@ -723,9 +723,111 @@ class DatasetRepository:
 
     # -------------------------------------------------------------------------
     def fitting_series(self, dataset_id: int, isotherm_id: int) -> dict[str, Any]:
-        statement = (
+        with self.database.session_factory() as session:
+            isotherm = session.scalar(
+                self._fitting_isotherms_statement(dataset_id, [isotherm_id])
+            )
+            if isotherm is None:
+                raise LookupError(
+                    f"Isotherm {isotherm_id} does not belong to dataset {dataset_id}."
+                )
+            return self._fitting_series_payload(isotherm)
+
+    # -------------------------------------------------------------------------
+    def fitting_fingerprint_inputs(
+        self, dataset_id: int, isotherm_ids: list[int]
+    ) -> dict[int, dict[str, Any]]:
+        """Fitted-content fields of several experiments, read as plain columns.
+
+        Returns, per still-fittable experiment, the subset of `fitting_series`
+        that identifies the fitted data (see `FittingPipeline.input_hash`).
+        Experiments that no longer exist in the dataset or are no longer
+        fittable are left out. Column rows instead of ORM objects keep this
+        cheap enough to run on every session read, even beside a running fit.
+        """
+        if not isotherm_ids:
+            return {}
+        with self.database.session_factory() as session:
+            isotherms = session.execute(
+                select(
+                    Isotherm.id,
+                    Isotherm.temperature_k,
+                    Isotherm.pressure_basis,
+                    Isotherm.saturation_pressure_pa,
+                ).where(
+                    Isotherm.id.in_(isotherm_ids), Isotherm.dataset_id == dataset_id
+                )
+            ).all()
+            found = [row.id for row in isotherms]
+            components: dict[int, list[int]] = {}
+            for isotherm_id, adsorbate_id in session.execute(
+                select(IsothermComponent.isotherm_id, IsothermComponent.adsorbate_id)
+                .where(IsothermComponent.isotherm_id.in_(found))
+                .order_by(IsothermComponent.isotherm_id, IsothermComponent.position)
+            ):
+                components.setdefault(isotherm_id, []).append(adsorbate_id)
+            observations: dict[int, list[Any]] = {}
+            for row in session.execute(
+                select(
+                    Observation.isotherm_id,
+                    Observation.id,
+                    Observation.pressure_canonical,
+                    Observation.uptake_mol_kg,
+                    Observation.uptake_stddev_mol_kg,
+                )
+                .where(
+                    Observation.isotherm_id.in_(found),
+                    Observation.branch == "adsorption",
+                )
+                .order_by(
+                    Observation.isotherm_id,
+                    Observation.pressure_canonical,
+                    Observation.id,
+                )
+            ):
+                observations.setdefault(row.isotherm_id, []).append(row)
+        inputs: dict[int, dict[str, Any]] = {}
+        for isotherm in isotherms:
+            adsorbates = components.get(isotherm.id, [])
+            points = observations.get(isotherm.id, [])
+            if self._fitting_ineligibility(len(adsorbates), len(points)):
+                continue
+            inputs[isotherm.id] = {
+                "dataset_id": dataset_id,
+                "isotherm_id": isotherm.id,
+                "adsorbate_id": adsorbates[0],
+                "temperature_k": isotherm.temperature_k,
+                "pressure_basis": isotherm.pressure_basis,
+                "saturation_pressure_pa": isotherm.saturation_pressure_pa,
+                "observation_ids": [item.id for item in points],
+                "pressure": [item.pressure_canonical for item in points],
+                "uptake": [item.uptake_mol_kg for item in points],
+                "uptake_stddev": [item.uptake_stddev_mol_kg for item in points],
+            }
+        return inputs
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _fitting_ineligibility(
+        component_count: int, adsorption_points: int
+    ) -> str | None:
+        """Why an experiment cannot be fitted, or None when it can."""
+        # Algorithm capability, not storage: every model in the catalog
+        # describes pure-species adsorption.
+        if component_count != 1:
+            return "The available adsorption models support single-species experiments."
+        if adsorption_points < 2:
+            return (
+                "At least two adsorption-branch observations are required for fitting."
+            )
+        return None
+
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _fitting_isotherms_statement(dataset_id: int, isotherm_ids: list[int]) -> Any:
+        return (
             select(Isotherm)
-            .where(Isotherm.id == isotherm_id, Isotherm.dataset_id == dataset_id)
+            .where(Isotherm.id.in_(isotherm_ids), Isotherm.dataset_id == dataset_id)
             .options(
                 selectinload(Isotherm.dataset),
                 selectinload(Isotherm.adsorbent),
@@ -735,51 +837,41 @@ class DatasetRepository:
                 selectinload(Isotherm.observations),
             )
         )
-        with self.database.session_factory() as session:
-            isotherm = session.scalar(statement)
-            if isotherm is None:
-                raise LookupError(
-                    f"Isotherm {isotherm_id} does not belong to dataset {dataset_id}."
-                )
-            components = sorted(isotherm.components, key=lambda item: item.position)
-            # Algorithm capability, not storage: every model in the catalog
-            # describes pure-species adsorption.
-            if len(components) != 1:
-                raise ValueError(
-                    "The available adsorption models support single-species experiments."
-                )
-            component = components[0]
-            # Algorithm rule: the catalog models are equilibrium adsorption
-            # isotherms, so only the adsorption branch is fitted; a hysteresis
-            # desorption branch is not described by them. Stored measurements
-            # are unique per (species, branch, pressure), so no replicate
-            # handling is needed here.
-            observations = sorted(
-                (item for item in isotherm.observations if item.branch == "adsorption"),
-                key=lambda item: (item.pressure_canonical, item.id),
-            )
-            if len(observations) < 2:
-                raise ValueError(
-                    "At least two adsorption-branch observations are required "
-                    "for fitting."
-                )
-            return {
-                "dataset_id": isotherm.dataset.id,
-                "dataset_name": isotherm.dataset.name,
-                "isotherm_id": isotherm.id,
-                "isotherm_name": isotherm.name,
-                "adsorbate_id": component.adsorbate_id,
-                "adsorbent": isotherm.adsorbent.name,
-                "adsorbate": component.adsorbate.name,
-                "adsorbate_molar_mass_g_mol": component.adsorbate.molar_mass_g_mol,
-                "temperature_k": isotherm.temperature_k,
-                "pressure_basis": isotherm.pressure_basis,
-                "saturation_pressure_pa": isotherm.saturation_pressure_pa,
-                "observation_ids": [item.id for item in observations],
-                "pressure": [item.pressure_canonical for item in observations],
-                "uptake": [item.uptake_mol_kg for item in observations],
-                "uptake_stddev": [item.uptake_stddev_mol_kg for item in observations],
-            }
+
+    # -------------------------------------------------------------------------
+    @classmethod
+    def _fitting_series_payload(cls, isotherm: Isotherm) -> dict[str, Any]:
+        components = sorted(isotherm.components, key=lambda item: item.position)
+        # Algorithm rule: the catalog models are equilibrium adsorption
+        # isotherms, so only the adsorption branch is fitted; a hysteresis
+        # desorption branch is not described by them. Stored measurements
+        # are unique per (species, branch, pressure), so no replicate
+        # handling is needed here.
+        observations = sorted(
+            (item for item in isotherm.observations if item.branch == "adsorption"),
+            key=lambda item: (item.pressure_canonical, item.id),
+        )
+        reason = cls._fitting_ineligibility(len(components), len(observations))
+        if reason is not None:
+            raise ValueError(reason)
+        component = components[0]
+        return {
+            "dataset_id": isotherm.dataset.id,
+            "dataset_name": isotherm.dataset.name,
+            "isotherm_id": isotherm.id,
+            "isotherm_name": isotherm.name,
+            "adsorbate_id": component.adsorbate_id,
+            "adsorbent": isotherm.adsorbent.name,
+            "adsorbate": component.adsorbate.name,
+            "adsorbate_molar_mass_g_mol": component.adsorbate.molar_mass_g_mol,
+            "temperature_k": isotherm.temperature_k,
+            "pressure_basis": isotherm.pressure_basis,
+            "saturation_pressure_pa": isotherm.saturation_pressure_pa,
+            "observation_ids": [item.id for item in observations],
+            "pressure": [item.pressure_canonical for item in observations],
+            "uptake": [item.uptake_mol_kg for item in observations],
+            "uptake_stddev": [item.uptake_stddev_mol_kg for item in observations],
+        }
 
     # -------------------------------------------------------------------------
     def persist_canonical(

@@ -219,15 +219,36 @@ class FittingRepository:
             records = session.scalars(
                 select(FittingSession)
                 .where(*conditions)
-                .options(
-                    selectinload(FittingSession.models),
-                    selectinload(FittingSession.results),
-                )
+                .options(selectinload(FittingSession.models))
                 .order_by(order, tiebreak)
                 .offset((query.page - 1) * query.page_size)
                 .limit(query.page_size)
             ).all()
             return list(records), int(total or 0)
+
+    # -------------------------------------------------------------------------
+    def best_models(self, session_ids: list[int]) -> dict[int, dict[str, str | None]]:
+        """Best model per experiment for each session, without loading fit rows."""
+        best: dict[int, dict[str, str | None]] = {item: {} for item in session_ids}
+        if not session_ids:
+            return best
+        with self.database.session_factory() as session:
+            rows = session.execute(
+                select(
+                    FitResult.session_id,
+                    FitResult.isotherm_name,
+                    FitResult.model_name,
+                    FitResult.rank,
+                )
+                .where(FitResult.session_id.in_(session_ids))
+                .order_by(FitResult.id)
+            ).all()
+        for session_id, isotherm_name, model_name, rank in rows:
+            experiments = best[session_id]
+            experiments.setdefault(isotherm_name, None)
+            if rank == 1:
+                experiments[isotherm_name] = model_name
+        return best
 
     # -------------------------------------------------------------------------
     def delete_session(self, session_id: int) -> None:

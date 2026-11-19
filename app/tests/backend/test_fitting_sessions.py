@@ -219,6 +219,15 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
     )
     assert service._session_staleness(tampered)[0] is True
     assert service._session_staleness(missing)[0] is True
+    # The lean staleness read must fingerprint exactly what the fit consumed.
+    ids = [int(item["isotherm_id"]) for item in stored]
+    lean = service.datasets.fitting_fingerprint_inputs(record.dataset_id, ids)
+    assert sorted(lean) == sorted(ids)
+    for isotherm_id in ids:
+        full = service.datasets.fitting_series(record.dataset_id, isotherm_id)
+        assert service.pipeline.input_hash(lean[isotherm_id]) == (
+            service.pipeline.input_hash(full)
+        )
 
     _run(client, {**base, "name": "Freundlich only", "models": ["freundlich"]})
     listing = client.get(
@@ -231,6 +240,8 @@ def test_session_fits_every_experiment_with_snapshot_and_lifecycle(
         "/api/v1/fitting/sessions", params={"model": "toth", "query": "zeolite"}
     ).json()
     assert [item["id"] for item in filtered["items"]] == [detail["id"]]
+    assert filtered["items"][0]["best_models"] == detail["best_models"]
+    assert set(detail["best_models"]) == {"A", "B"}
     assert (
         client.get("/api/v1/fitting/sessions", params={"status": "failed"}).json()[
             "total"

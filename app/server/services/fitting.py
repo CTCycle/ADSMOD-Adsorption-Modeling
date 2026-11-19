@@ -711,7 +711,11 @@ class FittingService:
         return best
 
     # -------------------------------------------------------------------------
-    def _summary_fields(self, record: FittingSession) -> dict[str, Any]:
+    def _summary_fields(
+        self,
+        record: FittingSession,
+        best_models: dict[str, str | None] | None = None,
+    ) -> dict[str, Any]:
         duration = (
             (record.completed_at - record.created_at).total_seconds()
             if record.completed_at is not None
@@ -734,16 +738,19 @@ class FittingService:
             if record.completed_at
             else None,
             "duration_seconds": duration,
-            "best_models": self._best_models(record),
+            "best_models": self._best_models(record)
+            if best_models is None
+            else best_models,
         }
 
     # -------------------------------------------------------------------------
     def list_sessions(self, query: SessionQuery) -> FittingSessionListResponse:
         records, total = self.results.list_sessions(query)
+        best_models = self.results.best_models([item.id for item in records])
         return FittingSessionListResponse(
             items=[
                 FittingSessionSummary(
-                    **self._summary_fields(item),
+                    **self._summary_fields(item, best_models[item.id]),
                     stale=item.status != "running" and self._session_staleness(item)[0],
                 )
                 for item in records
@@ -819,15 +826,13 @@ class FittingService:
         record = self.results.get_session(session_id)
         grouped: dict[str, list[FitResult]] = {}
         identities: dict[str, int | None] = {}
-        fitted_order = [
-            item.get("name") for item in record.configuration.get("experiments", [])
-        ]
+        fitted_order: dict[str, int] = {}
+        for item in record.configuration.get("experiments", []):
+            fitted_order.setdefault(item.get("name"), len(fitted_order))
         for result in sorted(
             record.results,
             key=lambda item: (
-                fitted_order.index(item.isotherm_name)
-                if item.isotherm_name in fitted_order
-                else len(fitted_order),
+                fitted_order.get(item.isotherm_name, len(fitted_order)),
                 item.id,
             ),
         ):
@@ -859,7 +864,13 @@ class FittingService:
             )
             for name, results in grouped.items()
         ]
-        stale, stale_reason = self._session_staleness(record)
+        # As in the list: a running session has no results to be stale against,
+        # and loading every experiment would compete with the fit thread.
+        stale, stale_reason = (
+            (False, None)
+            if record.status == "running"
+            else self._session_staleness(record)
+        )
         return FittingSessionDetail(
             **self._summary_fields(record),
             configuration=record.configuration,
@@ -873,13 +884,14 @@ class FittingService:
     # -------------------------------------------------------------------------
     def _session_staleness(self, record: FittingSession) -> tuple[bool, str | None]:
         """Compare stored experiment fingerprints with the current dataset content."""
-        for stored in record.configuration.get("experiments", []):
+        stored_experiments = record.configuration.get("experiments", [])
+        current = self.datasets.fitting_fingerprint_inputs(
+            record.dataset_id, [int(item["isotherm_id"]) for item in stored_experiments]
+        )
+        for stored in stored_experiments:
             name = stored.get("name")
-            try:
-                series = self.datasets.fitting_series(
-                    record.dataset_id, int(stored["isotherm_id"])
-                )
-            except LookupError, ValueError:
+            series = current.get(int(stored["isotherm_id"]))
+            if series is None:
                 return True, f"Experiment '{name}' is no longer available or fittable."
             if self.pipeline.input_hash(series) != stored.get("input_sha256"):
                 return True, (
