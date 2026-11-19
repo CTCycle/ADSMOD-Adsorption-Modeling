@@ -1151,7 +1151,6 @@ input[type="file"]:focus-visible,
 textarea:focus-visible,
 .select-input:focus-visible,
 .sidebar-icon:focus-visible,
-.icon-action-button:focus-visible,
 .split-selection-refresh-button:focus-visible,
 .ghost-button:focus-visible,
 .info-modal-close-btn:focus-visible {
@@ -2109,6 +2108,11 @@ input:checked+.slider:before {
   border-radius: 0;
 }
 
+.dataset-table-flat .dataset-table-header,
+.dataset-table-flat .dataset-row {
+  grid-template-columns: 1.6fr 0.8fr 0.6fr;
+}
+
 .dataset-table-header-sticky {
   position: sticky;
   top: 0;
@@ -2133,33 +2137,6 @@ input:checked+.slider:before {
 .dataset-name-cell {
   font-weight: 500;
   color: var(--slate-700);
-}
-
-.icon-action-button {
-  width: 2rem;
-  height: 2rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--slate-700);
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0;
-  line-height: 1;
-}
-
-.icon-action-button:hover:not(:disabled) {
-  background: var(--slate-50);
-  border-color: var(--slate-400);
-}
-
-.icon-action-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 @media (max-width: 1100px) {
@@ -2246,11 +2223,6 @@ input:checked+.slider:before {
 .dataset-count {
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.dataset-actions-header,
-.dataset-actions-cell {
-  text-align: right;
 }
 
 .dataset-table-empty {

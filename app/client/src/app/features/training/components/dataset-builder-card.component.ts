@@ -7,7 +7,6 @@ import { DatasetProcessingWizardComponent } from './dataset-processing-wizard.co
 import type { DatasetBuildConfig } from '../../../models/dataset-build.model';
 import type { DatasetFullInfo, DatasetSourceInfo, TrainingConfiguration } from '../../../models/training.model';
 import { buildTrainingDataset, clearTrainingDataset, getTrainingDatasetInfo } from '../../../services/dataset-builder.service';
-import { deleteDataset } from '../../../services/dataset.service';
 import { fetchDatasetSources } from '../../../services/training.service';
 
 const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.source}:${dataset.dataset_name}`;
@@ -31,7 +30,6 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                             <span>Name</span>
                             <span>Source</span>
                             <span class="dataset-count-header">Rows</span>
-                            <span class="dataset-actions-header">Actions</span>
                         </div>
                         <div class="dataset-table-body dataset-table-body-unbounded">
                             @if (isLoadingSources()) {
@@ -52,17 +50,6 @@ const buildDatasetKey = (dataset: DatasetSourceInfo): string => `${dataset.sourc
                                     <span class="dataset-name-cell">{{ dataset.display_name }}</span>
                                     <span class="dataset-source">{{ dataset.source }}</span>
                                     <span class="dataset-count">{{ dataset.row_count }}</span>
-                                    <span class="dataset-actions-cell">
-                                        <button
-                                            class="icon-action-button"
-                                            type="button"
-                                            [disabled]="dataset.source !== 'uploaded'"
-                                            [title]="dataset.source === 'uploaded' ? 'Delete Dataset' : 'NIST datasets cannot be removed'"
-                                            (click)="deleteSourceDataset($event, dataset)"
-                                        >
-                                            🗑️
-                                        </button>
-                                    </span>
                                 </div>
                             }
                         </div>
@@ -242,31 +229,6 @@ export class DatasetBuilderCardComponent {
 
         this.isBuilding.set(false);
         this.jobProgress.set(null);
-    }
-
-    protected async deleteSourceDataset(event: Event, dataset: DatasetSourceInfo): Promise<void> {
-        event.stopPropagation();
-        if (dataset.source !== 'uploaded') {
-            return;
-        }
-        if (!window.confirm(`Are you sure you want to delete dataset '${dataset.display_name}'?`)) {
-            return;
-        }
-
-        if (dataset.dataset_id === null) {
-            this.statusTone.set('error');
-            this.statusMessage.set('ERROR: This dataset has no canonical dataset ID.');
-            return;
-        }
-
-        const result = await deleteDataset(dataset.dataset_id);
-        if (!result.error) {
-            await this.loadDatasetSources();
-            this.workspaceChanged.emit();
-        } else {
-            this.statusTone.set('error');
-            this.statusMessage.set(`ERROR: Failed to delete dataset: ${result.error}`);
-        }
     }
 
     private async loadDatasetInfo(): Promise<void> {
