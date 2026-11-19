@@ -60,6 +60,11 @@ def _device_capabilities() -> RuntimeDeviceCapabilities:
 ###############################################################################
 def configuration(request: Request) -> TrainingConfigurationResponse:
     config: AdsmodConfig = request.app.state.config
+    # Import the ML stack (torch included) only through the lazy container's
+    # lock: a bare `import torch` here, concurrent with the training status
+    # request loading the container, deadlocked torch's module imports and left
+    # it half-initialized for the rest of the process.
+    request.app.state.ml_container.load()
     training_defaults = TrainingConfigRequest().model_dump(mode="json")
     training_defaults.update(
         {
