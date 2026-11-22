@@ -1,6 +1,6 @@
 # System overview
 
-Last updated: 2026-11-09
+Last updated: 2026-11-22
 
 ## Repository layout
 
@@ -48,10 +48,12 @@ The base backend installation does not install the heavy ML dependencies. The
 optional `ml` dependency extra installs them. At startup the backend only
 checks that `torch`, `keras`, and `sklearn` are installed, registers the ML
 routes behind `LazyMlContainer` (`server.services.ml_lazy`), and reports the
-result via `/api/v1/system/capabilities`. The ML stack itself is imported on
-the first training request, so a session that never opens the ML pages keeps
-roughly 600 MB less resident memory; training runs in a spawned child
-process. The Angular client uses the capability as its single source of truth
+result via `/api/v1/system/capabilities`. The training services load on the
+first training request, but torch and keras are imported only inside the
+spawned training process (`server.models.training.process`); the API process
+reports devices from the deep-learning subprocess probe and loads only
+scikit-learn, during a dataset build. Opening the ML pages therefore costs a
+few megabytes instead of roughly 600 MB of resident memory. The Angular client uses the capability as its single source of truth
 for ML navigation and route access.
 
 ## Configuration flow
