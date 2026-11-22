@@ -281,7 +281,7 @@ def test_checkpoint_loader_allows_adsmod_owned_lambda_layers(
         return object()
 
     monkeypatch.setattr(
-        "server.models.training.serialization.model.load_model", fake_load_model
+        "keras.models.load_model", fake_load_model
     )
     loaded, _, _, _, resolved = ModelSerializer(tmp_path).load_checkpoint(
         "local-checkpoint"

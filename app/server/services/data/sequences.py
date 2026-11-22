@@ -8,10 +8,29 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from keras.preprocessing.sequence import pad_sequences
 
 from server.common.constants import PAD_VALUE
 from server.common.utils.logger import logger
+
+
+###############################################################################
+def pad_sequences(
+    sequences: Any, maxlen: int, value: float, dtype: str = "float32"
+) -> np.ndarray:
+    """Post-pad to `maxlen`, keeping the last `maxlen` items of longer sequences.
+
+    Matches `keras.preprocessing.sequence.pad_sequences(..., padding="post")`
+    with its default `truncating="pre"`, without importing keras (and torch)
+    into the API process during a dataset build.
+    """
+    padded = np.full((len(sequences), maxlen), value, dtype=dtype)
+    for index, sequence in enumerate(sequences):
+        if not len(sequence):
+            continue
+        trimmed = np.asarray(sequence, dtype=dtype)[-maxlen:]
+        padded[index, : len(trimmed)] = trimmed
+    return padded
+
 
 ###############################################################################
 TWO_CHAR_TOKENS = frozenset({"Cl", "Br", "@@"})

@@ -6,7 +6,8 @@ import inspect
 import pytest
 from server.services.ml_container import MlServiceContainer
 from types import SimpleNamespace
-from server.models.training.manager import TrainingManager, TrainingProcessRunner
+from server.models.training.manager import TrainingManager
+from server.models.training.process import TrainingProcessRunner
 from server.services.data.sequences import PressureUptakeSeriesProcess
 import pandas as pd
 

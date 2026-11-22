@@ -7,8 +7,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
-from sklearn.preprocessing import LabelEncoder
 
 from server.common.utils.logger import logger
 
@@ -160,6 +158,9 @@ class AdsorbentEncoder:
         self.norm_columns = "adsorbent_name"
         self.configuration = configuration
 
+        # deferred: sklearn loads only during a dataset build
+        from sklearn.preprocessing import LabelEncoder
+
         self.scaler = LabelEncoder()
         self.scaler.fit(train_dataset[self.norm_columns])
         self.mapping = {label: idx for idx, label in enumerate(self.scaler.classes_)}
@@ -279,6 +280,9 @@ class TrainValidationSplit:
         dataset = self.remove_underpopulated_classes(dataset).reset_index(drop=True)
         combination_classes = dataset["combination"]
         n_samples = len(dataset)
+
+        # deferred: sklearn loads only during a dataset build
+        from sklearn.model_selection import StratifiedShuffleSplit, train_test_split
 
         try:
             splitter = StratifiedShuffleSplit(

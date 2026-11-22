@@ -341,6 +341,18 @@ class DeepLearningManager:
         )
 
     # -------------------------------------------------------------------------
+    def devices(self) -> tuple[bool, tuple[str, ...]]:
+        """CUDA availability and device names from the subprocess probe.
+
+        Lets the API report devices without importing torch in-process.
+        """
+        with self._lock:
+            result = self._probe.result or {}
+        return bool(result.get("cuda_available")), tuple(
+            str(name) for name in result.get("devices", ())
+        )
+
+    # -------------------------------------------------------------------------
     def _derive(
         self,
         operation: dict[str, Any] | None,

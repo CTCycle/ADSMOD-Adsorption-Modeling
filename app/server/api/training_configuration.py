@@ -12,6 +12,7 @@ from server.domain.configuration import (
     RuntimeDeviceCapabilities,
     TrainingConfigurationResponse,
 )
+from server.services.deep_learning import DeepLearningManager
 from server.domain.training import (
     DatasetBuildRequest,
     ResumeTrainingRequest,
@@ -40,31 +41,22 @@ def _numeric_constraints(model: type[Any]) -> dict[str, dict[str, int | float]]:
 
 
 ###############################################################################
-def _device_capabilities() -> RuntimeDeviceCapabilities:
-    # Deferred: torch belongs to the optional ML profile.
-    import torch
-
-    cuda_available = bool(torch.cuda.is_available())
-    device_count = int(torch.cuda.device_count()) if cuda_available else 0
-    devices = tuple(
-        str(torch.cuda.get_device_name(index)) for index in range(device_count)
-    )
+def _device_capabilities(manager: DeepLearningManager) -> RuntimeDeviceCapabilities:
+    # Read from the deep learning subprocess probe: importing torch here would
+    # keep ~600 MB resident in the API process for the rest of its lifetime.
+    # Training routes require a verified installation, so the probe has run.
+    cuda_available, devices = manager.devices()
     return RuntimeDeviceCapabilities(
         keras_backend="torch",
         cuda_available=cuda_available,
-        device_count=device_count,
-        devices=devices,
+        device_count=len(devices) if cuda_available else 0,
+        devices=devices if cuda_available else (),
     )
 
 
 ###############################################################################
 def configuration(request: Request) -> TrainingConfigurationResponse:
     config: AdsmodConfig = request.app.state.config
-    # Import the ML stack (torch included) only through the lazy container's
-    # lock: a bare `import torch` here, concurrent with the training status
-    # request loading the container, deadlocked torch's module imports and left
-    # it half-initialized for the rest of the process.
-    request.app.state.ml_container.load()
     training_defaults = TrainingConfigRequest().model_dump(mode="json")
     training_defaults.update(
         {
@@ -96,7 +88,7 @@ def configuration(request: Request) -> TrainingConfigurationResponse:
         },
         supported_models=("SCADS Series", "SCADS Atomic"),
         checkpoint_capabilities={"save": True, "resume": True, "delete": True},
-        runtime=_device_capabilities(),
+        runtime=_device_capabilities(request.app.state.deep_learning),
     )
 
 

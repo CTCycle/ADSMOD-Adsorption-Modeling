@@ -26,7 +26,7 @@ def test_core_app_import_does_not_load_ml_runtime() -> None:
 
 
 ###############################################################################
-def test_running_app_loads_ml_runtime_only_on_first_training_request(
+def test_training_inspection_endpoints_do_not_load_ml_runtime(
     tmp_path: Path,
 ) -> None:
     script = (
@@ -35,7 +35,7 @@ def test_running_app_loads_ml_runtime_only_on_first_training_request(
         "from fastapi.testclient import TestClient; "
         "from server.app import create_app; "
         "from server.configurations.settings import AdsmodConfig, DatabaseConfig, UserSettings; "
-        "heavy = lambda: any(n in sys.modules for n in ('torch', 'keras', 'sklearn', 'server.services.ml_container')); "
+        "heavy = lambda: any(n in sys.modules for n in ('torch', 'keras', 'sklearn')); "
         f"config = AdsmodConfig.assemble(database=DatabaseConfig(embedded_database=True, sqlite_path='core.db'), storage_root=Path({str(tmp_path)!r}), settings=UserSettings()); "
         "import time; "
         "client = TestClient(create_app(config)); client.__enter__(); "
@@ -45,8 +45,12 @@ def test_running_app_loads_ml_runtime_only_on_first_training_request(
         "assert client.get('/api/v1/system/capabilities').json()['features']['machine_learning'] is True; "
         "assert client.get('/api/v1/jobs').status_code == 200; "
         "assert not heavy(); "
-        "assert client.get('/api/v1/training/status').status_code == 200; "
-        "assert heavy(); "
+        "assert 'server.services.ml_container' not in sys.modules; "
+        "paths = ('configuration', 'status', 'checkpoints', 'datasets', 'processed-datasets', 'dataset-sources', 'jobs'); "
+        "codes = {p: client.get(f'/api/v1/training/{p}').status_code for p in paths}; "
+        "assert set(codes.values()) == {200}, codes; "
+        "assert 'server.services.ml_container' in sys.modules; "
+        "assert not heavy(), [n for n in ('torch', 'keras', 'sklearn') if n in sys.modules]; "
         "client.__exit__(None, None, None)"
     )
     subprocess.run(

@@ -10,25 +10,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from keras.models import load_model
-
 from server.domain.training import TrainingMetadata
-from server.models.training.metrics import (
-    MaskedMeanSquaredError,
-    MaskedRSquared,
-)
-from server.models.training.embeddings import MolecularEmbedding
-from server.models.training.encoders import (
-    PressureSerierEncoder,
-    QDecoder,
-    StateEncoder,
-)
-from server.models.training.transformers import (
-    AddNorm,
-    FeedForward,
-    TransformerEncoder,
-)
-from server.models.training.scheduler import LinearDecayLRScheduler
 from server.common.utils.logger import logger
 from server.common.utils.security import resolve_checkpoint_path
 
@@ -144,6 +126,26 @@ class ModelSerializer:
     def load_checkpoint(
         self, checkpoint: str
     ) -> tuple[Any, dict, TrainingMetadata, dict, str]:
+        # deferred: keras loads only when a checkpoint is restored
+        from keras.models import load_model
+
+        from server.models.training.metrics import (
+            MaskedMeanSquaredError,
+            MaskedRSquared,
+        )
+        from server.models.training.embeddings import MolecularEmbedding
+        from server.models.training.encoders import (
+            PressureSerierEncoder,
+            QDecoder,
+            StateEncoder,
+        )
+        from server.models.training.transformers import (
+            AddNorm,
+            FeedForward,
+            TransformerEncoder,
+        )
+        from server.models.training.scheduler import LinearDecayLRScheduler
+
         custom_objects = {
             "MaskedMeanSquaredError": MaskedMeanSquaredError,
             "MaskedRSquared": MaskedRSquared,
