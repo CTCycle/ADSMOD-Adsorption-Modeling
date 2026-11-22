@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from pathlib import Path
@@ -32,10 +33,16 @@ EPOCH_METRIC_ALIASES = {
 
 
 ###############################################################################
+def is_finite_number(value: Any) -> bool:
+    """NaN/inf metrics (a diverged run) are treated as missing: JSON cannot carry them."""
+    return isinstance(value, (int, float)) and math.isfinite(value)
+
+
+###############################################################################
 def first_numeric(logs: dict[str, Any], keys: tuple[str, ...]) -> float | None:
     for key in keys:
         candidate = logs.get(key)
-        if isinstance(candidate, (int, float)):
+        if is_finite_number(candidate):
             return float(candidate)
     return None
 
@@ -107,7 +114,7 @@ class TrainingManager:
                 if not isinstance(values, list) or index >= len(values):
                     continue
                 value = values[index]
-                if isinstance(value, (int, float)):
+                if is_finite_number(value):
                     entry[HISTORY_KEY_ALIASES.get(key, key)] = float(value)
             entries.append(entry)
         return entries
@@ -123,7 +130,7 @@ class TrainingManager:
         for key, value in last_entry.items():
             if key == "epoch":
                 continue
-            if isinstance(value, (int, float)):
+            if is_finite_number(value):
                 metrics[key] = float(value)
         return metrics
 
@@ -184,12 +191,12 @@ class TrainingManager:
     def _apply_training_update(self, message: dict[str, Any]) -> None:
         update_payload = self._extract_epoch_fields(message, epoch_key="epoch")
         progress_percent = message.get("progress_percent")
-        if isinstance(progress_percent, (int, float)):
+        if is_finite_number(progress_percent):
             update_payload["progress"] = float(progress_percent)
         metrics_update = {
             key: float(message[key])
             for key in TRAINING_UPDATE_METRIC_KEYS
-            if isinstance(message.get(key), (int, float))
+            if is_finite_number(message.get(key))
         }
         if metrics_update:
             current_metrics = self.state.snapshot().get("metrics", {})
@@ -238,36 +245,40 @@ class TrainingManager:
             current_epoch=epoch, total_epochs=total_epochs, progress=progress
         )
 
-        loss = first_numeric(logs, ("loss",)) or 0.0
-        val_loss = first_numeric(logs, ("val_loss",)) or 0.0
+        loss = first_numeric(logs, ("loss",))
+        val_loss = first_numeric(logs, ("val_loss",))
         optional_metrics = {
             name: first_numeric(logs, aliases)
             for name, aliases in EPOCH_METRIC_ALIASES.items()
         }
-        metrics = {"loss": loss, "val_loss": val_loss}
-        metrics.update(
-            {
-                name: value
-                for name, value in optional_metrics.items()
-                if value is not None
-            }
-        )
+        metrics = {
+            name: value
+            for name, value in {
+                "loss": loss,
+                "val_loss": val_loss,
+                **optional_metrics,
+            }.items()
+            if value is not None
+        }
         self.state.update(metrics=metrics)
 
         if optional_metrics["accuracy"] is not None:
             metric_label, metric_value = "acc", optional_metrics["accuracy"]
         else:
-            metric_label, metric_value = "r2", optional_metrics["masked_r2"] or 0.0
+            metric_label, metric_value = "r2", optional_metrics["masked_r2"]
         if optional_metrics["val_accuracy"] is not None:
             val_metric_value = optional_metrics["val_accuracy"]
         else:
-            val_metric_value = optional_metrics["val_masked_r2"] or 0.0
+            val_metric_value = optional_metrics["val_masked_r2"]
+
+        def shown(value: float | None) -> str:
+            return "nan" if value is None else f"{value:.4f}"
 
         # Add generic log entry
         log_message = (
-            f"Epoch {epoch}/{total_epochs} - loss: {loss:.4f} - "
-            f"{metric_label}: {metric_value:.4f} - val_loss: {val_loss:.4f} - "
-            f"val_{metric_label}: {val_metric_value:.4f}"
+            f"Epoch {epoch}/{total_epochs} - loss: {shown(loss)} - "
+            f"{metric_label}: {shown(metric_value)} - val_loss: {shown(val_loss)} - "
+            f"val_{metric_label}: {shown(val_metric_value)}"
         )
         self.state.add_log(log_message)
 

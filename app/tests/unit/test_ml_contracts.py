@@ -6,7 +6,9 @@ import inspect
 import pytest
 from server.services.ml_container import MlServiceContainer
 from types import SimpleNamespace
+from server.domain.training import TrainingStatusResponse
 from server.models.training.manager import TrainingManager
+from server.models.training.state import TrainingState
 from server.models.training.process import TrainingProcessRunner
 from server.services.data.sequences import PressureUptakeSeriesProcess
 import pandas as pd
@@ -64,6 +66,29 @@ def test_reconstructed_history_uses_one_based_epochs() -> None:
             "val_masked_r2": 0.3,
         }
     ]
+
+
+###############################################################################
+def test_diverged_epoch_metrics_keep_training_status_serializable() -> None:
+    manager = object.__new__(TrainingManager)
+    manager.state = TrainingState()
+    nan = float("nan")
+
+    manager._on_epoch_end(1, 2, {"loss": nan, "val_loss": 0.4, "MaskedR2": nan})
+    state = manager.state.snapshot()
+    status = TrainingStatusResponse(
+        is_training=False,
+        current_epoch=state["current_epoch"],
+        total_epochs=state["total_epochs"],
+        progress=state["progress"],
+        metrics=state["metrics"],
+        history=state["history"],
+        log=state["log"],
+    )
+
+    assert state["metrics"] == {"val_loss": 0.4}
+    assert "loss: nan" in state["log"][-1]
+    status.model_dump_json()
 
 
 ###############################################################################
