@@ -34,3 +34,28 @@ def test_pad_sequences_matches_keras(sequences: list, as_series: bool) -> None:
     actual = pad_sequences(data, maxlen=4, value=-1.0, dtype="float32")
     assert actual.dtype == expected.dtype
     np.testing.assert_array_equal(actual, expected)
+
+
+# -----------------------------------------------------------------------------
+def test_series_padding_call_sites_pad_to_configured_length() -> None:
+    from server.common.constants import PAD_VALUE
+    from server.services.data.sequences import (
+        PressureUptakeSeriesProcess,
+        SMILETokenization,
+    )
+
+    frame = pd.DataFrame(
+        {
+            "pressure": [[1.0, 2.0]],
+            "adsorbed_amount": [[3.0, 4.0]],
+            "adsorbate_encoded_SMILE": [[5.0]],
+        }
+    )
+    padded = PressureUptakeSeriesProcess({"max_measurements": 3}).PQ_series_padding(
+        frame
+    )
+    padded = SMILETokenization({"smile_sequence_size": 2}).SMILE_series_padding(padded)
+
+    assert padded.loc[0, "pressure"] == [1.0, 2.0, PAD_VALUE]
+    assert padded.loc[0, "adsorbed_amount"] == [3.0, 4.0, PAD_VALUE]
+    assert padded.loc[0, "adsorbate_encoded_SMILE"] == [5.0, PAD_VALUE]

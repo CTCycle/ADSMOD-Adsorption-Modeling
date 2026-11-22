@@ -357,4 +357,3 @@ def run_training_process(
     finally:
         if snapshot_access is not None:
             snapshot_access.close()
-

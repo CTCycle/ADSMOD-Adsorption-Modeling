@@ -89,7 +89,6 @@ class PressureUptakeSeriesProcess:
             maxlen=self.max_points,
             value=PAD_VALUE,
             dtype="float32",
-            padding="post",
         ).tolist()
 
         dataset[self.Q_COL] = pad_sequences(
@@ -97,7 +96,6 @@ class PressureUptakeSeriesProcess:
             maxlen=self.max_points,
             value=PAD_VALUE,
             dtype="float32",
-            padding="post",
         ).tolist()
 
         return dataset
@@ -345,7 +343,6 @@ class SMILETokenization:
             maxlen=self.SMILE_padding,
             value=PAD_VALUE,
             dtype="float32",
-            padding="post",
         ).tolist()
 
         return dataset
