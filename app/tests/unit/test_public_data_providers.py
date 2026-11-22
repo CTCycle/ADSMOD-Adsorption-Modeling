@@ -202,9 +202,9 @@ def test_nist_repository_counts_and_loader_frame_are_canonical(
 
     adsorption, guests, hosts = repository.load_adsorption_datasets()
     assert len(adsorption) == 6
-    assert {"pressure", "adsorbed_amount"}.issubset(adsorption.columns)
-    assert set(guests["name"]) == {"methane", "nitrogen", "argon"}
-    assert set(hosts["name"]) == {"silica", "carbon"}
+    assert all({"pressure", "adsorbed_amount"} <= row.keys() for row in adsorption)
+    assert {item["name"] for item in guests} == {"methane", "nitrogen", "argon"}
+    assert {item["name"] for item in hosts} == {"silica", "carbon"}
     # Experiment species and materials reuse the NIST catalogue identities.
     with repository.database.session_factory() as session:
         assert session.scalar(select(func.count(Adsorbate.id))) == 3

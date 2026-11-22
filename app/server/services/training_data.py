@@ -32,6 +32,12 @@ def _json_safe(value: object) -> object:
 
 
 ###############################################################################
+def _make_json_safe(record: dict[str, Any]) -> None:
+    for key, value in record.items():
+        record[key] = _json_safe(value)
+
+
+###############################################################################
 class TrainingDataService:
     # -------------------------------------------------------------------------
     def __init__(
@@ -142,16 +148,13 @@ class TrainingDataService:
         non_pascal = {
             key for key, value in units.items() if value != {"Pa"}
         } - multi_species
-        kept = [
-            {
-                key: value
-                for key, value in row.items()
-                if key not in {"adsorbate_id", "pressure_canonical_unit"}
-            }
-            for row in rows
-            if row["isotherm_id"] not in multi_species
-            and row["isotherm_id"] not in non_pascal
-        ]
+        dropped = multi_species | non_pascal
+        # Kept rows are trimmed in place instead of copied: at NIST scale a
+        # second set of row dicts doubles the snapshot build's peak memory.
+        kept = [row for row in rows if row["isotherm_id"] not in dropped]
+        for row in kept:
+            row.pop("adsorbate_id", None)
+            row.pop("pressure_canonical_unit", None)
         return kept, {
             "multi_species_isotherms": len(multi_species),
             "non_pascal_pressure_isotherms": len(non_pascal),
@@ -203,9 +206,10 @@ class TrainingDataService:
             raise ValueError(
                 f"Uploaded dataset '{dataset_name}' contains no observations."
             )
-        rows: list[dict[str, Any]] = []
-        for index, raw_record in enumerate(frame.to_dict(orient="records")):
-            record = {str(key): _json_safe(value) for key, value in raw_record.items()}
+        rows: list[dict[str, Any]] = frame.to_dict(orient="records")
+        del frame
+        for index, record in enumerate(rows):
+            _make_json_safe(record)
             experiment = str(record.get("experiment") or f"row-{index}")
             record.update(
                 {
@@ -217,23 +221,19 @@ class TrainingDataService:
                     "adsorption_units": "mol/kg",
                 }
             )
-            rows.append(record)
         return rows
 
     # -------------------------------------------------------------------------
     def _nist_snapshot_rows(self, dataset_name: str) -> list[dict[str, Any]]:
-        adsorption, guests, _ = (
-            self.container.nist_repository.load_adsorption_datasets()
-        )
-        if adsorption.empty:
+        rows, guests, _ = self.container.nist_repository.load_adsorption_datasets()
+        if not rows:
             raise ValueError(f"NIST dataset '{dataset_name}' contains no observations.")
         guest_properties = {
-            str(row.get("name", "")).strip().casefold(): row
-            for row in guests.to_dict(orient="records")
+            str(row.get("name", "")).strip().casefold(): row for row in guests
         }
-        rows: list[dict[str, Any]] = []
-        for index, raw_record in enumerate(adsorption.to_dict(orient="records")):
-            record = {str(key): _json_safe(value) for key, value in raw_record.items()}
+        # Rows are enriched in place: one set of row dicts for the whole build.
+        for index, record in enumerate(rows):
+            _make_json_safe(record)
             adsorbate = str(record.get("adsorbate") or "").strip()
             adsorbent = str(record.get("adsorbent") or "").strip()
             guest = guest_properties.get(adsorbate.casefold(), {})
@@ -251,7 +251,6 @@ class TrainingDataService:
                     "adsorption_units": "mol/kg",
                 }
             )
-            rows.append(record)
         return rows
 
 

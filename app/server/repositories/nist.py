@@ -6,7 +6,6 @@ from __future__ import annotations
 from typing import Any
 from urllib.parse import quote
 
-import pandas as pd
 from sqlalchemy import func, select
 
 from server.repositories.database.manager import DatabaseManager
@@ -148,8 +147,12 @@ class NISTRepository:
     # -------------------------------------------------------------------------
     def load_adsorption_datasets(
         self,
-    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-        """NIST adsorption-branch rows for ML training; desorption is excluded."""
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+        """NIST adsorption-branch rows for ML training; desorption is excluded.
+
+        Returns plain row dicts: the snapshot builder enriches them in place, so
+        no DataFrame or record copies of the full table are created.
+        """
         with self.database.session_factory() as session:
             rows = session.execute(
                 select(
@@ -174,6 +177,7 @@ class NISTRepository:
                     Observation.pressure_canonical,
                 )
             ).mappings()
+            adsorption = [dict(row) for row in rows]
             guests = session.scalars(
                 select(Adsorbate)
                 .join(
@@ -194,31 +198,26 @@ class NISTRepository:
                 .distinct()
                 .order_by(Adsorbent.id)
             ).all()
-        adsorption = pd.DataFrame([dict(row) for row in rows])
-        guest = pd.DataFrame(
-            [
-                {
-                    "name": item.name,
-                    "InChIKey": item.inchi_key,
-                    "molecular_weight": item.molar_mass_g_mol,
-                    "molecular_formula": item.formula,
-                    "smile_code": item.smiles,
-                }
-                for item in guests
-            ]
-        )
-        host = pd.DataFrame(
-            [
-                {
-                    "name": item.name,
-                    "hashkey": item.external_identifier,
-                    "molecular_weight": item.molar_mass_g_mol,
-                    "molecular_formula": item.formula,
-                    "smile_code": item.smiles,
-                }
-                for item in hosts
-            ]
-        )
+        guest = [
+            {
+                "name": item.name,
+                "InChIKey": item.inchi_key,
+                "molecular_weight": item.molar_mass_g_mol,
+                "molecular_formula": item.formula,
+                "smile_code": item.smiles,
+            }
+            for item in guests
+        ]
+        host = [
+            {
+                "name": item.name,
+                "hashkey": item.external_identifier,
+                "molecular_weight": item.molar_mass_g_mol,
+                "molecular_formula": item.formula,
+                "smile_code": item.smiles,
+            }
+            for item in hosts
+        ]
         return adsorption, guest, host
 
     # -------------------------------------------------------------------------
