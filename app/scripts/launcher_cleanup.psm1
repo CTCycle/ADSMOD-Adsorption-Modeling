@@ -44,18 +44,24 @@ function Test-IsFilesystemRoot {
     )
 }
 
+# Returns the entry's attributes, or $null when it does not exist (one syscall, no provider overhead).
+function Get-EntryAttributes {
+    param([Parameter(Mandatory)][string]$Path)
+    try { return [System.IO.File]::GetAttributes($Path) }
+    catch [System.IO.FileNotFoundException] { return $null }
+    catch [System.IO.DirectoryNotFoundException] { return $null }
+}
+
 function Get-ReparseComponent {
     param([Parameter(Mandatory)][string]$Path)
     $cursor = Get-FullPathSafe $Path
     while ($cursor) {
-        if (Test-Path -LiteralPath $cursor) {
-            try {
-                $item = Get-Item -LiteralPath $cursor -Force -ErrorAction Stop
-                if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { return $cursor }
-            }
-            catch {
-                return "$cursor ($($_.Exception.Message))"
-            }
+        try {
+            $attributes = Get-EntryAttributes $cursor
+            if ($null -ne $attributes -and ($attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return $cursor }
+        }
+        catch {
+            return "$cursor ($($_.Exception.Message))"
         }
         $parent = [System.IO.Path]::GetDirectoryName($cursor)
         if (-not $parent -or $parent.Equals($cursor, [System.StringComparison]::OrdinalIgnoreCase)) { break }
@@ -66,6 +72,7 @@ function Get-ReparseComponent {
 
 function New-CleanupPlan {
     param([Parameter(Mandatory)][ValidateSet('Cache', 'Uninstall', 'Logs', 'Checkpoints', 'AllData')][string]$Operation)
+    $script:PlannedKeys = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     return [ordered]@{
         Operation = $Operation
         Targets = [Collections.Generic.List[object]]::new()
@@ -103,12 +110,10 @@ function Add-CleanupTarget {
             return
         }
         if ($KnownSafeAncestry) {
-            if (Test-Path -LiteralPath $fullPath) {
-                $attributes = [System.IO.File]::GetAttributes($fullPath)
-                if ($attributes -band [System.IO.FileAttributes]::ReparsePoint) {
-                    [void]$Plan.Skipped.Add("$fullPath (target is a reparse point; not followed)")
-                    return
-                }
+            $attributes = Get-EntryAttributes $fullPath
+            if ($null -ne $attributes -and ($attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                [void]$Plan.Skipped.Add("$fullPath (target is a reparse point; not followed)")
+                return
             }
         }
         else {
@@ -131,12 +136,12 @@ function Add-CleanupTarget {
             }
         }
 
-        $key = $fullPath.ToUpperInvariant()
-        if (@($Plan.Targets | Where-Object { $_.Path.ToUpperInvariant() -eq $key }).Count -gt 0) { return }
-        $exists = Test-Path -LiteralPath $fullPath
+        if (-not $script:PlannedKeys.Add($fullPath)) { return }
+        $entryAttributes = Get-EntryAttributes $fullPath
+        $exists = $null -ne $entryAttributes
         if ($exists) {
-            $item = Get-Item -LiteralPath $fullPath -Force -ErrorAction Stop
-            if (($Kind -eq 'File' -and $item.PSIsContainer) -or ($Kind -in @('Directory', 'Contents') -and -not $item.PSIsContainer)) {
+            $isContainer = [bool]($entryAttributes -band [System.IO.FileAttributes]::Directory)
+            if (($Kind -eq 'File' -and $isContainer) -or ($Kind -in @('Directory', 'Contents') -and -not $isContainer)) {
                 [void]$Plan.Errors.Add("Refused cleanup target with unexpected item type: $fullPath")
                 return
             }
@@ -167,6 +172,12 @@ function Add-CacheDirectoryCandidates {
     $repo = Get-FullPathSafe $RepoRoot
     $data = Get-FullPathSafe $DataRoot
     $skipRootNames = @('.git', 'node_modules', 'QA')
+    $runtimesPath = Join-Path $repo 'runtimes'
+    $runtimeCachePath = Join-Path $runtimesPath 'cache'
+    $repoData = Join-Path $repo 'data'
+    $serverRoot = Join-Path $repo 'app\server'
+    $testsRoot = Join-Path $repo 'app\tests'
+    $dataIsRepo = $data.Equals($repo, [System.StringComparison]::OrdinalIgnoreCase)
     $queue = [Collections.Generic.Queue[string]]::new()
     $queue.Enqueue($repo)
     while ($queue.Count -gt 0) {
@@ -196,7 +207,8 @@ function Add-CacheDirectoryCandidates {
         try {
             foreach ($filePath in @([System.IO.Directory]::EnumerateFiles($current))) {
                 $name = [System.IO.Path]::GetFileName($filePath)
-                if ($name -notmatch '^\.coverage($|\.)' -and $name -notin @('coverage.xml') -and $name -notmatch '\.py[co]$') { continue }
+                $isCoverageFile = $name -eq 'coverage.xml' -or $name -eq '.coverage' -or $name.StartsWith('.coverage.', [StringComparison]::Ordinal)
+                if (-not $isCoverageFile -and -not $name.EndsWith('.pyc', [StringComparison]::Ordinal) -and -not $name.EndsWith('.pyo', [StringComparison]::Ordinal)) { continue }
                 try {
                     $attributes = [System.IO.File]::GetAttributes($filePath)
                     if ($attributes -band [System.IO.FileAttributes]::ReparsePoint) {
@@ -219,8 +231,8 @@ function Add-CacheDirectoryCandidates {
             $path = Get-FullPathSafe $childPath
             $name = [System.IO.Path]::GetFileName($path.TrimEnd('\', '/'))
             if ($name -in $skipRootNames) { continue }
-            if ($path.Equals((Join-Path (Join-Path $repo 'runtimes') 'cache'), [StringComparison]::OrdinalIgnoreCase)) { continue }
-            if ($Plan.Operation -eq 'Uninstall' -and $path.Equals((Join-Path $repo 'runtimes'), [StringComparison]::OrdinalIgnoreCase)) { continue }
+            if ($path.Equals($runtimeCachePath, [StringComparison]::OrdinalIgnoreCase)) { continue }
+            if ($Plan.Operation -eq 'Uninstall' -and $path.Equals($runtimesPath, [StringComparison]::OrdinalIgnoreCase)) { continue }
             try { $attributes = [System.IO.File]::GetAttributes($path) }
             catch {
                 [void]$Plan.Skipped.Add("$path (attributes unavailable: $($_.Exception.Message))")
@@ -230,16 +242,14 @@ function Add-CacheDirectoryCandidates {
                 [void]$Plan.Skipped.Add("$path (reparse point not followed)")
                 continue
             }
-            if (-not $data.Equals($repo, [System.StringComparison]::OrdinalIgnoreCase) -and
-                (Test-PathWithin -Path $path -Root $data -AllowRoot)) { continue }
-            if ($path.Equals((Join-Path $repo 'data'), [System.StringComparison]::OrdinalIgnoreCase) -or
-                (Test-PathWithin -Path $path -Root (Join-Path $repo 'data'))) { continue }
-            if ($data.Equals($repo, [System.StringComparison]::OrdinalIgnoreCase) -and
+            if (-not $dataIsRepo -and (Test-PathWithin -Path $path -Root $data -AllowRoot)) { continue }
+            if (Test-PathWithin -Path $path -Root $repoData -AllowRoot) { continue }
+            if ($dataIsRepo -and
                 [System.IO.Path]::GetDirectoryName($path).Equals($repo, [StringComparison]::OrdinalIgnoreCase) -and
                 $name -in @('logs', 'checkpoints', 'training')) { continue }
 
             if ($name -in @('dist', 'build')) {
-                if (Test-PathWithin -Path $path -Root (Join-Path $repo 'app\server')) {
+                if (Test-PathWithin -Path $path -Root $serverRoot) {
                     Add-CleanupTarget -Plan $Plan -Path $path -ScopeRoot $repo -Kind Directory -Category 'Generated backend build output' -KnownSafeAncestry
                 }
                 continue
@@ -248,8 +258,8 @@ function Add-CacheDirectoryCandidates {
                 $name -like 'pytest-tmp*' -or
                 $name -like 'pytest-cache*' -or
                 $name -like '.pytest-*'
-            $isTestCache = $name -eq 'cache' -and (Test-PathWithin -Path $path -Root (Join-Path $repo 'app\tests'))
-            $isBackendBuildOutput = (Test-PathWithin -Path $path -Root (Join-Path $repo 'app\server')) -and
+            $isTestCache = $name -eq 'cache' -and (Test-PathWithin -Path $path -Root $testsRoot)
+            $isBackendBuildOutput = (Test-PathWithin -Path $path -Root $serverRoot) -and
                 ($name -in @('build', 'dist') -or $name -like '*.egg-info')
             if ($isCacheName -or $isTestCache -or $isBackendBuildOutput) {
                 Add-CleanupTarget -Plan $Plan -Path $path -ScopeRoot $repo -Kind Directory -Category 'Python, test, or framework cache' -KnownSafeAncestry
@@ -534,6 +544,7 @@ function Get-RemovalItems {
     }
     if (-not $rootItem.PSIsContainer) { return @([pscustomobject]@{ Path = $path; IsDirectory = $false }) }
 
+    $scopePrefix = (Get-FullPathSafe $Target.ScopeRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
     $items = [Collections.Generic.List[object]]::new()
     $protectedDirectories = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $queue = [Collections.Generic.Queue[string]]::new()
@@ -554,9 +565,9 @@ function Get-RemovalItems {
             continue
         }
         try {
-            foreach ($child in @(Get-ChildItem -LiteralPath $current -Force -ErrorAction Stop)) {
-                $childPath = Get-FullPathSafe $child.FullName
-                if (-not (Test-PathWithin -Path $childPath -Root $Target.ScopeRoot)) {
+            foreach ($child in [System.IO.DirectoryInfo]::new($current).EnumerateFileSystemInfos()) {
+                $childPath = $child.FullName
+                if (-not $childPath.StartsWith($scopePrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
                     [void]$Skipped.Add("$childPath (outside validated scope)")
                     continue
                 }
@@ -578,8 +589,9 @@ function Get-RemovalItems {
                     if ($Target.Kind -ne 'Contents') { [void]$protectedDirectories.Add($path) }
                     continue
                 }
-                [void]$items.Add([pscustomobject]@{ Path = $childPath; IsDirectory = [bool]$child.PSIsContainer })
-                if ($child.PSIsContainer) { $queue.Enqueue($childPath) }
+                $childIsDirectory = [bool]($child.Attributes -band [System.IO.FileAttributes]::Directory)
+                [void]$items.Add([pscustomobject]@{ Path = $childPath; IsDirectory = $childIsDirectory })
+                if ($childIsDirectory) { $queue.Enqueue($childPath) }
             }
         }
         catch {
@@ -587,13 +599,35 @@ function Get-RemovalItems {
         }
     }
 
-    $ordered = @($items |
-        Where-Object { -not $protectedDirectories.Contains($_.Path) } |
-        Sort-Object @{ Expression = { $_.Path.Length }; Descending = $true }, @{ Expression = { $_.Path.ToUpperInvariant() }; Descending = $false })
-    if ($Target.Kind -ne 'Contents') {
-        $ordered += [pscustomobject]@{ Path = $path; IsDirectory = $true }
+    # Breadth-first discovery lists parents before children; reversing deletes children first.
+    $ordered = [Collections.Generic.List[object]]::new($items.Count + 1)
+    for ($i = $items.Count - 1; $i -ge 0; $i--) {
+        if (-not $protectedDirectories.Contains($items[$i].Path)) { [void]$ordered.Add($items[$i]) }
     }
-    return $ordered
+    if ($Target.Kind -ne 'Contents') {
+        [void]$ordered.Add([pscustomobject]@{ Path = $path; IsDirectory = $true })
+    }
+    return $ordered.ToArray()
+}
+
+function Remove-FilesystemEntry {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][bool]$IsDirectory,
+        [Parameter(Mandatory)][System.IO.FileAttributes]$Attributes
+    )
+    # Native deletes (directories are emptied first) avoid Remove-Item's per-call provider cost.
+    # A read-only entry is made writable once and retried; any other error propagates as a failure.
+    for ($attempt = 0; $attempt -lt 2; $attempt++) {
+        try {
+            if ($IsDirectory) { [System.IO.Directory]::Delete($Path) } else { [System.IO.File]::Delete($Path) }
+            return
+        }
+        catch [System.UnauthorizedAccessException] {
+            if ($attempt -gt 0 -or -not ($Attributes -band [System.IO.FileAttributes]::ReadOnly)) { throw }
+            [System.IO.File]::SetAttributes($Path, $Attributes -band (-bnot [System.IO.FileAttributes]::ReadOnly))
+        }
+    }
 }
 
 function Invoke-AdsmodCleanupPlan {
@@ -633,16 +667,12 @@ function Invoke-AdsmodCleanupPlan {
                 continue
             }
             try {
-                if (-not $Target.AllowExternalExact -and -not (Test-PathWithin -Path $item.Path -Root $Target.ScopeRoot)) {
-                    [void]$skipped.Add("$($item.Path) (outside validated scope)")
-                    continue
-                }
                 $attributes = [System.IO.File]::GetAttributes($item.Path)
                 if ($attributes -band [System.IO.FileAttributes]::ReparsePoint) {
                     [void]$skipped.Add("$($item.Path) (target became a reparse point; not followed or removed)")
                     continue
                 }
-                Remove-Item -LiteralPath $item.Path -Force -ErrorAction Stop
+                Remove-FilesystemEntry -Path $item.Path -IsDirectory $item.IsDirectory -Attributes $attributes
                 [void]$removed.Add($item.Path)
                 $targetRemoved++
             }
